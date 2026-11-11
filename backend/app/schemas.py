@@ -150,6 +150,60 @@ class GeoTree(BaseModel):
         "(no parent above them). Inactive areas and everything below them are left out."))
 
 
+class Gender(StrEnum):
+    M = "M"
+    F = "F"
+    O = "O"  # noqa: E741
+
+
+class RelationType(StrEnum):
+    father = "father"
+    mother = "mother"
+    husband = "husband"
+    wife = "wife"
+    other = "other"
+
+
+class RollStatus(StrEnum):
+    active = "active"
+    absent_from_current_roll = "absent_from_current_roll"  # never treated as dead
+    deleted_in_roll = "deleted_in_roll"
+
+
+class SurveyStatus(StrEnum):
+    surveyed = "surveyed"
+    not_surveyed = "not_surveyed"
+
+
+class VoterListItem(BaseModel):
+    id: uuid.UUID
+    local_body_id: uuid.UUID
+    ward_id: uuid.UUID
+    booth_id: uuid.UUID
+    section_id: uuid.UUID | None
+    part_no: int
+    booth_no: int | None
+    serial_no: int
+    epic_no: str | None
+    full_name_mr: str | None
+    full_name_en: str | None
+    relation_type: RelationType | None
+    relative_name_mr: str | None
+    relative_name_en: str | None
+    gender: Gender
+    age: int | None
+    house_no: str | None
+    roll_status: RollStatus
+    mobile_1: str | None = Field(description="From the survey; null until surveyed")
+    color_tag_id: uuid.UUID | None
+    is_surveyed: bool
+
+
+class VoterPage(BaseModel):
+    items: list[VoterListItem]
+    next_cursor: str | None = Field(description="Pass as `cursor` for the next page; null on the last page")
+
+
 class MeUser(UserSummary):
     mobile: str | None
     local_body_id: uuid.UUID | None = Field(description="Constituency of an admin / worker. Null for super admin.")

@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import auth, devices, geo, health, me
+from .routers import auth, devices, geo, health, me, voters
 
 API_PREFIX = "/api/v1"
 
@@ -24,6 +24,7 @@ each refresh returns a new refresh token and the old one stops working.
 | Status | Code | Meaning |
 |---|---|---|
 | 400 | `wrong_current_password` | change-password: current password wrong |
+| 400 | `invalid_cursor` | list cursor is damaged; start again without it |
 | 401 | `invalid_credentials` | wrong workspace code, user ID or password |
 | 401 | `not_authenticated`, `invalid_token` | no / bad access token |
 | 401 | `token_expired` | call `/auth/refresh` |
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(me.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(devices.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     return app
 
 

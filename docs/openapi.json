@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "JANSETU API",
-    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
+    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -858,6 +858,310 @@
           }
         ]
       }
+    },
+    "/api/v1/voters": {
+      "get": {
+        "tags": [
+          "voters"
+        ],
+        "summary": "Search and filter voters in the user's area, in roll order. All roles.",
+        "operationId": "list_voters",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Words to find. Every word must match a name (Marathi or English), EPIC or house number. A number also matches the serial number exactly, and part of a mobile if it has 4+ digits.",
+              "title": "Q"
+            },
+            "description": "Words to find. Every word must match a name (Marathi or English), EPIC or house number. A number also matches the serial number exactly, and part of a mobile if it has 4+ digits."
+          },
+          {
+            "name": "ward_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ward Id"
+            }
+          },
+          {
+            "name": "booth_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Booth Id"
+            }
+          },
+          {
+            "name": "age_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 150,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Age Min"
+            }
+          },
+          {
+            "name": "age_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 150,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Age Max"
+            }
+          },
+          {
+            "name": "gender",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Gender"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Gender"
+            }
+          },
+          {
+            "name": "color_tag_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Color Tag Id"
+            }
+          },
+          {
+            "name": "survey_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SurveyStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Survey Status"
+            }
+          },
+          {
+            "name": "caste_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Caste Id"
+            }
+          },
+          {
+            "name": "profession_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Profession Id"
+            }
+          },
+          {
+            "name": "has_mobile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Mobile"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoterPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1347,6 +1651,15 @@
         ],
         "title": "ErrorResponse"
       },
+      "Gender": {
+        "type": "string",
+        "enum": [
+          "M",
+          "F",
+          "O"
+        ],
+        "title": "Gender"
+      },
       "GeoLevel": {
         "type": "string",
         "enum": [
@@ -1702,6 +2015,17 @@
         ],
         "title": "RefreshRequest"
       },
+      "RelationType": {
+        "type": "string",
+        "enum": [
+          "father",
+          "mother",
+          "husband",
+          "wife",
+          "other"
+        ],
+        "title": "RelationType"
+      },
       "Role": {
         "type": "string",
         "enum": [
@@ -1712,6 +2036,23 @@
           "booth_agent"
         ],
         "title": "Role"
+      },
+      "RollStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "absent_from_current_roll",
+          "deleted_in_roll"
+        ],
+        "title": "RollStatus"
+      },
+      "SurveyStatus": {
+        "type": "string",
+        "enum": [
+          "surveyed",
+          "not_surveyed"
+        ],
+        "title": "SurveyStatus"
       },
       "UserSummary": {
         "properties": {
@@ -1752,6 +2093,236 @@
           "role"
         ],
         "title": "UserSummary"
+      },
+      "VoterListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "local_body_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Local Body Id"
+          },
+          "ward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ward Id"
+          },
+          "booth_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booth Id"
+          },
+          "section_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Id"
+          },
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "booth_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booth No"
+          },
+          "serial_no": {
+            "type": "integer",
+            "title": "Serial No"
+          },
+          "epic_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epic No"
+          },
+          "full_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name Mr"
+          },
+          "full_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name En"
+          },
+          "relation_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relative_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name Mr"
+          },
+          "relative_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name En"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "house_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House No"
+          },
+          "roll_status": {
+            "$ref": "#/components/schemas/RollStatus"
+          },
+          "mobile_1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 1",
+            "description": "From the survey; null until surveyed"
+          },
+          "color_tag_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Tag Id"
+          },
+          "is_surveyed": {
+            "type": "boolean",
+            "title": "Is Surveyed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "local_body_id",
+          "ward_id",
+          "booth_id",
+          "section_id",
+          "part_no",
+          "booth_no",
+          "serial_no",
+          "epic_no",
+          "full_name_mr",
+          "full_name_en",
+          "relation_type",
+          "relative_name_mr",
+          "relative_name_en",
+          "gender",
+          "age",
+          "house_no",
+          "roll_status",
+          "mobile_1",
+          "color_tag_id",
+          "is_surveyed"
+        ],
+        "title": "VoterListItem"
+      },
+      "VoterPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VoterListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as `cursor` for the next page; null on the last page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "VoterPage"
       },
       "WorkspaceSettings": {
         "properties": {
