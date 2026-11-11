@@ -41,8 +41,19 @@ Strictest last. Use the strictest that fits:
 | `require_role(Role.x)` | ReadyUser with rank >= x (`forbidden_role`) |
 
 - `Db` is the request's transaction, RLS context already set. Commits before the response is sent.
-- Rank: super_admin 4 > admin 3 > supervisor 2 > surveyor = booth_agent 1. Equal rank is **not** interchangeable: survey work refuses booth agents, polling day refuses surveyors. Step 4.1 adds an explicit role-list check (`require_roles`) and `app/scope.py` (area scope).
+- Rank: super_admin 4 > admin 3 > supervisor 2 > surveyor = booth_agent 1. Equal rank is **not** interchangeable, so work-specific endpoints use a role list instead:
+  - `require_roles(SURVEY_ROLES)`: super_admin, admin, supervisor, surveyor (no booth agent).
+  - `require_roles(POLLING_ROLES)`: super_admin, admin, supervisor, booth_agent (no surveyor).
+  - `check_roles(principal, roles)` does the same check for a single item, e.g. one entry in a sync push batch.
 - `last_seen_at` on the session is written at most once a minute.
+
+## Area scope (`app/scope.py`)
+
+- `UserScope` dependency → `Scope`. Super admin: whole workspace. Admin: own constituency. Others: assigned wards/booths that are active and inside their own constituency. Each area covers its subtree.
+- `scope.filter("v.geo_path")` → `(sql_condition, params)` for any ltree column (`geo_units.path`, `voters.geo_path`). Returns `TRUE` / `FALSE` for whole/empty scope. Pass column names from code only.
+- `require_area(conn, scope, geo_id)` → 404 `not_found` unless the area is active and in scope (use it for `ward=` / `booth=` filters).
+- A user with no assignments has an empty scope (sees nothing), not an error.
+- Tests build a scope directly with `load_scope` inside `app.db.transaction(...)` (RLS applies); see `tests/test_scope.py`.
 
 ## Error codes
 
