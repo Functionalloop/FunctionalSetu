@@ -8,7 +8,8 @@ from sqlalchemy import text
 from ..deps import CurrentUser, Db, ReadyUser
 from ..errors import ApiError
 from ..scope import load_scope
-from ..schemas import CANDIDATE_FIELDS, Area, DeviceDetail, Me, MeUser, Role, WorkspaceSettings, WorkspaceSummary
+from ..workspace_settings import load_workspace_settings
+from ..schemas import Area, DeviceDetail, Me, MeUser, Role, WorkspaceSummary
 
 router = APIRouter(tags=["me"])
 
@@ -36,13 +37,7 @@ def get_me(conn: Db, user: ReadyUser) -> Me:
     areas = conn.execute(text(areas_sql), {"u": user.user_id, "lb": user.local_body_id, "ids": ids}
                          ).mappings().all()
 
-    srow = conn.execute(text("SELECT * FROM app.tenant_settings")).mappings().first()
-    settings = None
-    if srow is not None:
-        data = {k: srow[k] for k in WorkspaceSettings.model_fields}
-        if data["code_of_conduct_mode"]:
-            data.update(dict.fromkeys(CANDIDATE_FIELDS))
-        settings = WorkspaceSettings(**data)
+    settings = load_workspace_settings(conn)
 
     return Me(user=MeUser(**u), workspace=WorkspaceSummary(**ws),
               areas=[Area(**a) for a in areas], settings=settings)

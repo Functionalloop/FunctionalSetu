@@ -1500,6 +1500,126 @@
           }
         }
       }
+    },
+    "/api/v1/sync/pull": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "First download of the user's area, in pages (see SyncPage). All roles, from the app.",
+        "operationId": "pull",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page; none = start",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page; none = start"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "description": "Voters or surveys per page",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "Voters or surveys per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1916,6 +2036,123 @@
           "new_password"
         ],
         "title": "ChangePasswordRequest"
+      },
+      "ColorTag": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "hex": {
+            "type": "string",
+            "title": "Hex"
+          },
+          "label_mr": {
+            "type": "string",
+            "title": "Label Mr"
+          },
+          "label_en": {
+            "type": "string",
+            "title": "Label En"
+          },
+          "label_hi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Hi"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "hex",
+          "label_mr",
+          "label_en",
+          "label_hi",
+          "is_default",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "ColorTag"
+      },
+      "CustomFieldLabel": {
+        "properties": {
+          "field_key": {
+            "type": "string",
+            "title": "Field Key",
+            "description": "extra_check_1-2 or extra_info_1-5 in the survey"
+          },
+          "label_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Mr"
+          },
+          "label_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label En"
+          },
+          "label_hi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Hi"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled",
+            "description": "Disabled fields are hidden in the survey"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field_key",
+          "label_mr",
+          "label_en",
+          "label_hi",
+          "is_enabled"
+        ],
+        "title": "CustomFieldLabel"
       },
       "DeviceDetail": {
         "properties": {
@@ -2561,6 +2798,61 @@
         ],
         "title": "MeUser"
       },
+      "NamedListEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_hi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Hi"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Inactive: keep showing it on old surveys, do not offer it for new ones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name_mr",
+          "name_en",
+          "name_hi",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "NamedListEntry",
+        "description": "A caste or a profession."
+      },
       "RefreshRequest": {
         "properties": {
           "refresh_token": {
@@ -3154,6 +3446,538 @@
           "not_surveyed"
         ],
         "title": "SurveyStatus"
+      },
+      "SyncArea": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "level": {
+            "$ref": "#/components/schemas/GeoLevel"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "address_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Mr"
+          },
+          "address_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address En"
+          },
+          "ac_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ac No"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "parent_id",
+          "level",
+          "code",
+          "number",
+          "name_mr",
+          "name_en",
+          "address_mr",
+          "address_en",
+          "ac_no",
+          "sort_order"
+        ],
+        "title": "SyncArea"
+      },
+      "SyncLists": {
+        "properties": {
+          "castes": {
+            "items": {
+              "$ref": "#/components/schemas/NamedListEntry"
+            },
+            "type": "array",
+            "title": "Castes"
+          },
+          "professions": {
+            "items": {
+              "$ref": "#/components/schemas/NamedListEntry"
+            },
+            "type": "array",
+            "title": "Professions"
+          },
+          "color_tags": {
+            "items": {
+              "$ref": "#/components/schemas/ColorTag"
+            },
+            "type": "array",
+            "title": "Color Tags"
+          },
+          "custom_field_labels": {
+            "items": {
+              "$ref": "#/components/schemas/CustomFieldLabel"
+            },
+            "type": "array",
+            "title": "Custom Field Labels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "castes",
+          "professions",
+          "color_tags",
+          "custom_field_labels"
+        ],
+        "title": "SyncLists"
+      },
+      "SyncPage": {
+        "properties": {
+          "watermark": {
+            "type": "string",
+            "title": "Watermark",
+            "description": "The same on every page of one download (a whole number, as text)"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceSettings"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First page only"
+          },
+          "lists": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncLists"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First page only"
+          },
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/SyncArea"
+            },
+            "type": "array",
+            "title": "Areas",
+            "description": "The user's areas (first page)"
+          },
+          "total_voters": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Voters",
+            "description": "First page only: for a progress bar"
+          },
+          "total_surveys": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Surveys",
+            "description": "First page only: for a progress bar"
+          },
+          "voters": {
+            "items": {
+              "$ref": "#/components/schemas/SyncVoter"
+            },
+            "type": "array",
+            "title": "Voters"
+          },
+          "surveys": {
+            "items": {
+              "$ref": "#/components/schemas/Survey"
+            },
+            "type": "array",
+            "title": "Surveys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "watermark",
+          "next_cursor"
+        ],
+        "title": "SyncPage",
+        "description": "One page of a sync pull. Save every row it holds (insert or replace by id), then ask\nfor `next_cursor`. When `next_cursor` is null the download is complete: store `watermark`\nand use it as `since` on the next pull."
+      },
+      "SyncVoter": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "local_body_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Local Body Id"
+          },
+          "ward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ward Id"
+          },
+          "booth_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booth Id"
+          },
+          "section_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Id"
+          },
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "booth_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booth No"
+          },
+          "serial_no": {
+            "type": "integer",
+            "title": "Serial No"
+          },
+          "epic_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epic No"
+          },
+          "first_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name Mr"
+          },
+          "middle_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name Mr"
+          },
+          "last_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name Mr"
+          },
+          "first_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name En"
+          },
+          "middle_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name En"
+          },
+          "last_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name En"
+          },
+          "relation_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relative_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name Mr"
+          },
+          "relative_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name En"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "age_as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age As Of"
+          },
+          "house_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House No"
+          },
+          "address_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Mr"
+          },
+          "address_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address En"
+          },
+          "list_type": {
+            "$ref": "#/components/schemas/ListType"
+          },
+          "roll_status": {
+            "$ref": "#/components/schemas/RollStatus"
+          },
+          "deletion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deletion Reason"
+          },
+          "is_repeated_in_roll": {
+            "type": "boolean",
+            "title": "Is Repeated In Roll"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Set when the voter was removed: delete it on the phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "local_body_id",
+          "ward_id",
+          "booth_id",
+          "section_id",
+          "part_no",
+          "booth_no",
+          "serial_no",
+          "epic_no",
+          "first_name_mr",
+          "middle_name_mr",
+          "last_name_mr",
+          "first_name_en",
+          "middle_name_en",
+          "last_name_en",
+          "relation_type",
+          "relative_name_mr",
+          "relative_name_en",
+          "gender",
+          "age",
+          "age_as_of",
+          "house_no",
+          "address_mr",
+          "address_en",
+          "list_type",
+          "roll_status",
+          "deletion_reason",
+          "is_repeated_in_roll",
+          "deleted_at"
+        ],
+        "title": "SyncVoter",
+        "description": "Official roll fields of one voter (the survey comes separately in `surveys`)."
       },
       "UserSummary": {
         "properties": {

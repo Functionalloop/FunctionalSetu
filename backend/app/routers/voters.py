@@ -125,8 +125,9 @@ def list_voters(
 
 
 # --- one voter and the survey ------------------------------------------------------------
-_SURVEY_COLS = ", ".join(["voter_id", "version", "is_surveyed", "surveyed_at", "lat", "lng", "location_accuracy_m",
-                          "location_captured_at", "updated_at", "updated_by", *SurveyFields.model_fields])
+SURVEY_COLUMNS = ["voter_id", "version", "is_surveyed", "surveyed_at", "lat", "lng", "location_accuracy_m",
+                  "location_captured_at", "updated_at", "updated_by", *SurveyFields.model_fields]  # = Survey
+_SURVEY_COLS = ", ".join(SURVEY_COLUMNS)
 _EDIT_COLS = list(SurveyFields.model_fields)  # replaced on every save
 
 SurveyUser = Annotated[Principal, Depends(require_roles(SURVEY_ROLES))]
