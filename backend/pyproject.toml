@@ -17,6 +17,7 @@ dependencies = [
     "pyjwt>=2.8",
     "argon2-cffi>=23.1",
     "python-dotenv>=1.0",        # scripts/ and db/seed/ read deploy/.env with it
+    "python-multipart>=0.0.9",   # file uploads (roll files, mobile sheets, photos)
 ]
 
 [project.optional-dependencies]

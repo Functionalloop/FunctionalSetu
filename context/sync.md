@@ -1,6 +1,6 @@
 # Sync
 
-Design: `docs/02_tech_stack_and_api.md` ("Offline sync"). Server code: `backend/app/sync_pull.py`, `backend/app/routers/sync.py`. Phone side: not built yet (step 5).
+Design: `docs/02_tech_stack_and_api.md` ("Offline sync"). Server code: `backend/app/sync_pull.py`, `backend/app/sync_push.py`, `backend/app/routers/sync.py`. Phone side: not built yet (step 5).
 
 ## Watermark
 
@@ -23,21 +23,32 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 - Scope is recomputed per page (`app/scope.py`; switched-off areas excluded).
 - **Blocked or wiped phone:** 200 with `wipe: true` and nothing else (other data endpoints give it 403 `device_blocked`). Pending phone / password not changed: 403 as usual. The route uses `CurrentUser` and applies the ready checks itself.
 
+## `POST /sync/push` (built 4.8)
+
+- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey` only so far), `entity_id` (voter id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
+- Result per item, same order: `applied` (`survey` = saved copy with the new version), `conflict` (`survey` = server copy, `conflict_fields`), `rejected` (`error.code`: `forbidden_role`, `validation_error`, `not_found`, ...). `duplicate: true` = this id was seen before; the stored status is returned and nothing is applied again.
+- **One bad item never fails the batch** (the outbox would stick): `data` is validated per item. Only a broken envelope (bad `id`, unknown `type`, > 500 items) is a 422 for the whole request.
+- Retry safety, two layers: (1) look up `sync_mutations (device_id, client_mutation_id)` first; (2) each item runs in a SAVEPOINT and records its result with `INSERT ... ON CONFLICT DO NOTHING` at the end; if a parallel request recorded the id first, the savepoint is rolled back and the stored result returned. Test `test_parallel_retries_apply_once` fails without layer 2.
+- Conflict: nothing written to the survey; one `sync_conflicts` row per differing field (`client_value` / `server_value` jsonb, `status = open`). If the phone's data equals the server copy, it is `applied` with no conflict rows. Resolving conflicts (`GET /sync/conflicts`, `.../resolve`) is not built.
+- Needs a phone: a login without a device gets 403 `device_required` (the retry key is per device). Roles are checked per item (`SURVEY_ROLES` for surveys): a booth agent's survey item is `rejected`, not a 403 for the batch.
+- Uses the same `write_survey` as `PUT /voters/{id}/survey`, so both follow one set of rules.
+
 ## What the phone must do (step 5)
 
 1. `wipe: true` from the pull, **or** 403 `device_blocked` from any call (refresh and login also give it once the 15-min token is gone): delete the database and go to Login.
 2. Save every row of every page (replace by id). A voter with `deleted_at` set: delete it. `gone_voter_ids`: delete those voters and their surveys.
 3. `area_ids` (page 1): delete local areas not in it and their voters. If it holds an id the phone does not have (a new assignment), run a **first download** again after this pull (no wipe; rows are replaced). Delta rows cannot bring a new area: its voters have old `sync_xid`.
 4. When `next_cursor` is null, store `watermark`; send it as `since` next time. If the app stops mid-pull, re-send the last cursor (5.6) or start the pull again from the stored W (safe: rows replace).
+5. Push before pull. Keep each outbox item (with its `id`) until a result arrives: `applied` → update the local version from `survey`; `conflict` → keep the local copy marked as a conflict and show it (the pull brings the server copy); `rejected` → drop it and show the error. A network failure → send the same items with the same ids again.
 
 ## Real roll (11 Nov, dev DB, server time only)
 
 - First download, admin, whole AC: 31,871 voters, 34 pages of 1000, 1.3 s, slowest page 66 ms, **24.9 MB JSON uncompressed**. One ward: 685 voters, 0.6 MB.
+- Push: 500 survey items 3.3 s (6.6 ms/item); the same 500 again as retries 0.8 s, nothing written. If polling day needs faster bulk marks, batch the SQL per type instead of per item.
 - Delta: nothing changed 1 page / 0.02 s; 100 voters changed 2 pages / 0.02 s; `since=1` (everything, like after a roll import) 31,871 voters in 33 pages / ~1 s.
 
 ## Not built yet / open
 
-- 4.8 push.
 - `devices.last_pull_watermark` is not written: `devices` has an audit trigger, so a write per pull = an audit row per phone per sync. Decide when the admin needs "last synced" (maybe from `auth_sessions.last_seen_at`).
 - Nothing records that a blocked phone finished wiping (plan gap table: phone reports it on `/devices/me`; not decided).
 

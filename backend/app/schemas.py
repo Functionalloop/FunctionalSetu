@@ -468,3 +468,70 @@ class SyncPage(BaseModel):
     surveys: list[Survey] = Field(default_factory=list)
     gone_voter_ids: list[uuid.UUID] = Field(default_factory=list, description=(
         "Delta only: voters that changed and are now outside the user's area; delete them on the phone"))
+    families: list[dict] = Field(default_factory=list, description="Family rows (schema Family); from step 7.2")
+    visits: list[dict] = Field(default_factory=list, description="Visit rows (schema Visit); from step 7.3")
+    new_voters: list[dict] = Field(default_factory=list, description="NewVoter rows; from step 7.5")
+    turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
+
+
+# --- sync push ---------------------------------------------------------------------
+MAX_PUSH_ITEMS = 500
+
+
+class PushType(StrEnum):
+    """`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);
+    visit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);
+    new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
+    family = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).
+    Only `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of
+    those types is rejected with not_implemented and NOT recorded, so a retry after the server
+    update applies it."""
+    survey = "survey"
+    visit = "visit"
+    voted = "voted"
+    unvoted = "unvoted"
+    new_voter = "new_voter"
+    new_voter_update = "new_voter_update"
+    family = "family"
+    slip_event = "slip_event"
+    name_fix = "name_fix"
+
+
+class PushStatus(StrEnum):
+    applied = "applied"    # saved (or already the same as on the server)
+    conflict = "conflict"  # stale base_version: nothing written, kept in sync_conflicts for review
+    rejected = "rejected"  # not allowed or invalid: will never apply, drop it from the outbox
+
+
+class PushItem(BaseModel):
+    id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
+    type: PushType
+    entity_id: uuid.UUID = Field(description="survey: the voter id")
+    base_version: int = Field(ge=0, description="survey: the version the phone last had; 0 = no survey yet")
+    changed_at: datetime | None = Field(None, description="When the change was made on the phone")
+    data: dict = Field(description=(
+        "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
+        "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
+
+
+class PushRequest(BaseModel):
+    items: list[PushItem] = Field(max_length=MAX_PUSH_ITEMS, description="Applied in this order")
+
+
+class PushError(BaseModel):
+    code: str
+    message: str
+
+
+class PushResult(BaseModel):
+    id: uuid.UUID = Field(description="The item's id")
+    status: PushStatus
+    duplicate: bool = Field(description="This id was received before: the stored result, nothing applied again")
+    error: PushError | None = Field(None, description="rejected only")
+    survey: Survey | None = Field(None, description=(
+        "applied: the saved copy (new version); conflict: the server copy"))
+    conflict_fields: list[str] = Field(default_factory=list, description="conflict: fields that differ")
+
+
+class PushResponse(BaseModel):
+    results: list[PushResult] = Field(description="One per item, in the same order")

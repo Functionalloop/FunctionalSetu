@@ -93,7 +93,8 @@ docs/                 SRS, API contract, screen flow, openapi.json, plan.md, leg
 db/migrations/        001_jansetu_schema.sql, 002_..., ...
 db/seed/              seed.py (fake sample data only, workspace "demo")
 backend/              FastAPI app (app/, tests/), pyproject.toml
-scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, export_openapi.py, tasks.py,
+scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, export_openapi.py, tasks.py,
+                      check_dev_data.py (end-of-step check on the real roll),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml, .env.example
 jansetu-private/      real roll files (git-ignored, never committed)
@@ -106,7 +107,8 @@ Not created yet:      backend/app/worker.py, scripts/backup.sh, android/, portal
 - **Step 1 done:** dev database (Docker, port 5442), `scripts/migrate.py`, fake seed.
 - **Step 2 done:** 51 official roll part files imported with `scripts/import_roll_parts.py` (31,871 voters, AC 2, workspace `naik`). The old VoterappDB data will NOT be imported (client decision); `import_legacy.py` is not run.
 - **Step 3 done:** FastAPI skeleton; auth (login, refresh, logout, change-password; Argon2id; JWT 15 min; rotating refresh token in `auth_sessions`; lockout after 5 wrong tries); `/me`, `/health`, `/devices/me`, `POST /devices/{id}/approve` and `/block`; error format; `scripts/create_super_admin.py`; `openapi.json` with an export check; separate `jansetu_test` database with a name guard. 40 tests pass.
-- **Next:** step 4 in `docs/plan.md` (demo API).
+- **Step 4 done (11 Nov):** area scope and role lists, area tree, voter search / detail / survey, admin phone list, sync pull (first + delta + wipe) and push for surveys, demo users (`scripts/create_demo_users.py`), the full contract (82 more endpoints answer 501 until built), generic endpoint checks, per-runner test databases. 1,131 tests; `scripts/check_dev_data.py` all pass.
+- **Next:** step 5 (Android) and filling in the 501 stubs (steps 7–11); see `docs/plan.md`.
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
 
@@ -125,14 +127,14 @@ Nothing outside the SRS is built (see the last section of `docs/plan.md`). The L
 ## Git workflow
 
 - One branch per step (`step4-demo-api`, `step5-android-demo`, ...).
-- At the end of each step, run one full check of everything before merging: all backend tests, `python scripts/tasks.py check`, and checks on the real roll in the dev database (counts and timings only; any write inside a transaction that is rolled back).
+- At the end of each step, run one full check of everything before merging: all backend tests (`TEST_RUNNER=claude pytest`), `python scripts/tasks.py check`, and `python scripts/check_dev_data.py` (the real roll in the dev database: counts and timings only, every write rolled back, row counts compared before and after). Add a check there for each new feature.
 - Merge into `main` when that check passes.
 - Never commit `.env` or anything in `jansetu-private/`.
 
 ## Working style
 
 - Small, reviewable steps. Run the tests after each change (`pytest` in `backend/`).
-- Tests run only against `jansetu_test`; the dev database holds the real roll.
+- Tests run only against `jansetu_test` / `jansetu_test_<runner>`; the dev database holds the real roll. Run them as `TEST_RUNNER=claude pytest` (Antigravity: `TEST_RUNNER=antigravity`) so parallel runs do not wipe each other.
 - Comments in `001_jansetu_schema.sql` that mention Django, Celery or Nginx are out of date. Do not edit an applied migration; add a new numbered file.
 - Every endpoint gets a test, including a test that a user cannot see another workspace's or another area's data. Add every new endpoint as a row in `backend/tests/endpoints.py`: the generic checks (401, 403 per role and phone state, 404 for another workspace or area, list isolation) then run on it, and a route without a row fails the tests. Its own test file covers what it does.
 - Keep explanations short and plain; I am the only backend developer.

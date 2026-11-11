@@ -3,22 +3,22 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 9 / 74 done (12%)** `██░░░░░░░░░░░░░░░░░░`
+**Overall: 12 / 75 done (16%)** `███░░░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
-| Step 4 – Demo API | 9 / 12 | `████████░░` |
+| Step 4 – Demo API | 12 / 12 | `██████████` |
 | Step 5 – Android demo app | 0 / 13 | `░░░░░░░░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 0 / 9 | `░░░░░░░░░░` |
+| Step 7 – Field screens | 0 / 10 | `░░░░░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 
-## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 9/12
+## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
 - [x] **4.0** Merge step 3 into `main` · due 12 Nov · done 2026-11-11 · `baae929`
 - [x] **4.1** Area scope helper · due 12 Nov · done 2026-11-11 · `ae6f6b8`
@@ -29,9 +29,9 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **4.5** `GET /devices` · due 13 Nov · done 2026-11-11 · `fa5f825`
 - [x] **4.6** `GET /sync/pull`, first download · due 14 Nov · done 2026-11-11 · `76e32db`
 - [x] **4.7** `GET /sync/pull?since=W` · due 14 Nov · done 2026-11-11 · `e3cabf4`
-- [ ] **4.8** `POST /sync/push` · due 15 Nov
-- [ ] **4.9** Demo users · due 15 Nov
-- [ ] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions
+- [x] **4.8** `POST /sync/push` · due 15 Nov · done 2026-11-11 · `54ca991`
+- [x] **4.9** Demo users · due 15 Nov · done 2026-11-11 · `40ff705`
+- [x] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions · done 2026-11-11 · `9f7ab97`
 
 ## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 0/13
 
@@ -63,7 +63,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/9
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/10
 
 - [ ] **7.1** Families from house numbers · due 26 Nov
 - [ ] **7.2** Family and walk list API · due 26 Nov
@@ -74,6 +74,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **7.7** Voter slip · due 27 Nov
 - [ ] **7.8** Birthdays and Select many · due 27 Nov
 - [ ] **7.9** More menu items · due 27 Nov
+- [ ] **7.10** Conflict review · due 27 Nov
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
 

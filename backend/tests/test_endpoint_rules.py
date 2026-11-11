@@ -23,7 +23,7 @@ import pytest
 from app.main import API_PREFIX, create_app
 from app.schemas import Role
 from conftest import Workspace, _connect, bearer, create_workspace, login, phone
-from endpoints import ENDPOINTS, KINDS, Endpoint
+from endpoints import ENDPOINTS, KINDS, PATH_SAMPLES, QUERY_SAMPLES, Endpoint
 
 USERNAME = {Role.super_admin: "boss", Role.admin: "admin1", Role.supervisor: "sup1",
             Role.surveyor: "survey1", Role.booth_agent: "agent1"}
@@ -94,10 +94,19 @@ def world(test_database, client):
 
 
 # --- helpers ------------------------------------------------------------------------------
+def fill_path(ep: Endpoint, target_id=None) -> str:
+    """Path with its parameters: the target's id, or sample values for stub routes."""
+    if ep.target:
+        return re.sub(r"\{[^}]+\}", str(target_id), ep.path)
+    return re.sub(r"\{([^}]+)\}", lambda m: PATH_SAMPLES.get(m.group(1), str(uuid.uuid4())), ep.path)
+
+
 def call(world: World, ep: Endpoint, token: dict | None, target_id=None, params=None, raw_auth=None):
-    path = re.sub(r"\{[^}]+\}", str(target_id), ep.path) if ep.target else ep.path
     headers = {"Authorization": raw_auth} if raw_auth else (bearer(token) if token else {})
-    return world.client.request(ep.method, API_PREFIX + path, headers=headers, params=params, json=ep.body)
+    if params is None and ep.stub:
+        params = QUERY_SAMPLES.get(ep.path)
+    return world.client.request(ep.method, API_PREFIX + fill_path(ep, target_id), headers=headers, params=params,
+                                json=ep.body)
 
 
 def assert_error(r, status: int, code: str | None = None) -> None:
@@ -196,7 +205,26 @@ def test_role_allowed(world, ep, role):
     if ep.fresh_login:
         token = world.phone_login(world.a, USERNAME[role], status=None)  # same phone, still approved
     r = call(world, ep, token, own_target(world, ep))
+    if ep.stub:  # passed login and the role check, reached the stub
+        if r.status_code == 422 and ep.method in ("POST", "PUT", "PATCH") and ep.body is None:
+            assert_error(r, 422, "validation_error")  # no sample body: the body check comes after the role check
+        else:
+            assert_error(r, 501, "not_implemented")
+        return
     assert r.status_code < 400, r.text
+
+
+@pytest.mark.parametrize("ep", params(lambda e: e.stub and e.level == "public"))
+def test_public_stub_answers_without_login(world, ep):
+    assert_error(call(world, ep, None), 501, "not_implemented")
+
+
+def test_stub_flags_match_the_api():
+    """A row is a stub exactly when its route still documents 501, so building a route flips both."""
+    paths = create_app().openapi()["paths"]
+    documented = {(m.upper(), p.removeprefix(API_PREFIX)) for p, ops in paths.items() for m, op in ops.items()
+                  if "501" in op["responses"]}
+    assert {(e.method, e.path) for e in ENDPOINTS if e.stub} == documented
 
 
 # --- isolation ------------------------------------------------------------------------------------

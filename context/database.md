@@ -38,12 +38,16 @@ python scripts/migrate.py [--status]                      # apply pending migrat
 python db/seed/seed.py                                    # FAKE data, workspace "demo" (stops if it exists)
 python scripts/import_roll_parts.py --parts "DIR/S05A02P*.csv" [--dry-run] [--tenant-code naik] [--errors PATH]
 python scripts/create_super_admin.py --username X --name "Full Name"   # prints a one-time temp password
+python scripts/create_demo_users.py [--parts 1,2] [--reset | --remove]  # demo.* users; passwords -> jansetu-private/demo_users.txt
 python scripts/export_openapi.py                          # rewrites docs/openapi.json
+python scripts/check_dev_data.py                          # end-of-step check on the real roll (read-only / rolled back)
 ```
 
 ## State (11 Nov 2026)
 
 - Dev database `jansetu` holds the real roll: workspace `naik`, AC 2, 31,871 voters. Mapping: one ward per roll part (50), one booth per part. Dev DB is Docker volume `pgdata`.
+- Users in `naik` (11 Nov): only the four demo users from `create_demo_users.py` (demo.superadmin, demo.admin, demo.supervisor = wards of parts 1-2, demo.surveyor = booths of parts 1-2, 872 voters). All must change their temporary password at first login. **No real super admin yet**: create it with `create_super_admin.py` when the client names the person; switch the demo users off after the demo (`--remove`).
+- `--reset` before each rehearsal: new temporary passwords, sessions ended, demo phones back to pending.
 - Not imported (decided): the old VoterappDB data. `scripts/import_legacy.py` is not run; `import_roll_parts.py` reuses its helpers.
 - Import leaves: no Marathi names, no `voter_surveys` rows (first survey save creates it), no `families`.
 - Re-running an import skips voters already present (EPIC, or booth + serial).
@@ -53,4 +57,4 @@ python scripts/export_openapi.py                          # rewrites docs/openap
 - Real voter data: show counts and shapes only, never names, EPICs or mobiles. Import error files go to `../jansetu-private/`.
 - `migrate.py`: a file with its own `BEGIN/COMMIT` (like 001) runs as written; any other file runs in one transaction with its record. Prefer the second form from 002 on.
 - Port 5442 is used so it does not clash with other local PostgreSQL containers.
-- The tests use a separate `jansetu_test` database (see `backend.md`); never point them at `jansetu`.
+- The tests use `jansetu_test` or `jansetu_test_<runner>` (see `backend.md`); never point them at `jansetu`.

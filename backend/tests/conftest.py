@@ -1,14 +1,21 @@
 """Shared test fixtures.
 
 Tests never touch the dev database (it may hold real voter data). Each pytest run
-drops and re-creates TEST_POSTGRES_DB (default jansetu_test) on the same server,
-applies db/migrations with scripts/migrate.py, and every test makes its own
-throwaway workspace in it. Server and passwords come from deploy/.env.
+drops and re-creates its test database on the same server, applies db/migrations
+with scripts/migrate.py, and every test makes its own throwaway workspace in it.
+Server and passwords come from deploy/.env.
+
+Which test database (two runs at once must not share one, or each wipes the other's):
+    TEST_RUNNER=claude pytest        -> jansetu_test_claude
+    TEST_RUNNER=antigravity pytest   -> jansetu_test_antigravity
+    pytest                           -> TEST_POSTGRES_DB, else jansetu_test
+Only `jansetu_test` or `jansetu_test_<name>` is ever accepted (the run DROPs it).
 """
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import uuid
@@ -24,12 +31,23 @@ from psycopg import sql
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / "deploy" / ".env")
 
-# The run DROPs this database. Only this exact name is ever accepted.
-ALLOWED_TEST_DB = "jansetu_test"
-TEST_DB = os.environ.get("TEST_POSTGRES_DB", ALLOWED_TEST_DB)
-if TEST_DB != ALLOWED_TEST_DB:
-    raise RuntimeError(f"Refusing to run: TEST_POSTGRES_DB is {TEST_DB!r}; tests only drop/rebuild "
-                       f"{ALLOWED_TEST_DB!r}.")
+# The run DROPs this database: only these names are ever accepted.
+TEST_DB_PATTERN = re.compile(r"^jansetu_test(_[a-z0-9_]{1,30})?$")
+
+
+def test_db_name() -> str:
+    """TEST_RUNNER wins over TEST_POSTGRES_DB, so a runner never falls back to the shared database
+    because deploy/.env happens to set TEST_POSTGRES_DB."""
+    runner = re.sub(r"[^a-z0-9_]", "_", os.environ.get("TEST_RUNNER", "").strip().lower())
+    if runner:
+        return f"jansetu_test_{runner}"
+    return os.environ.get("TEST_POSTGRES_DB", "jansetu_test").strip()
+
+
+TEST_DB = test_db_name()
+if not TEST_DB_PATTERN.match(TEST_DB):
+    raise RuntimeError(f"Refusing to run: test database {TEST_DB!r}; tests only drop and rebuild "
+                       f"'jansetu_test' or 'jansetu_test_<name>' (lowercase letters, digits, _).")
 # Everything below (the app's Settings, migrate.py) now points at the test database.
 os.environ["POSTGRES_DB"] = TEST_DB
 os.environ.setdefault("JWT_SECRET", "test-only-secret-" + "x" * 32)
@@ -60,7 +78,7 @@ def _connect(user: str, password_var: str, dbname: str = TEST_DB, autocommit: bo
 @pytest.fixture(scope="session", autouse=True)
 def test_database():
     """Fresh database with all migrations applied, once per pytest run."""
-    if TEST_DB != ALLOWED_TEST_DB:  # checked again right before the DROP
+    if not TEST_DB_PATTERN.match(TEST_DB):  # checked again right before the DROP
         pytest.exit(f"Refusing to drop {TEST_DB!r}", returncode=1)
     with _connect(os.environ.get("POSTGRES_USER", "postgres"), "POSTGRES_PASSWORD",
                   dbname="postgres", autocommit=True) as su:

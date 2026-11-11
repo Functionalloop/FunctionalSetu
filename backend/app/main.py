@@ -8,7 +8,8 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import auth, devices, geo, health, me, sync, voters
+from .routers import admin, auth, devices, field, geo, health, me, misc, reports, rolls, sync, turnout, voters
+from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
 
@@ -32,13 +33,15 @@ each refresh returns a new refresh token and the old one stops working.
 | 401 | `session_ended` | logged out or ended by a password change; log in again |
 | 403 | `account_locked` | too many wrong passwords; try later |
 | 403 | `account_disabled`, `workspace_suspended` | access switched off |
-| 403 | `device_required` | surveyors / booth agents must log in from the app |
+| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |
 | 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |
 | 403 | `device_blocked` | phone blocked: wipe local data |
 | 403 | `password_change_required` | call `/auth/change-password` first |
 | 403 | `forbidden_role` | role too low |
 | 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |
 | 422 | `validation_error` (with `details`), `weak_password` | |
+| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |
+| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
 """
@@ -72,6 +75,9 @@ def create_app() -> FastAPI:
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    # contract only until built (4.10): they answer 501 not_implemented
+    for planned in (field, misc, turnout, admin, rolls, reports):
+        app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 
 

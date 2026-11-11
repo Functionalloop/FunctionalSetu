@@ -82,6 +82,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /voters/{voter_id}` | all roles, area scope (404 outside, removed or other workspace). Roll fields + `survey` (null until first save) |
 | `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
 | `GET /sync/pull` | first download and delta (`since`), blocked phone gets `wipe: true`; see `context/sync.md`. Endpoint-table flag `wipe_on_block`. Settings load via `app/workspace_settings.py` (shared with `/me`) |
+| `POST /sync/push` | surveys only (4.8); per-item results, retry-safe; see `context/sync.md`. Survey writes go through `write_survey` in `routers/voters.py` (shared with PUT) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta, important/influencer) are not in the body yet: not in the SRS survey, or later steps.
 
@@ -89,11 +90,13 @@ Errors: `ApiError(..., extra={...})` adds keys inside `error`; `ErrorBody.curren
 
 `q` rules: up to 5 words, every word must match `voters.search_text` (names mr/en, EPIC, house; lowercase `LIKE`, wildcards escaped). An ASCII number also matches `serial_no` exactly, and `mobile_1/2` when 4+ digits. Real roll (11 Nov): paging all 31,871 voters at 200/page, slowest page 61 ms; searches 10–32 ms.
 
-Everything else in `docs/02_tech_stack_and_api.md` is not built; step 4 starts it (see `docs/plan.md`).
+**Contract stubs (4.10):** every other endpoint exists as a stub that checks login and role, then answers 501 `not_implemented` (`app/stubs.py`). Routers by plan step: `field.py` (7), `misc.py` (6.3, 7.9), `turnout.py` (8), `admin.py` (9), `rolls.py` (10), `reports.py` (11); conflicts in `sync.py` (7.10). Models: `schemas_field.py`, `schemas_admin.py`, `schemas_roll.py`. Push types other than `survey` are rejected `not_implemented` and not recorded, so a retry after the update applies them.
+
+**Building a stub:** replace `not_built(...)` with the code; remove `responses=NOT_BUILT` / move the router out of the `planned` loop in `main.py` when all its routes are built; in `tests/endpoints.py` drop `stub` and add `target` / `lists` (and a `Kind` if new); write its own test file; export OpenAPI. `test_stub_flags_match_the_api` fails if the row and the route disagree.
 
 ## Tests
 
-- `conftest.py` drops and rebuilds `jansetu_test` each run, applies migrations via `scripts/migrate.py`. The name is hard-guarded: anything but `jansetu_test` aborts.
+- `conftest.py` drops and rebuilds its test database each run and applies migrations via `scripts/migrate.py`. **Each runner its own database:** `TEST_RUNNER=claude pytest` uses `jansetu_test_claude` (Antigravity: `TEST_RUNNER=antigravity`). Two runs on one database wipe each other. Only `jansetu_test` / `jansetu_test_<name>` is accepted.
 - Fixtures: `owner_conn` (BYPASSRLS, setup only), `app_conn` (RLS applies), `client`, `make_workspace(label, must_change=(), extra_users={})`, `set_device_status`.
 - `make_workspace` gives: 1 local body, 1 ward, booths 1001/1002, users `boss` (super_admin), `admin1`, `sup1` (assigned the ward), `survey1` (assigned booth 1 only). All use password `PASSWORD` (`Test@pass123`).
 - Helpers: `login(client, ws, username, device=phone())`, `bearer(tokens)`.
