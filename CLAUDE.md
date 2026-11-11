@@ -5,7 +5,7 @@ JANSETU is a voter data management platform: an offline-first Android app for fi
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
 - **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
 - **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The KVM 4 server is bought around 20 Nov; if it is late, the demo runs from my laptop.
-- **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is merged, run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
+- **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is committed on its step branch (not only when merged), run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
 ## Source of truth (read before big changes)
 
@@ -125,7 +125,8 @@ Nothing outside the SRS is built (see the last section of `docs/plan.md`). The L
 ## Git workflow
 
 - One branch per step (`step4-demo-api`, `step5-android-demo`, ...).
-- Merge into `main` when the tests pass.
+- At the end of each step, run one full check of everything before merging: all backend tests, `python scripts/tasks.py check`, and checks on the real roll in the dev database (counts and timings only; any write inside a transaction that is rolled back).
+- Merge into `main` when that check passes.
 - Never commit `.env` or anything in `jansetu-private/`.
 
 ## Working style
@@ -133,5 +134,5 @@ Nothing outside the SRS is built (see the last section of `docs/plan.md`). The L
 - Small, reviewable steps. Run the tests after each change (`pytest` in `backend/`).
 - Tests run only against `jansetu_test`; the dev database holds the real roll.
 - Comments in `001_jansetu_schema.sql` that mention Django, Celery or Nginx are out of date. Do not edit an applied migration; add a new numbered file.
-- Every endpoint gets a test, including a test that a user cannot see another workspace's or another area's data.
+- Every endpoint gets a test, including a test that a user cannot see another workspace's or another area's data. Add every new endpoint as a row in `backend/tests/endpoints.py`: the generic checks (401, 403 per role and phone state, 404 for another workspace or area, list isolation) then run on it, and a route without a row fails the tests. Its own test file covers what it does.
 - Keep explanations short and plain; I am the only backend developer.

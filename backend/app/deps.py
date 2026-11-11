@@ -140,3 +140,33 @@ def require_role(minimum: Role):
             raise ApiError(403, "forbidden_role", f"Needs role {minimum.value} or higher.")
         return p
     return check
+
+
+# Surveyor and booth agent have the same rank but different work (SRS roles table),
+# so work-specific endpoints check a list of roles instead of a minimum rank.
+SURVEY_ROLES = frozenset({Role.super_admin, Role.admin, Role.supervisor, Role.surveyor})
+POLLING_ROLES = frozenset({Role.super_admin, Role.admin, Role.supervisor, Role.booth_agent})
+
+
+def check_roles(p: Principal, roles: frozenset[Role] | set[Role]) -> None:
+    """403 forbidden_role unless the user's role is in the list. Also for per-item checks (sync push)."""
+    if p.role not in roles:
+        raise ApiError(403, "forbidden_role", "Your role cannot do this.")
+
+
+def require_roles(*roles: Role | frozenset[Role]):
+    """Dependency: ready user whose role is one of the listed roles (no rank order).
+
+        require_roles(SURVEY_ROLES)            require_roles(Role.admin, Role.super_admin)
+    """
+    allowed: set[Role] = set()
+    for r in roles:
+        allowed |= set(r) if isinstance(r, frozenset) else {r}
+    if not allowed:
+        raise ValueError("require_roles needs at least one role")
+    frozen = frozenset(allowed)
+
+    def check(p: ReadyUser) -> Principal:
+        check_roles(p, frozen)
+        return p
+    return check

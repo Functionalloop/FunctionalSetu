@@ -10,9 +10,9 @@ Written 11 Nov 2026. Scope is `docs/01_srs.md` only; anything else is a change r
 
 ## How to use this file
 
-- One checkbox = one Claude Code session = one commit on the step's branch. Tick it when merged.
+- One checkbox = one Claude Code session = one commit on the step's branch. Tick it once it is committed (`python scripts/tasks.py done <id>`).
 - Each session reads CLAUDE.md, `context/README.md` and the one `context/` file for its section, and updates that file in the same commit.
-- Every endpoint gets four tests: it works, a lower role gets 403, another workspace gets 404, another area gets 404.
+- Every endpoint gets four tests: it works, a lower role gets 403, another workspace gets 404, another area gets 404. The last three (and 401, pending / blocked phone, bad id) come from one row in `backend/tests/endpoints.py`; the endpoint's own test file covers what it does.
 - After every API subtask: run `scripts/export_openapi.py`, commit `docs/openapi.json`, tell the teammate the same day. The portal needs nothing else from me.
 - Paths: `app/` = `backend/app/`, `tests/` = `backend/tests/`, `A/` = `android/app/src/main/java/com/jansetu/app/`.
 - Android tests: `androidTest` for the database, unit tests with a fake server for sync and view models, and a short manual check on a real phone for each screen.
@@ -22,10 +22,11 @@ Written 11 Nov 2026. Scope is `docs/01_srs.md` only; anything else is a change r
 Goal: everything the phone needs from the server for the demo.
 
 - [x] **4.0 Merge step 3 into `main`**, start the branch. Create `context/README.md`, `context/database.md` and `context/backend.md` from what steps 1–3 built (see CLAUDE.md, "Context files"). Test: 40 tests pass on `main`. (12 Nov)
-- [ ] **4.1 Area scope helper.** Super admin: whole workspace; admin: own constituency; others: assigned wards and booths. Also a role-list check (`require_roles`), because surveyor and booth agent are not interchangeable: survey work refuses booth agents, polling day refuses surveyors. Files: `app/scope.py`, `app/deps.py`, `tests/test_scope.py`. Test: a surveyor's scope holds only booth 1; `require_roles` lets a booth agent through only where listed. (12 Nov)
-- [ ] **4.2 `GET /geo/tree`.** Files: `app/routers/geo.py`, `app/schemas.py`, `tests/test_geo.py`. Test: supervisor sees only the assigned ward and its booths. (12 Nov)
-- [ ] **4.3 `GET /voters`** with `q` (name, EPIC, house; a number also matches serial and mobile), ward, booth, age, gender, colour tag, survey status, cursor paging. Files: `app/routers/voters.py`, `tests/test_voters_list.py`. Test: paging returns every voter once; a voter in booth 2 is not listed for a booth 1 surveyor. (13 Nov)
-- [ ] **4.4 `GET /voters/{id}` and `PUT /voters/{id}/survey`.** First save creates the survey row; a stale `version` returns 409 with the server copy; notes limited to 2,000 characters. A booth agent can read the voter but not save a survey. Files: `app/routers/voters.py`, `tests/test_survey.py`. Test: two saves with the same version give one 200 and one 409; a booth agent's save gets 403. (13 Nov)
+- [x] **4.1 Area scope helper.** Super admin: whole workspace; admin: own constituency; others: assigned wards and booths. Also a role-list check (`require_roles`), because surveyor and booth agent are not interchangeable: survey work refuses booth agents, polling day refuses surveyors. Files: `app/scope.py`, `app/deps.py`, `tests/test_scope.py`. Test: a surveyor's scope holds only booth 1; `require_roles` lets a booth agent through only where listed. (12 Nov)
+- [x] **4.2 `GET /geo/tree`.** Files: `app/routers/geo.py`, `app/schemas.py`, `tests/test_geo.py`. Test: supervisor sees only the assigned ward and its booths. (12 Nov)
+- [x] **4.3 `GET /voters`** with `q` (name, EPIC, house; a number also matches serial and mobile), ward, booth, age, gender, colour tag, survey status, cursor paging. Files: `app/routers/voters.py`, `tests/test_voters_list.py`. Test: paging returns every voter once; a voter in booth 2 is not listed for a booth 1 surveyor. (13 Nov)
+- [x] **4.11 Generic endpoint checks.** One table of endpoints and one test file that runs the same checks on every row: 401 without or with a bad token; 403 for a pending phone, a password not yet changed, a blocked phone and every role not listed; 404 for another workspace's or another area's record; 422 / 404 for a bad or unknown id; lists hold only the user's own records; refused writes change nothing. A route in the OpenAPI schema without a row fails the run. Files: `tests/endpoints.py`, `tests/test_endpoint_rules.py`, `tests/conftest.py`. Test: removing the area filter from `/voters` or the role check from device approval makes the checks fail. (11 Nov)
+- [x] **4.4 `GET /voters/{id}` and `PUT /voters/{id}/survey`.** First save creates the survey row; a stale `version` returns 409 with the server copy; notes limited to 2,000 characters. A booth agent can read the voter but not save a survey. Files: `app/routers/voters.py`, `tests/test_survey.py`. Test: two saves with the same version give one 200 and one 409; a booth agent's save gets 403. (13 Nov)
 - [ ] **4.5 `GET /devices`** (admin; filter by status) so the admin can find the waiting phone. Files: `app/routers/devices.py`, `tests/test_devices_admin.py`. Test: an admin sees only phones of the own constituency. (13 Nov)
 - [ ] **4.6 `GET /sync/pull`, first download.** Pages of areas, voters, surveys, lists and settings for the user's area, then the watermark. Files: `app/routers/sync.py`, `app/sync_pull.py`, `tests/test_sync_pull.py`. Test: all pages together equal the user's area exactly. (14 Nov)
 - [ ] **4.7 `GET /sync/pull?since=W`.** Rows with `sync_xid >= W`, the current list of assigned areas (the phone drops the rest), and the wipe signal for a blocked phone. Files: same. Test: a survey changed after W comes back; a blocked phone gets `wipe`. (14 Nov)
@@ -197,7 +198,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 |---|---|---|
 | Spelling fixes | The API can list and resolve fixes, but nothing creates one. | Add name fixes to `/sync/push`. |
 | Doubtful "dead" marks, confirmed by a supervisor | No endpoint to mark or confirm. | Two fields in the survey body; confirming needs supervisor. |
-| Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | Add to the survey body. |
+| Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | **Decided 11 Nov:** added to the survey body in 4.4 (`has_new_address` + new address; `location` sets lat/lng/accuracy, left out = kept). |
 | Search by serial number or mobile | The server search text has names, EPIC and house only. | Handle numbers in the `/voters` query; no schema change. |
 | Candidate photo, symbol, slip header | `POST /files` exists, no way to download. | Add `GET /files/{id}`. |
 | Mobile number sheets | No endpoint to accept or reject a row under review. | Add `POST /mobile-imports/{id}/rows/{row_id}/resolve`. |

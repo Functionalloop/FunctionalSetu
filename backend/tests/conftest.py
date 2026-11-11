@@ -103,43 +103,50 @@ class Workspace:
     users: dict[str, uuid.UUID] = field(default_factory=dict)
 
 
-@pytest.fixture
-def make_workspace(owner_conn) -> Callable[..., Workspace]:
+def create_workspace(owner_conn: psycopg.Connection, label: str = "ws", must_change: tuple[str, ...] = (),
+                     extra_users: dict[str, str] | None = None) -> Workspace:
     """Workspace with 1 constituency, 1 ward, 2 booths and users (password PASSWORD):
        boss (super_admin), admin1 (admin), sup1 (supervisor, the ward),
        survey1 (surveyor, booth 1 only), plus any `extra_users` {username: role}.
-       `must_change` lists usernames that must change their password."""
+       `must_change` lists usernames that must change their password.
+       `owner_conn` is a jansetu_owner connection in autocommit mode."""
+    ids = [uuid.uuid4() for _ in range(5)]
+    tenant, lb, ward, b1, b2 = ids
+    ws = Workspace(tenant, f"t-{label}-{tenant.hex[:8]}", lb, ward, [b1, b2])
+    users = {"boss": "super_admin", "admin1": "admin", "sup1": "supervisor", "survey1": "surveyor",
+             **(extra_users or {})}
+    with owner_conn.transaction(), owner_conn.cursor() as cur:
+        cur.execute("INSERT INTO app.tenants (id, code, name_en) VALUES (%s, %s, %s)",
+                    (tenant, ws.code, f"Test {label}"))
+        cur.execute("SELECT app.seed_tenant_defaults(%s)", (tenant,))
+        geo = """INSERT INTO app.geo_units (id, tenant_id, parent_id, level, code, number, name_mr, name_en)
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+        cur.execute(geo, (lb, tenant, None, "local_body", "1", None, f"LB {label}", f"LB {label}"))
+        cur.execute(geo, (ward, tenant, lb, "ward", "1", 1, "W1", "Ward 1"))
+        cur.execute(geo, (b1, tenant, ward, "booth", "1001", 1, "B1", "Booth 1"))
+        cur.execute(geo, (b2, tenant, ward, "booth", "1002", 2, "B2", "Booth 2"))
+        for username, role in users.items():
+            uid = uuid.uuid4()
+            ws.users[username] = uid
+            cur.execute(
+                """INSERT INTO app.users (id, tenant_id, username, full_name_en, role, local_body_id,
+                                          password_hash, must_change_password)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (uid, tenant, username, username.title(), role,
+                 None if role == "super_admin" else lb, _PASSWORD_HASH, username in must_change))
+        assign = "INSERT INTO app.user_area_assignments (tenant_id, user_id, geo_unit_id) VALUES (%s, %s, %s)"
+        cur.execute(assign, (tenant, ws.users["sup1"], ward))
+        cur.execute(assign, (tenant, ws.users["survey1"], b1))
+    return ws
+
+
+@pytest.fixture
+def make_workspace(owner_conn) -> Callable[..., Workspace]:
+    """create_workspace bound to this test's owner connection."""
 
     def make(label: str = "ws", must_change: tuple[str, ...] = (),
              extra_users: dict[str, str] | None = None) -> Workspace:
-        ids = [uuid.uuid4() for _ in range(5)]
-        tenant, lb, ward, b1, b2 = ids
-        ws = Workspace(tenant, f"t-{label}-{tenant.hex[:8]}", lb, ward, [b1, b2])
-        users = {"boss": "super_admin", "admin1": "admin", "sup1": "supervisor", "survey1": "surveyor",
-                 **(extra_users or {})}
-        with owner_conn.transaction(), owner_conn.cursor() as cur:
-            cur.execute("INSERT INTO app.tenants (id, code, name_en) VALUES (%s, %s, %s)",
-                        (tenant, ws.code, f"Test {label}"))
-            cur.execute("SELECT app.seed_tenant_defaults(%s)", (tenant,))
-            geo = """INSERT INTO app.geo_units (id, tenant_id, parent_id, level, code, number, name_mr, name_en)
-                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
-            cur.execute(geo, (lb, tenant, None, "local_body", "1", None, f"LB {label}", f"LB {label}"))
-            cur.execute(geo, (ward, tenant, lb, "ward", "1", 1, "W1", "Ward 1"))
-            cur.execute(geo, (b1, tenant, ward, "booth", "1001", 1, "B1", "Booth 1"))
-            cur.execute(geo, (b2, tenant, ward, "booth", "1002", 2, "B2", "Booth 2"))
-            for username, role in users.items():
-                uid = uuid.uuid4()
-                ws.users[username] = uid
-                cur.execute(
-                    """INSERT INTO app.users (id, tenant_id, username, full_name_en, role, local_body_id,
-                                              password_hash, must_change_password)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (uid, tenant, username, username.title(), role,
-                     None if role == "super_admin" else lb, _PASSWORD_HASH, username in must_change))
-            assign = "INSERT INTO app.user_area_assignments (tenant_id, user_id, geo_unit_id) VALUES (%s, %s, %s)"
-            cur.execute(assign, (tenant, ws.users["sup1"], ward))
-            cur.execute(assign, (tenant, ws.users["survey1"], b1))
-        return ws
+        return create_workspace(owner_conn, label, must_change, extra_users)
 
     return make
 
