@@ -772,6 +772,92 @@
           }
         }
       }
+    },
+    "/api/v1/geo/tree": {
+      "get": {
+        "tags": [
+          "geo"
+        ],
+        "summary": "Area tree for the user's area. All roles.",
+        "operationId": "get_geo_tree",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoTree"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1273,6 +1359,133 @@
           "section"
         ],
         "title": "GeoLevel"
+      },
+      "GeoNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "level": {
+            "$ref": "#/components/schemas/GeoLevel"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "name_mr": {
+            "type": "string",
+            "title": "Name Mr"
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "address_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Mr",
+            "description": "Polling station address (booth level)"
+          },
+          "address_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address En"
+          },
+          "ac_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ac No",
+            "description": "Vidhan Sabha constituency number (constituency level)"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/GeoNode"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "parent_id",
+          "level",
+          "code",
+          "number",
+          "name_mr",
+          "name_en",
+          "address_mr",
+          "address_en",
+          "ac_no"
+        ],
+        "title": "GeoNode"
+      },
+      "GeoTree": {
+        "properties": {
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/GeoNode"
+            },
+            "type": "array",
+            "title": "Roots",
+            "description": "Top areas the user may see, each with everything below it. Super admin: every constituency; admin: own constituency; supervisor / surveyor / booth agent: the assigned wards and booths (no parent above them). Inactive areas and everything below them are left out."
+          }
+        },
+        "type": "object",
+        "required": [
+          "roots"
+        ],
+        "title": "GeoTree"
       },
       "Health": {
         "properties": {

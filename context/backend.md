@@ -71,6 +71,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /me` | user, workspace, assigned areas, settings |
 | `GET /devices/me` | phone polls this for approval; `CurrentUser` level |
 | `POST /devices/{id}/approve`, `/block` | admin (own constituency); block sets the wipe signal |
+| `GET /geo/tree` | all roles; `{"roots": [GeoNode]}` nested by `children`. Roots = the scope's top areas (super admin: every constituency; supervisor: the assigned ward, no parent above it). Inactive areas and their subtree are left out. Not paged (real roll: ~300 areas) |
 
 Everything else in `docs/02_tech_stack_and_api.md` is not built; step 4 starts it (see `docs/plan.md`).
 

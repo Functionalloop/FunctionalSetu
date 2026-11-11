@@ -5,7 +5,7 @@ JANSETU is a voter data management platform: an offline-first Android app for fi
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
 - **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
 - **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The KVM 4 server is bought around 20 Nov; if it is late, the demo runs from my laptop.
-- **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is merged, run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
+- **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is committed on its step branch (not only when merged), run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
 ## Source of truth (read before big changes)
 

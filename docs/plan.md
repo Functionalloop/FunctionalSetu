@@ -10,7 +10,7 @@ Written 11 Nov 2026. Scope is `docs/01_srs.md` only; anything else is a change r
 
 ## How to use this file
 
-- One checkbox = one Claude Code session = one commit on the step's branch. Tick it when merged.
+- One checkbox = one Claude Code session = one commit on the step's branch. Tick it once it is committed (`python scripts/tasks.py done <id>`).
 - Each session reads CLAUDE.md, `context/README.md` and the one `context/` file for its section, and updates that file in the same commit.
 - Every endpoint gets four tests: it works, a lower role gets 403, another workspace gets 404, another area gets 404.
 - After every API subtask: run `scripts/export_openapi.py`, commit `docs/openapi.json`, tell the teammate the same day. The portal needs nothing else from me.

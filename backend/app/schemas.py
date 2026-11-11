@@ -136,6 +136,20 @@ class Area(BaseModel):
     name_en: str | None
 
 
+class GeoNode(Area):
+    address_mr: str | None = Field(description="Polling station address (booth level)")
+    address_en: str | None
+    ac_no: int | None = Field(description="Vidhan Sabha constituency number (constituency level)")
+    children: list[GeoNode] = Field(default_factory=list)
+
+
+class GeoTree(BaseModel):
+    roots: list[GeoNode] = Field(description=(
+        "Top areas the user may see, each with everything below it. Super admin: every constituency; "
+        "admin: own constituency; supervisor / surveyor / booth agent: the assigned wards and booths "
+        "(no parent above them). Inactive areas and everything below them are left out."))
+
+
 class MeUser(UserSummary):
     mobile: str | None
     local_body_id: uuid.UUID | None = Field(description="Constituency of an admin / worker. Null for super admin.")
