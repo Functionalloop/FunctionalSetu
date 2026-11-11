@@ -93,7 +93,7 @@ docs/                 SRS, API contract, screen flow, openapi.json, plan.md, leg
 db/migrations/        001_jansetu_schema.sql, 002_..., ...
 db/seed/              seed.py (fake sample data only, workspace "demo")
 backend/              FastAPI app (app/, tests/), pyproject.toml
-scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, export_openapi.py, tasks.py,
+scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, export_openapi.py, tasks.py,
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml, .env.example
 jansetu-private/      real roll files (git-ignored, never committed)
