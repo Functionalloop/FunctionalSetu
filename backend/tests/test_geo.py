@@ -100,6 +100,12 @@ def test_inactive_area_and_everything_below_are_hidden(client, area, owner_conn)
     assert [shape(r) for r in roots] == [(str(area.ward), [(str(area.booths[1]), [])])]
 
 
+def test_surveyor_booth_under_inactive_ward_is_hidden(client, area, owner_conn, set_device_status):
+    owner_conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (area.ward,))
+    approved_phone(client, area, "survey1", set_device_status, "phone-geo-0004")
+    assert tree(client, area, "survey1", device=phone("phone-geo-0004")) == []
+
+
 def test_unassigned_booth_agent_gets_empty_tree(client, area, set_device_status):
     approved_phone(client, area, "agent1", set_device_status, "phone-geo-0002")
     assert tree(client, area, "agent1", device=phone("phone-geo-0002")) == []

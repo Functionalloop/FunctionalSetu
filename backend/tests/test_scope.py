@@ -87,10 +87,10 @@ def test_admin_scope_is_own_constituency_only(make_workspace, owner_conn):
     owner_conn.execute(
         """INSERT INTO app.geo_units (id, tenant_id, level, code, name_mr, name_en)
            VALUES (%s, %s, 'local_body', '2', 'LB2', 'LB2')""", (other_lb, ws.tenant))
-    other_booth_ward = uuid.uuid4()
+    other_ward = uuid.uuid4()
     owner_conn.execute(
         """INSERT INTO app.geo_units (id, tenant_id, parent_id, level, code, number, name_mr)
-           VALUES (%s, %s, %s, 'ward', '1', 1, 'W')""", (other_booth_ward, ws.tenant, other_lb))
+           VALUES (%s, %s, %s, 'ward', '1', 1, 'W')""", (other_ward, ws.tenant, other_lb))
 
     s = scope_of(ws, "admin1", Role.admin)
     assert s.area_ids == {ws.local_body}
@@ -98,7 +98,7 @@ def test_admin_scope_is_own_constituency_only(make_workspace, owner_conn):
     with transaction(ws.tenant) as conn:
         assert require_area(conn, s, ws.ward)
         with pytest.raises(ApiError) as e:
-            require_area(conn, s, other_booth_ward)
+            require_area(conn, s, other_ward)
     assert e.value.status == 404
 
 
@@ -137,6 +137,15 @@ def test_inactive_booth_leaves_the_scope(make_workspace, owner_conn):
     assert s.area_ids == {ws.booths[0]}
     with transaction(ws.tenant) as conn, pytest.raises(ApiError):
         require_area(conn, s, ws.booths[1])
+
+
+def test_booth_under_inactive_ward_leaves_the_scope(make_workspace, owner_conn):
+    ws = make_workspace("inward")
+    owner_conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (ws.ward,))
+    assert scope_of(ws, "survey1", Role.surveyor).is_empty  # booth 1 itself is still active
+    admin = scope_of(ws, "admin1", Role.admin)
+    with transaction(ws.tenant) as conn, pytest.raises(ApiError):
+        require_area(conn, admin, ws.booths[0])
 
 
 def test_assignment_outside_own_constituency_is_ignored(make_workspace, owner_conn):

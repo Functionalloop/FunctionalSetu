@@ -32,6 +32,10 @@ from .schemas import Role
 
 _COLUMN_RE = re.compile(r"^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$")
 
+# Area g and every area above it are active. Switching off a ward hides its booths too.
+_ALL_ACTIVE = """NOT EXISTS (SELECT 1 FROM app.geo_units x
+                             WHERE x.tenant_id = g.tenant_id AND x.path @> g.path AND NOT x.is_active)"""
+
 
 @dataclass(frozen=True)
 class Scope:
@@ -84,13 +88,13 @@ def load_scope(conn: Connection, user: Principal) -> Scope:
              WHERE id = :lb AND level = 'local_body' AND is_active
         """), {"lb": user.local_body_id}).all()
     else:
-        # Assigned areas, active, and inside the user's own constituency.
-        rows = conn.execute(text("""
+        # Assigned areas inside the user's own constituency, with no inactive area at or above them.
+        rows = conn.execute(text(f"""
             SELECT g.id, g.path::text AS path
               FROM app.user_area_assignments a
               JOIN app.geo_units g  ON g.tenant_id = a.tenant_id AND g.id = a.geo_unit_id
               JOIN app.geo_units lb ON lb.tenant_id = a.tenant_id AND lb.id = :lb
-             WHERE a.user_id = :u AND g.is_active AND lb.is_active AND g.path <@ lb.path
+             WHERE a.user_id = :u AND g.path <@ lb.path AND {_ALL_ACTIVE}
         """), {"u": user.user_id, "lb": user.local_body_id}).all()
 
     return Scope(False, frozenset(r.id for r in rows), _outermost([r.path for r in rows]))
@@ -104,8 +108,9 @@ UserScope = Annotated[Scope, Depends(get_scope)]
 
 
 def require_area(conn: Connection, scope: Scope, geo_unit_id: uuid.UUID) -> str:
-    """404 unless the area exists, is active and lies in the scope. Returns its ltree path."""
-    path = conn.execute(text("SELECT path::text FROM app.geo_units WHERE id = :id AND is_active"),
+    """404 unless the area exists, it and the areas above it are active, and it lies in the scope.
+    Returns its ltree path."""
+    path = conn.execute(text(f"SELECT g.path::text FROM app.geo_units g WHERE g.id = :id AND {_ALL_ACTIVE}"),
                         {"id": geo_unit_id}).scalar()
     if path is None or not scope.contains_path(path):
         raise ApiError(404, "not_found", "Area not found.")
