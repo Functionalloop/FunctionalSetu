@@ -1,6 +1,6 @@
 # Sync
 
-Design: `docs/02_tech_stack_and_api.md` ("Offline sync"). Server code: `backend/app/sync_pull.py`, `backend/app/sync_push.py`, `backend/app/routers/sync.py`. Phone side: not built yet (step 5).
+Design: `docs/02_tech_stack_and_api.md` ("Offline sync"). Server code: `backend/app/sync_pull.py`, `backend/app/sync_push.py`, `backend/app/routers/sync.py`. Phone side: `android/.../data/sync/` (see `context/android.md`).
 
 ## Watermark
 
