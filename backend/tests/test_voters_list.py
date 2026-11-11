@@ -184,3 +184,12 @@ def test_item_fields(client, roll):
     assert item["serial_no"] == 1 and item["booth_id"] == str(roll.ws.booths[0])
     assert item["mobile_1"] == "9000000001" and item["is_surveyed"] is True
     assert item["roll_status"] == "active"
+
+
+def test_voters_under_switched_off_ward_are_hidden(client, roll):
+    roll.conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (roll.ws.ward,))
+    for user in ("admin1", "boss"):
+        t = token(client, roll.ws, user)
+        assert ids(client, t) == []
+        r = client.get(f"{API}/voters/{roll.ids['a1']}", headers=bearer(t))
+        assert r.status_code == 404

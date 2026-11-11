@@ -51,6 +51,7 @@ Cursors: `app/paging.py` (`encode_cursor(list)`, `decode_cursor(cursor, n)` → 
 
 ## Area scope (`app/scope.py`)
 
+- Switched-off areas (`geo_units.is_active = false`) and everything below them are out of every scope, for every role: `Scope.excluded`, applied by `filter` and `contains_path`. `/me` areas come from the scope too.
 - `UserScope` dependency → `Scope`. Super admin: whole workspace. Admin: own constituency. Others: assigned wards/booths that are active and inside their own constituency. Each area covers its subtree.
 - `scope.filter("v.geo_path")` → `(sql_condition, params)` for any ltree column (`geo_units.path`, `voters.geo_path`). Returns `TRUE` / `FALSE` for whole/empty scope. Pass column names from code only.
 - `require_area(conn, scope, geo_id)` → 404 `not_found` unless the area is active and in scope (use it for `ward=` / `booth=` filters).

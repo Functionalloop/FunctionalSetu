@@ -238,3 +238,17 @@ def test_booth_agent_passes_only_where_listed(scope_client, make_workspace, owne
     r = scope_client.get(f"{API}/_test/survey-scope", headers=bearer(surveyor))
     assert r.status_code == 200 and r.json()["areas"] == [str(ws.booths[0])]
     assert scope_client.get(f"{API}/_test/polling", headers=bearer(surveyor)).status_code == 403
+
+
+def test_switched_off_booth_is_excluded_for_whole_workspace(make_workspace, owner_conn):
+    ws = make_workspace("excl")
+    owner_conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (ws.booths[1],))
+    for user, role in (("boss", Role.super_admin), ("admin1", Role.admin), ("sup1", Role.supervisor)):
+        s = scope_of(ws, user, role)
+        assert booths_in(ws, s) == {ws.booths[0]}, role
+        assert not s.contains_path(s.excluded[0])
+
+
+def test_require_roles_accepts_plain_set():
+    p = Principal(uuid.uuid4(), uuid.uuid4(), uuid.uuid4(), None, Role.admin, "x", None, False, "approved")
+    assert require_roles({Role.admin})(p) is p

@@ -122,3 +122,10 @@ def test_needs_login_and_approved_phone(client, area):
     t = login(client, area, "survey1", device=phone("phone-geo-0003")).json()  # still pending
     r = client.get(f"{API}/geo/tree", headers=bearer(t))
     assert r.status_code == 403 and r.json()["error"]["code"] == "device_pending"
+
+
+def test_me_lists_no_area_under_switched_off_ward(client, area, owner_conn, set_device_status):
+    owner_conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (area.ward,))
+    approved_phone(client, area, "survey1", set_device_status, "phone-geo-0005")
+    t = login(client, area, "survey1", device=phone("phone-geo-0005")).json()
+    assert client.get(f"{API}/me", headers=bearer(t)).json()["areas"] == []
