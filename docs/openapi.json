@@ -1639,6 +1639,102 @@
           }
         }
       }
+    },
+    "/api/v1/sync/push": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Apply a batch of outbox items; one result per item (applied, conflict, rejected). All roles, from an approved phone; each item's own role rules apply.",
+        "operationId": "push",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2871,6 +2967,183 @@
         ],
         "title": "NamedListEntry",
         "description": "A caste or a profession."
+      },
+      "PushError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "PushError"
+      },
+      "PushItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Made by the phone for this outbox item; a retry sends the same id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PushType"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Entity Id",
+            "description": "survey: the voter id"
+          },
+          "base_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Base Version",
+            "description": "survey: the version the phone last had; 0 = no survey yet"
+          },
+          "changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed At",
+            "description": "When the change was made on the phone"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data",
+            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "entity_id",
+          "base_version",
+          "data"
+        ],
+        "title": "PushItem"
+      },
+      "PushRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PushItem"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Items",
+            "description": "Applied in this order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PushRequest"
+      },
+      "PushResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PushResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "One per item, in the same order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "PushResponse"
+      },
+      "PushResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The item's id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PushStatus"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "description": "This id was received before: the stored result, nothing applied again"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PushError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "rejected only"
+          },
+          "survey": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Survey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "applied: the saved copy (new version); conflict: the server copy"
+          },
+          "conflict_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conflict Fields",
+            "description": "conflict: fields that differ"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "duplicate"
+        ],
+        "title": "PushResult"
+      },
+      "PushStatus": {
+        "type": "string",
+        "enum": [
+          "applied",
+          "conflict",
+          "rejected"
+        ],
+        "title": "PushStatus"
+      },
+      "PushType": {
+        "type": "string",
+        "enum": [
+          "survey"
+        ],
+        "title": "PushType"
       },
       "RefreshRequest": {
         "properties": {

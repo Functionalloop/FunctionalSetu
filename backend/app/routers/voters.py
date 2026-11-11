@@ -133,7 +133,7 @@ _EDIT_COLS = list(SurveyFields.model_fields)  # replaced on every save
 SurveyUser = Annotated[Principal, Depends(require_roles(SURVEY_ROLES))]
 
 
-def _voter_in_scope(conn: Connection, scope: Scope, voter_id: uuid.UUID, cols: str = "v.id") -> Any:
+def voter_in_scope(conn: Connection, scope: Scope, voter_id: uuid.UUID, cols: str = "v.id") -> Any:
     """The voter row, or 404 when it is removed, in another workspace (RLS) or outside the user's area."""
     cond, params = scope.filter("v.geo_path")
     row = conn.execute(text(f"""
@@ -146,13 +146,13 @@ def _voter_in_scope(conn: Connection, scope: Scope, voter_id: uuid.UUID, cols: s
     return row
 
 
-def _read_survey(conn: Connection, voter_id: uuid.UUID) -> Survey | None:
+def read_survey(conn: Connection, voter_id: uuid.UUID) -> Survey | None:
     row = conn.execute(text(f"SELECT {_SURVEY_COLS} FROM app.voter_surveys WHERE voter_id = :v"),
                        {"v": voter_id}).mappings().first()
     return Survey(**row) if row else None
 
 
-def _check_references(conn: Connection, body: SurveyIn) -> None:
+def check_survey_references(conn: Connection, body: SurveyIn) -> None:
     """Caste, profession and colour tag must be active entries of this workspace (RLS), else 422."""
     for field, table in (("caste_id", "castes"), ("profession_id", "professions"), ("color_tag_id", "color_tags")):
         value = getattr(body, field)
@@ -163,19 +163,31 @@ def _check_references(conn: Connection, body: SurveyIn) -> None:
 
 @router.get("/{voter_id}", response_model=VoterDetail, summary="One voter: roll details plus survey. All roles.")
 def get_voter(voter_id: uuid.UUID, conn: Db, user: ReadyUser, scope: UserScope) -> VoterDetail:
-    row = _voter_in_scope(conn, scope, voter_id, cols=f"""{_LIST_COLS},
+    row = voter_in_scope(conn, scope, voter_id, cols=f"""{_LIST_COLS},
         v.first_name_mr, v.middle_name_mr, v.last_name_mr, v.first_name_en, v.middle_name_en, v.last_name_en,
         v.age_as_of, v.address_mr, v.address_en, v.list_type, v.deletion_reason, v.is_repeated_in_roll""")
-    return VoterDetail(**row, survey=_read_survey(conn, voter_id))
+    return VoterDetail(**row, survey=read_survey(conn, voter_id))
 
 
 @router.put("/{voter_id}/survey", response_model=Survey,
             summary="Save the survey (first save creates it). Stale version: 409 with the server copy. "
                     "Super admin, admin, supervisor, surveyor; not booth agent.")
 def save_survey(voter_id: uuid.UUID, body: SurveyIn, conn: Db, user: SurveyUser, scope: UserScope) -> Survey:
-    _voter_in_scope(conn, scope, voter_id)
-    _check_references(conn, body)
+    voter_in_scope(conn, scope, voter_id)
+    check_survey_references(conn, body)
 
+    saved = write_survey(conn, user, voter_id, body)
+    if saved is None:  # someone saved first, or the version is not the one on the server
+        current = read_survey(conn, voter_id)
+        raise ApiError(409, "version_conflict",
+                       "The survey was changed by someone else. Check the server copy and save again.",
+                       extra={"current": current.model_dump(mode="json") if current else None})
+    return saved
+
+
+def write_survey(conn: Connection, user: Principal, voter_id: uuid.UUID, body: SurveyIn) -> Survey | None:
+    """Create (version 0) or update (current version) the survey; None when the version is stale.
+    The caller has checked the role, the voter's area and the references. Used by PUT and sync push."""
     values: dict[str, Any] = {c: getattr(body, c) for c in _EDIT_COLS}
     values.update(voter_id=voter_id, version=body.version, user=user.user_id, device=user.device_id)
     loc = body.location
@@ -205,12 +217,4 @@ def save_survey(voter_id: uuid.UUID, body: SurveyIn, conn: Db, user: SurveyUser,
              WHERE voter_id = :voter_id AND version = :version
             RETURNING voter_id
         """), values).first()
-
-    if saved is None:  # someone saved first, or the version is not the one on the server
-        current = _read_survey(conn, voter_id)
-        raise ApiError(409, "version_conflict",
-                       "The survey was changed by someone else. Check the server copy and save again.",
-                       extra={"current": current.model_dump(mode="json") if current else None})
-    survey = _read_survey(conn, voter_id)
-    assert survey is not None
-    return survey
+    return read_survey(conn, voter_id) if saved is not None else None

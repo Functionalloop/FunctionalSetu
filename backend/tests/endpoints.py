@@ -70,6 +70,7 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/voters/{voter_id}", target="voter"),
     # sync (area isolation of the pages: test_sync_pull.py)
     Endpoint("GET", "/sync/pull", wipe_on_block=True),
+    Endpoint("POST", "/sync/push", body={"items": []}),  # per-item roles: test_sync_push.py
     Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
              body={"version": 0, "notes": "rule check"}),
 ]

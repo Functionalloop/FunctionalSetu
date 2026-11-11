@@ -82,6 +82,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /voters/{voter_id}` | all roles, area scope (404 outside, removed or other workspace). Roll fields + `survey` (null until first save) |
 | `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
 | `GET /sync/pull` | first download and delta (`since`), blocked phone gets `wipe: true`; see `context/sync.md`. Endpoint-table flag `wipe_on_block`. Settings load via `app/workspace_settings.py` (shared with `/me`) |
+| `POST /sync/push` | surveys only (4.8); per-item results, retry-safe; see `context/sync.md`. Survey writes go through `write_survey` in `routers/voters.py` (shared with PUT) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta, important/influencer) are not in the body yet: not in the SRS survey, or later steps.
 
