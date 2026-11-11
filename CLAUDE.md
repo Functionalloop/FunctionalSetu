@@ -5,7 +5,7 @@ JANSETU is a voter data management platform: an offline-first Android app for fi
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
 - **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
 - **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The KVM 4 server is bought around 20 Nov; if it is late, the demo runs from my laptop.
-- **Plan:** `docs/plan.md` lists every remaining step with dates. Tick its boxes as work is merged.
+- **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is merged, run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
 ## Source of truth (read before big changes)
 
@@ -87,12 +87,13 @@ To keep each session small, this file holds only the rules that apply everywhere
 
 ```
 CLAUDE.md
+TASKS.md              task checker generated from docs/plan.md (scripts/tasks.py)
 context/              one context file per section, README.md is the index (see above)
 docs/                 SRS, API contract, screen flow, openapi.json, plan.md, legacy/
 db/migrations/        001_jansetu_schema.sql, 002_..., ...
 db/seed/              seed.py (fake sample data only, workspace "demo")
 backend/              FastAPI app (app/, tests/), pyproject.toml
-scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, export_openapi.py,
+scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, export_openapi.py, tasks.py,
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml, .env.example
 jansetu-private/      real roll files (git-ignored, never committed)
