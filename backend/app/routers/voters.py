@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import binascii
-import json
 import uuid
 from typing import Annotated, Any
 
@@ -13,6 +10,7 @@ from sqlalchemy import Connection, text
 
 from ..deps import SURVEY_ROLES, Db, Principal, ReadyUser, require_roles
 from ..errors import ApiError
+from ..paging import decode_cursor, encode_cursor, invalid_cursor
 from ..schemas import (Gender, Survey, SurveyFields, SurveyIn, SurveyStatus, VoterDetail, VoterListItem,
                        VoterPage)
 from ..scope import Scope, UserScope, require_area
@@ -33,17 +31,15 @@ _SORT = "v.part_no, coalesce(v.booth_no, 0), v.serial_no, v.id"
 
 
 def _encode_cursor(row: Any) -> str:
-    key = [row["part_no"], row["booth_no"] or 0, row["serial_no"], str(row["id"])]
-    return base64.urlsafe_b64encode(json.dumps(key).encode()).decode().rstrip("=")
+    return encode_cursor([row["part_no"], row["booth_no"] or 0, row["serial_no"], str(row["id"])])
 
 
 def _decode_cursor(cursor: str) -> dict:
+    p, b, s, i = decode_cursor(cursor, 4)
     try:
-        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4))
-        p, b, s, i = json.loads(raw)
         return {"c_part": int(p), "c_booth": int(b), "c_serial": int(s), "c_id": uuid.UUID(str(i))}
-    except (ValueError, TypeError, binascii.Error, json.JSONDecodeError):
-        raise ApiError(400, "invalid_cursor", "This cursor is not valid; start again without it.") from None
+    except (ValueError, TypeError):
+        raise invalid_cursor() from None
 
 
 def _like(token: str) -> str:
@@ -129,8 +125,9 @@ def list_voters(
 
 
 # --- one voter and the survey ------------------------------------------------------------
-_SURVEY_COLS = ", ".join(["voter_id", "version", "is_surveyed", "surveyed_at", "lat", "lng", "location_accuracy_m",
-                          "location_captured_at", "updated_at", "updated_by", *SurveyFields.model_fields])
+SURVEY_COLUMNS = ["voter_id", "version", "is_surveyed", "surveyed_at", "lat", "lng", "location_accuracy_m",
+                  "location_captured_at", "updated_at", "updated_by", *SurveyFields.model_fields]  # = Survey
+_SURVEY_COLS = ", ".join(SURVEY_COLUMNS)
 _EDIT_COLS = list(SurveyFields.model_fields)  # replaced on every save
 
 SurveyUser = Annotated[Principal, Depends(require_roles(SURVEY_ROLES))]

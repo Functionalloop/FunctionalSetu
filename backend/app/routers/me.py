@@ -7,7 +7,9 @@ from sqlalchemy import text
 
 from ..deps import CurrentUser, Db, ReadyUser
 from ..errors import ApiError
-from ..schemas import CANDIDATE_FIELDS, Area, DeviceDetail, Me, MeUser, Role, WorkspaceSettings, WorkspaceSummary
+from ..scope import load_scope
+from ..workspace_settings import load_workspace_settings
+from ..schemas import Area, DeviceDetail, Me, MeUser, Role, WorkspaceSummary
 
 router = APIRouter(tags=["me"])
 
@@ -28,20 +30,14 @@ def get_me(conn: Db, user: ReadyUser) -> Me:
                          WHERE g.level = 'local_body' AND g.is_active ORDER BY g.sort_order, g.name_mr"""
     elif user.role == Role.admin:
         areas_sql = f"SELECT {_AREA_COLS} FROM app.geo_units g WHERE g.id = :lb AND g.is_active"
-    else:
-        areas_sql = f"""SELECT {_AREA_COLS} FROM app.user_area_assignments a
-                          JOIN app.geo_units g ON g.tenant_id = a.tenant_id AND g.id = a.geo_unit_id
-                         WHERE a.user_id = :u AND g.is_active
+    else:  # the same areas the scope uses (active, inside the user's constituency)
+        areas_sql = f"""SELECT {_AREA_COLS} FROM app.geo_units g WHERE g.id = ANY(:ids)
                          ORDER BY app.geo_level_rank(g.level), g.sort_order, g.name_mr"""
-    areas = conn.execute(text(areas_sql), {"u": user.user_id, "lb": user.local_body_id}).mappings().all()
+    ids = list(load_scope(conn, user).area_ids) if user.role not in (Role.super_admin, Role.admin) else []
+    areas = conn.execute(text(areas_sql), {"u": user.user_id, "lb": user.local_body_id, "ids": ids}
+                         ).mappings().all()
 
-    srow = conn.execute(text("SELECT * FROM app.tenant_settings")).mappings().first()
-    settings = None
-    if srow is not None:
-        data = {k: srow[k] for k in WorkspaceSettings.model_fields}
-        if data["code_of_conduct_mode"]:
-            data.update(dict.fromkeys(CANDIDATE_FIELDS))
-        settings = WorkspaceSettings(**data)
+    settings = load_workspace_settings(conn)
 
     return Me(user=MeUser(**u), workspace=WorkspaceSummary(**ws),
               areas=[Area(**a) for a in areas], settings=settings)

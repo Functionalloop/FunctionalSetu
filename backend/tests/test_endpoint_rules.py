@@ -167,9 +167,18 @@ def test_password_not_changed(world, ep):
                  "password_change_required")
 
 
-@pytest.mark.parametrize("ep", params(lambda e: e.level in ("active", "ready")))
+@pytest.mark.parametrize("ep", params(lambda e: e.level in ("active", "ready") and not e.wipe_on_block))
 def test_blocked_phone(world, ep):
     assert_error(call(world, ep, world.tokens["blocked"], own_target(world, ep)), 403, "device_blocked")
+
+
+@pytest.mark.parametrize("ep", params(lambda e: e.wipe_on_block))
+def test_blocked_phone_is_told_to_wipe(world, ep):
+    r = call(world, ep, world.tokens["blocked"], own_target(world, ep))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["wipe"] is True and body["next_cursor"] is None
+    assert not body["voters"] and not body["surveys"] and not body["areas"] and body["lists"] is None
 
 
 # --- roles --------------------------------------------------------------------------------------

@@ -42,6 +42,7 @@ class Scope:
     whole_workspace: bool
     area_ids: frozenset[uuid.UUID]  # the areas the scope was built from (assigned or own constituency)
     paths: tuple[str, ...]          # their ltree paths, with paths inside another one removed
+    excluded: tuple[str, ...] = ()  # paths of switched-off areas: they and everything below are left out
 
     @property
     def is_empty(self) -> bool:
@@ -55,17 +56,24 @@ class Scope:
         """
         if not _COLUMN_RE.match(column) or not re.match(r"^[a-z_][a-z0-9_]*$", param):
             raise ValueError(f"bad column or parameter name: {column!r}, {param!r}")
-        if self.whole_workspace:
-            return "TRUE", {}
-        if not self.paths:
+        if self.is_empty:
             return "FALSE", {}
-        return f"{column} <@ CAST(:{param} AS ltree[])", {param: list(self.paths)}
+        conds, params = [], {}
+        if not self.whole_workspace:
+            conds.append(f"{column} <@ CAST(:{param} AS ltree[])")
+            params[param] = list(self.paths)
+        if self.excluded:
+            conds.append(f"NOT ({column} <@ CAST(:{param}_off AS ltree[]))")
+            params[f"{param}_off"] = list(self.excluded)
+        return (" AND ".join(conds) or "TRUE"), params
 
     def contains_path(self, path: str) -> bool:
         """Is this ltree path (as text) in the scope?"""
-        if self.whole_workspace:
-            return True
-        return any(path == p or path.startswith(p + ".") for p in self.paths)
+        def under(p: str) -> bool:
+            return path == p or path.startswith(p + ".")
+        if any(under(p) for p in self.excluded):
+            return False
+        return self.whole_workspace or any(under(p) for p in self.paths)
 
 
 def _outermost(paths: list[str]) -> tuple[str, ...]:
@@ -79,8 +87,11 @@ def _outermost(paths: list[str]) -> tuple[str, ...]:
 
 def load_scope(conn: Connection, user: Principal) -> Scope:
     """Build the scope for a user. `conn` must have the user's RLS context set."""
+    # Switched-off areas of this workspace (RLS): hidden with everything below them, for every role.
+    excluded = _outermost(list(conn.execute(text(
+        "SELECT path::text FROM app.geo_units WHERE NOT is_active")).scalars()))
     if user.role == Role.super_admin:
-        return Scope(True, frozenset(), ())
+        return Scope(True, frozenset(), (), excluded)
 
     if user.role == Role.admin:
         rows = conn.execute(text("""
@@ -97,7 +108,7 @@ def load_scope(conn: Connection, user: Principal) -> Scope:
              WHERE a.user_id = :u AND g.path <@ lb.path AND {_ALL_ACTIVE}
         """), {"u": user.user_id, "lb": user.local_body_id}).all()
 
-    return Scope(False, frozenset(r.id for r in rows), _outermost([r.path for r in rows]))
+    return Scope(False, frozenset(r.id for r in rows), _outermost([r.path for r in rows]), excluded)
 
 
 def get_scope(conn: Db, user: ReadyUser) -> Scope:

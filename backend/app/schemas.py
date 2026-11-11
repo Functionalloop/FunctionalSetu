@@ -111,6 +111,18 @@ class AdminDevice(DeviceDetail):
     blocked_reason: str | None
 
 
+class AdminDeviceListItem(AdminDevice):
+    username: str
+    full_name_en: str
+    role: Role
+    last_seen_at: datetime | None = Field(description="Last login or refresh from this phone")
+
+
+class DevicePage(BaseModel):
+    items: list[AdminDeviceListItem]
+    next_cursor: str | None = Field(description="Pass as `cursor` for the next page; null on the last page")
+
+
 class BlockDeviceRequest(BaseModel):
     reason: str | None = Field(None, max_length=500, examples=["Phone lost"])
 
@@ -354,3 +366,105 @@ class Health(BaseModel):
     status: str = Field(examples=["ok"])
     database: str = Field(examples=["ok"])
     version: str
+
+
+# --- sync pull ---------------------------------------------------------------------
+class SyncArea(Area):
+    address_mr: str | None
+    address_en: str | None
+    ac_no: int | None
+    sort_order: int
+
+
+class SyncVoter(BaseModel):
+    """Official roll fields of one voter (the survey comes separately in `surveys`)."""
+    id: uuid.UUID
+    local_body_id: uuid.UUID
+    ward_id: uuid.UUID
+    booth_id: uuid.UUID
+    section_id: uuid.UUID | None
+    part_no: int
+    booth_no: int | None
+    serial_no: int
+    epic_no: str | None
+    first_name_mr: str | None
+    middle_name_mr: str | None
+    last_name_mr: str | None
+    first_name_en: str | None
+    middle_name_en: str | None
+    last_name_en: str | None
+    relation_type: RelationType | None
+    relative_name_mr: str | None
+    relative_name_en: str | None
+    gender: Gender
+    age: int | None
+    age_as_of: date | None
+    house_no: str | None
+    address_mr: str | None
+    address_en: str | None
+    list_type: ListType
+    roll_status: RollStatus
+    deletion_reason: str | None
+    is_repeated_in_roll: bool
+    deleted_at: datetime | None = Field(description="Set when the voter was removed: delete it on the phone")
+
+
+class NamedListEntry(BaseModel):
+    """A caste or a profession."""
+    id: uuid.UUID
+    name_mr: str
+    name_en: str | None
+    name_hi: str | None
+    sort_order: int
+    is_active: bool = Field(description="Inactive: keep showing it on old surveys, do not offer it for new ones")
+
+
+class ColorTag(BaseModel):
+    id: uuid.UUID
+    code: str
+    hex: str
+    label_mr: str
+    label_en: str
+    label_hi: str | None
+    is_default: bool
+    sort_order: int
+    is_active: bool
+
+
+class CustomFieldLabel(BaseModel):
+    field_key: str = Field(description="extra_check_1-2 or extra_info_1-5 in the survey")
+    label_mr: str | None
+    label_en: str | None
+    label_hi: str | None
+    is_enabled: bool = Field(description="Disabled fields are hidden in the survey")
+
+
+class SyncLists(BaseModel):
+    castes: list[NamedListEntry]
+    professions: list[NamedListEntry]
+    color_tags: list[ColorTag]
+    custom_field_labels: list[CustomFieldLabel]
+
+
+class SyncPage(BaseModel):
+    """One page of a sync pull. If `wipe` is true, delete all local data and log out; nothing else
+    in the page applies. Otherwise save every row it holds (insert or replace by id; a voter with
+    `deleted_at` set is deleted), delete `gone_voter_ids`, then ask for `next_cursor`. When
+    `next_cursor` is null the pull is complete: store `watermark` and send it as `since` next time.
+    `area_ids` (page 1): the user's areas now. Drop local areas (and their voters) not in it; if it
+    holds an area the phone does not have, run a first download again (no `since`)."""
+    watermark: str = Field(description="The same on every page of one download (a whole number, as text)")
+    next_cursor: str | None
+    settings: WorkspaceSettings | None = Field(None, description=(
+        "Page 1 only; on a delta pull only when the settings changed"))
+    lists: SyncLists | None = Field(None, description="Page 1 only; on a delta pull only the entries that changed")
+    wipe: bool = Field(False, description="The phone was blocked: delete all local data and log out")
+    areas: list[SyncArea] = Field(default_factory=list, description=(
+        "Page 1: the user's areas (delta: only those changed since `since`)"))
+    area_ids: list[uuid.UUID] | None = Field(None, description="Page 1 only: ids of all the user's areas now")
+    total_voters: int | None = Field(None, description="Page 1 only: voters this pull will send (progress bar)")
+    total_surveys: int | None = Field(None, description="Page 1 only: surveys this pull will send")
+    voters: list[SyncVoter] = Field(default_factory=list)
+    surveys: list[Survey] = Field(default_factory=list)
+    gone_voter_ids: list[uuid.UUID] = Field(default_factory=list, description=(
+        "Delta only: voters that changed and are now outside the user's area; delete them on the phone"))

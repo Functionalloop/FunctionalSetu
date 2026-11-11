@@ -154,14 +154,14 @@ def check_roles(p: Principal, roles: frozenset[Role] | set[Role]) -> None:
         raise ApiError(403, "forbidden_role", "Your role cannot do this.")
 
 
-def require_roles(*roles: Role | frozenset[Role]):
+def require_roles(*roles: Role | frozenset[Role] | set[Role]):
     """Dependency: ready user whose role is one of the listed roles (no rank order).
 
         require_roles(SURVEY_ROLES)            require_roles(Role.admin, Role.super_admin)
     """
     allowed: set[Role] = set()
     for r in roles:
-        allowed |= set(r) if isinstance(r, frozenset) else {r}
+        allowed |= {r} if isinstance(r, Role) else set(r)
     if not allowed:
         raise ValueError("require_roles needs at least one role")
     frozen = frozenset(allowed)

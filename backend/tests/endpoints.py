@@ -15,6 +15,7 @@ Row fields:
   body         JSON body to send
   works        False: skip the "allowed role succeeds" check (covered in the endpoint's own tests)
   fresh_login  the call ends the session (logout): use a new login for the success check
+  wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ class Endpoint:
     body: dict[str, Any] | None = None
     works: bool = True
     fresh_login: bool = False
+    wipe_on_block: bool = False
 
     @property
     def label(self) -> str:
@@ -59,12 +61,15 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/me"),
     # devices
     Endpoint("GET", "/devices/me", level="current"),
+    Endpoint("GET", "/devices", roles=ADMINS, lists="device"),
     Endpoint("POST", "/devices/{device_id}/approve", roles=ADMINS, target="device"),
     Endpoint("POST", "/devices/{device_id}/block", roles=ADMINS, target="device", body={"reason": "Phone lost"}),
     # areas and voters
     Endpoint("GET", "/geo/tree"),  # tree isolation: test_geo.py
     Endpoint("GET", "/voters", lists="voter", area_params=("ward_id", "booth_id")),
     Endpoint("GET", "/voters/{voter_id}", target="voter"),
+    # sync (area isolation of the pages: test_sync_pull.py)
+    Endpoint("GET", "/sync/pull", wipe_on_block=True),
     Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
              body={"version": 0, "notes": "rule check"}),
 ]

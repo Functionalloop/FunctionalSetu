@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import auth, devices, geo, health, me, voters
+from .routers import auth, devices, geo, health, me, sync, voters
 
 API_PREFIX = "/api/v1"
 
@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(devices.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     return app
 
 

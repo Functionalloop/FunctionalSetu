@@ -47,8 +47,11 @@ Strictest last. Use the strictest that fits:
   - `check_roles(principal, roles)` does the same check for a single item, e.g. one entry in a sync push batch.
 - `last_seen_at` on the session is written at most once a minute.
 
+Cursors: `app/paging.py` (`encode_cursor(list)`, `decode_cursor(cursor, n)` → 400 `invalid_cursor`). Use it for every list.
+
 ## Area scope (`app/scope.py`)
 
+- Switched-off areas (`geo_units.is_active = false`) and everything below them are out of every scope, for every role: `Scope.excluded`, applied by `filter` and `contains_path`. `/me` areas come from the scope too.
 - `UserScope` dependency → `Scope`. Super admin: whole workspace. Admin: own constituency. Others: assigned wards/booths that are active and inside their own constituency. Each area covers its subtree.
 - `scope.filter("v.geo_path")` → `(sql_condition, params)` for any ltree column (`geo_units.path`, `voters.geo_path`). Returns `TRUE` / `FALSE` for whole/empty scope. Pass column names from code only.
 - `require_area(conn, scope, geo_id)` → 404 `not_found` unless the area is active and in scope (use it for `ward=` / `booth=` filters).
@@ -71,12 +74,14 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /me` | user, workspace, assigned areas, settings |
 | `GET /devices/me` | phone polls this for approval; `CurrentUser` level |
 | `POST /devices/{id}/approve`, `/block` | admin (own constituency); block sets the wipe signal |
+| `GET /devices` | admin (own constituency) / super admin (all). `?status=`, newest request first, cursor on (requested_at, id). Items add username, full_name_en, role, last_seen_at |
 | `GET /geo/tree` | all roles; `{"roots": [GeoNode]}` nested by `children`. Roots = the scope's top areas (super admin: every constituency; supervisor: the assigned ward, no parent above it). Inactive areas and their subtree are left out. Not paged (real roll: ~300 areas) |
 
 | `GET /voters` | all roles, area scope. Filters `q`, `ward_id`, `booth_id` (404 outside scope), `age_min/max`, `gender`, `color_tag_id`, `survey_status`, `caste_id`, `profession_id`, `has_mobile`. Roll order (part, booth, serial, id), keyset cursor (opaque base64), `limit` 1–200. Removed voters (`deleted_at`) never listed. "voted" filter comes with step 8 |
 
 | `GET /voters/{voter_id}` | all roles, area scope (404 outside, removed or other workspace). Roll fields + `survey` (null until first save) |
 | `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
+| `GET /sync/pull` | first download and delta (`since`), blocked phone gets `wipe: true`; see `context/sync.md`. Endpoint-table flag `wipe_on_block`. Settings load via `app/workspace_settings.py` (shared with `/me`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta, important/influencer) are not in the body yet: not in the SRS survey, or later steps.
 
