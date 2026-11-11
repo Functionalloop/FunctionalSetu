@@ -1,1 +1,42 @@
-Context assets/
+# Secrets
+.env
+*.env
+!.env.example
+
+# Real voter data and credentials: never in git
+jansetu-private/
+**/voters.csv
+**/activation*.csv
+*.sqlite
+*.db
+*.dump
+*.sql.gz
+backups/
+
+# Client paperwork (keep outside the repo)
+*Agreement*.pdf
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Node / portal
+node_modules/
+portal/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

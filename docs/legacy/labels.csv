@@ -1,0 +1,125 @@
+﻿keyy,local_label,hindi_label,english_label
+active,active,active,active
+address,पत्ता,पता,Address
+addresschange,पत्ताबदल,पत्ताबदल,Addresschange
+by_addresschange,पत्ताबदल मतदार,पत्ते मे बदल,Addresschange Voters
+advance_search,आधुनिक रीतीने शोधा,आधुनिक सर्च,Advance Search
+age,वय,आयु,Age
+age_sex,वय/लिंग,आयु/लिंग,Age Gender
+all,सर्व,सभी,All
+by_alphabets,अ ब क ड नुसार यादी,अ ब क ड नुसार यादी,Alphabetical List
+boothaddress,मतदान केंद्र,मतदान केंद्र,Booth
+booth_no,बूथ नं,बूथ नं,booth no
+by_address,पत्त्या नुसार,पते के अनुसार,By Address
+by_age,वया नुसार,आयु के अनुसार,By Age
+by_boothaddress,बुथ नुसार,बुथ नुसार,By Booth
+by_cast_name,जाती नुसार,जाती के अनुसार,By Cast
+by_color,रंगा नुसार,रंग के अनुसार,By Color
+by_familyid,कुटुंबा नुसार,परिवार के अनुसार,By Family
+by_gan,गणानुसार,गण के अनुसार,By Gan
+by_gat,गटा नुसार,गट के अनुसार,By gay
+by_gender,लिंगानुसार,लिंग के अनुसार,By Gender
+by_karyakarta2,प्रभावा नुसार,प्रभावा नुसार,By Influence
+by_newaddress,नवीन पत्त्यानुसार,नये पते के नुसार,By New Address
+by_party_name,पार्टी नुसार,पार्टी के अनुसार,By Party
+by_karykarta,कार्यकर्त्या नुसार,कार्यकर्ता के अनुसार,By Personnel
+by_karykarta_id,कार्यकर्त्या नुसार,कार्यकर्ता के नुसार,By Personnel
+by_profession_name,व्यवसाया नुसार,व्यवसाय के अनुसार,By Profession
+by_society,सोसायटी  नुसार,सोसायटी के नुसार,By Society
+by_last_name,आडनावा नूसार,उपनाम के अनुसार,By Surname
+by_village,गावा नुसार,गाव नुसार,By Village
+by_part_no,प्रभागा नुसार,प्रभाग के अनुसार,By Ward
+candidate,उमेदवार,उमेदवार,Candidate
+candidate_info,उमेदवाराची माहिती,उमेदवाराची माहिती,Candidate Information
+cast_name,जात,जाती,Cast
+cast_master,जाती मास्टर,जाती मास्टर,Cast Master
+charts,तक्ते,चार्ट,Charts
+color,रंग,रंग,Color
+complaint,तक्रार,शिकायते,Complaints
+by_all,संपुर्ण मतदार,संपुर्ण मतदार,Complete voters
+create_family,नवीन कुटुंब,नया परिवार,Create New Family
+data,डाटा,डाटा,Data
+dead,मृत,मृत,Dead
+by_dead,मृत मतदार,मृत मतदाता,Dead Voters
+demands,मागण्या,मांग,Demands
+display_setting,डिस्प्ले सेटिंग,डिस्प्ले सेटिंग,Display Setting
+dob,जन्म तारीख,जन्म तिथि,DOB
+download_list,यादी डाऊनलोड,यादी डाऊनलोड,Download List
+election,निवडणुक,चुनाव,Election
+emailid,ई मेल,ई मेल,Email Id
+extra,अधिक,अधिक,Extra
+extra_check1,अधिक चेक-1,अधिक चेक-1,Extra Check-1
+extra_check2,अधिक चेक-2,अधिक चेक-2,Extra Check-2
+extra_info1,अधिक माहिती-1,अधिक जानकारी-1,Extra Info-1
+extra_info2,अधिक माहिती-2,अधिक जानकारी-2,Extra Info-2
+extra_info3,अधिक माहिती-3,अधिक जानकारी-3,Extra Info-3
+extra_info4,अधिक माहिती-4,अधिक जानकारी-4,Extra Info-4
+extra_info5,अधिक माहिती-5,अधिक जानकारी-5,Extra Info-5
+familyid,कुटुंब,परीवार,Family
+family_by_house,कुटुंब,परिवार,Family
+family,कुटुंब,परिवार,Family
+family_by_name,नावा नुसार कुटुंब,नाम के स्वरूप परिवार,Family By Name
+female,स्त्री,स्त्री,Female
+draft_srno,अंतिम अनुक्रमांक,अंतिम अनुक्रमांक,Final Srno
+first_name,नाव,नाम,First Name
+flat_no,फ्लॅट नं,फ्लॅट नं,Flat No
+gan,गण,गण,Gan
+gat,गट,गट,Gat
+gat_gan,गट -> गण,गट -> गण,Gat -> Gan
+sex,लिंग,लिंग,Gender
+help,मदत,मदत,Help
+house_no,घर क्र,घर क्र,House No
+by_important,प्रभावशाली मतदार,प्रभावशाली मतदाता,Important Voters
+important,प्रभावशाली मतदार,प्रभावशाली मतदाता,Important Voters
+karyakarta2,प्रभाव,प्रभाव,Influence
+Influencer,प्रभावी व्यक्ति,प्रभावी व्यक्ति,Influencer
+karyakarta1,कार्यकर्ता,कार्यकर्ता,Karyakarta
+language,भाषा,भाषा,Language
+language_setting,भाषा बदला,भाषा बदले,Language Setting
+lists,याद्या,सूचियाँ,Lists
+main,मुख्य,मुख्य,Main
+male,पुरुष,पुरुष,Male
+middle_name,पति/वडिलांचे नाव,पति/पिता का नाम,Middle Name
+mobile_no1,मोबाइल - 1,मोबाइल - 1,Mobile - 1
+mobile_no2,मोबाइल - 2,मोबाइल - 2,Mobile - 2
+mobile_no_list,मोबाइल न यादी,मोबाइल न यादी,Mobile No List
+assembly,नगर परिषद,नगर परिषद,Municipal Council
+assembly_mapping,विधानसभा क्र,विधानसभा क्र,Municipal No
+name,नाव,नाम,Name
+new,नविन,नया,New
+newaddress,नवीन पत्ता,नया पता,New Address
+no,नाही,नहीं,No
+opposite,विरोधी,विरोधी,Opposite
+other,इतर,इतर,Other
+ours,आपले,हमारे,Ours
+party_name,पार्टी,पार्टी,Party Name
+photo,फोटो,फोटो,Photo
+print_setting,प्रिंटर सेटिंग्स,प्रिंटर सेटिंग्स,Printer Settings
+profession_name,व्यवसाय,व्यवसाय,Profession
+quick,त्वरित,त्वरित,Quick
+religion,धर्म,धर्म,Religion
+repeated,दुबार,रिपीटेड,Repeated
+by_repeated,दुबार मतदार,रिपीटेड मतदाता,Repeated Voters
+search,शोधा,खोजे,Search
+sms_settings,संदेश सेटिंग्स,संदेश सेटिंग्स,Sms Settings
+society,सोसायटी,सोसायटी,Society
+srno,अनुक्रमांक,अनुक्रमांक,Srn
+last_name,आडनाव,उपनाम,Surname
+survey,सर्वे,सर्वेक्षण,Survey
+taluka,तालुका,तालुका,Taluka
+tc,Terms and conditions,Terms and conditions,Terms and conditions
+total,एकूण,एकूण,Total
+total_voters,संपूर्ण मतदार,संपूर्ण मतदाता,Total Voters
+update_list,यादी अपडेट,यादी अपडेट,Update List
+view_repeated_voting,दुबार मतदान पहा,रिपीटेड वोटिंग देखे,View Repeated Voting
+village,गाव,गाव,Village
+voted,वोटेड,वोटेड,Voted
+voter,मतदार,मतदाता,Voter
+vcardid,मतदान कार्ड,मतदान कार्ड,Voter Id
+voter_info,मतदाराची माहिती,मतदाता जानकारी,Voter Information
+voters_on_same_address,या पत्त्या वरील सर्व मतदार,या पत्त्या वरील सर्व मतदाता,Voters On Same Address
+voters_on_same_booth,या केंद्रावरील सर्व मतदार,इस केंद्र से सभी मतदाता,Voters On Same Booth
+symbol,निशाणी,चुनाव चिन्ह,Voting Symbol
+prabhag,प्रभाग,प्रभाग,Ward
+part_no,प्रभाग,प्रभाग,Ward No
+yes,होय,हाँ,Yes
