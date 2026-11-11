@@ -96,7 +96,7 @@ Errors: `ApiError(..., extra={...})` adds keys inside `error`; `ErrorBody.curren
 
 ## Tests
 
-- `conftest.py` drops and rebuilds `jansetu_test` each run, applies migrations via `scripts/migrate.py`. The name is hard-guarded: anything but `jansetu_test` aborts.
+- `conftest.py` drops and rebuilds its test database each run and applies migrations via `scripts/migrate.py`. **Each runner its own database:** `TEST_RUNNER=claude pytest` uses `jansetu_test_claude` (Antigravity: `TEST_RUNNER=antigravity`). Two runs on one database wipe each other. Only `jansetu_test` / `jansetu_test_<name>` is accepted.
 - Fixtures: `owner_conn` (BYPASSRLS, setup only), `app_conn` (RLS applies), `client`, `make_workspace(label, must_change=(), extra_users={})`, `set_device_status`.
 - `make_workspace` gives: 1 local body, 1 ward, booths 1001/1002, users `boss` (super_admin), `admin1`, `sup1` (assigned the ward), `survey1` (assigned booth 1 only). All use password `PASSWORD` (`Test@pass123`).
 - Helpers: `login(client, ws, username, device=phone())`, `bearer(tokens)`.

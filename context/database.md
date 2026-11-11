@@ -56,4 +56,4 @@ python scripts/export_openapi.py                          # rewrites docs/openap
 - Real voter data: show counts and shapes only, never names, EPICs or mobiles. Import error files go to `../jansetu-private/`.
 - `migrate.py`: a file with its own `BEGIN/COMMIT` (like 001) runs as written; any other file runs in one transaction with its record. Prefer the second form from 002 on.
 - Port 5442 is used so it does not clash with other local PostgreSQL containers.
-- The tests use a separate `jansetu_test` database (see `backend.md`); never point them at `jansetu`.
+- The tests use `jansetu_test` or `jansetu_test_<runner>` (see `backend.md`); never point them at `jansetu`.
