@@ -26,11 +26,17 @@ class Download:
     def ids(self, key: str, id_field: str = "id") -> list[uuid.UUID]:
         return [uuid.UUID(r[id_field]) for p in self.pages for r in p[key]]
 
+    @property
+    def gone(self) -> list[uuid.UUID]:
+        return [uuid.UUID(i) for p in self.pages for i in p["gone_voter_ids"]]
 
-def download(client, headers, limit=1000) -> Download:
+
+def download(client, headers, limit=1000, since: str | None = None) -> Download:
+    """Every page of one pull: a first download, or a delta pull when `since` is given."""
     d, cursor = Download(), None
     while True:
-        r = client.get(f"{API}/sync/pull", headers=headers, params={"limit": limit, **({"cursor": cursor} if cursor else {})})
+        params = {"limit": limit, **({"cursor": cursor} if cursor else {"since": since} if since else {})}
+        r = client.get(f"{API}/sync/pull", headers=headers, params=params)
         assert r.status_code == 200, r.text
         d.pages.append(r.json())
         cursor = r.json()["next_cursor"]
@@ -138,7 +144,7 @@ def test_unassigned_booth_agent_gets_nothing(client, area, set_device_status):
     h = phone_headers(client, area, "agent1", set_device_status, "phone-pull-0002")
     d = download(client, h)
     assert d.ids("voters") == [] and d.ids("surveys", "voter_id") == [] and d.first["areas"] == []
-    assert d.first["total_voters"] == 0 and len(d.pages) == 3
+    assert d.first["total_voters"] == 0 and len(d.pages) == 1  # nothing to page through
 
 
 def test_first_page_has_settings_and_own_lists(client, area, owner_conn):
@@ -168,10 +174,155 @@ def test_change_during_download_is_at_or_after_the_watermark(client, area, owner
     assert old < w
 
 
-@pytest.mark.parametrize("cursor", ["junk", "WyJ4Il0",                     # not a cursor; ["x"]
-                                    "WyJ2b3RlcnMiLCBudWxsLCAiYWJjIl0",      # ["voters", null, "abc"]
-                                    "WyJmYW1pbGllcyIsIG51bGwsICIxMCJd",     # ["families", null, "10"]
-                                    "WyJ2b3RlcnMiLCAibm90LWEtdXVpZCIsICIxMCJd"])  # bad id
+def _c(*key) -> str:
+    from app.paging import encode_cursor
+    return encode_cursor(list(key))
+
+
+@pytest.mark.parametrize("cursor", [
+    "junk",
+    _c("x"),                                           # wrong length
+    _c(["voters"], None, "10"),                        # old 3-part format
+    _c(["voters"], None, "abc", None),                 # bad watermark
+    _c(["voters"], None, "10", "x1"),                  # bad since
+    _c([], None, "10", None),                          # no phase left
+    _c("voters", None, "10", None),                    # phases not a list
+    _c(["families"], None, "10", None),                # unknown phase
+    _c(["gone"], None, "10", None),                    # gone only exists on a delta pull
+    _c(["voters"], "not-a-uuid", "10", None),          # bad id
+])
 def test_bad_cursor(client, area, cursor):
     r = client.get(f"{API}/sync/pull", headers=bearer(login(client, area, "sup1").json()), params={"cursor": cursor})
     assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_cursor"
+
+
+# --- delta pull (since=W) ---------------------------------------------------------------------
+def start(client, headers) -> str:
+    """A complete first download; returns its watermark W."""
+    return download(client, headers).first["watermark"]
+
+
+def test_survey_changed_after_w_comes_back(client, area):
+    h = bearer(login(client, area, "sup1").json())
+    w = start(client, h)
+    r = client.put(f"{API}/voters/{area.b1[2]}/survey", headers=h, json={"version": 0, "notes": "new"})
+    assert r.status_code == 200
+    d = download(client, h, since=w)
+    assert d.ids("surveys", "voter_id") == [area.b1[2]]
+    assert [s["notes"] for p in d.pages for s in p["surveys"]] == ["new"]
+    assert d.ids("voters") == [] and d.first["total_surveys"] == 1  # roll rows did not change
+    assert int(d.first["watermark"]) >= int(w)
+
+
+def test_nothing_changed_sends_no_rows(client, area):
+    h = bearer(login(client, area, "sup1").json())
+    d = download(client, h, since=start(client, h))
+    assert d.ids("voters") == d.ids("surveys", "voter_id") == d.gone == []
+    assert d.first["areas"] == [] and d.first["settings"] is None
+    assert d.first["lists"] == {"castes": [], "professions": [], "color_tags": [], "custom_field_labels": []}
+    assert set(map(uuid.UUID, d.first["area_ids"])) == {area.ward, *area.booths, area.section}
+    assert len(d.pages) == 1  # an idle sync is one request
+
+
+def test_removed_voter_comes_with_deleted_at_and_without_survey(client, area, owner_conn):
+    h = bearer(login(client, area, "sup1").json())
+    w = start(client, h)
+    owner_conn.execute("UPDATE app.voters SET deleted_at = now() WHERE id = %s", (area.b1[1],))
+    d = download(client, h, since=w)
+    [v] = [v for p in d.pages for v in p["voters"]]
+    assert v["id"] == str(area.b1[1]) and v["deleted_at"] is not None
+    assert d.ids("surveys", "voter_id") == []
+
+
+def test_voter_moved_out_of_area_is_gone(client, area, owner_conn, set_device_status):
+    surveyor = phone_headers(client, area, "survey1", set_device_status, "phone-pull-0003")
+    supervisor = bearer(login(client, area, "sup1").json())
+    w_surveyor, w_supervisor = start(client, surveyor), start(client, supervisor)
+    owner_conn.execute("UPDATE app.voters SET booth_id = %s WHERE id = %s", (area.booths[1], area.b1[0]))
+
+    d = download(client, surveyor, since=w_surveyor)            # booth 1 only: the voter left
+    assert d.ids("voters") == [] and d.gone == [area.b1[0]]
+    d = download(client, supervisor, since=w_supervisor)        # the whole ward: still there, new booth
+    [v] = [v for p in d.pages for v in p["voters"]]
+    assert v["booth_id"] == str(area.booths[1])
+    assert d.gone == []
+
+
+def test_new_voter_in_area_comes_and_one_outside_does_not(client, area, owner_conn, set_device_status):
+    surveyor = phone_headers(client, area, "survey1", set_device_status, "phone-pull-0004")
+    w = start(client, surveyor)
+    new_in, new_out = uuid.uuid4(), uuid.uuid4()
+    for vid, booth, serial in ((new_in, area.booths[0], 901), (new_out, area.booths[1], 902)):
+        owner_conn.execute("""INSERT INTO app.voters (id, tenant_id, local_body_id, ward_id, booth_id, part_no,
+                                  serial_no, gender, first_name_en) VALUES (%s, %s, %s, %s, %s, 1, %s, 'F', 'New')""",
+                           (vid, area.tenant, area.local_body, area.ward, booth, serial))
+    d = download(client, surveyor, since=w)
+    assert d.ids("voters") == [new_in]
+    assert d.gone == [new_out]  # outside the area: its id only, never the row
+
+
+def test_area_ids_follow_assignments(client, area, owner_conn, set_device_status):
+    surveyor = phone_headers(client, area, "survey1", set_device_status, "phone-pull-0005")
+    w = start(client, surveyor)
+    owner_conn.execute("INSERT INTO app.user_area_assignments (tenant_id, user_id, geo_unit_id) VALUES (%s, %s, %s)",
+                       (area.tenant, area.users["survey1"], area.booths[1]))
+    d = download(client, surveyor, since=w)
+    assert set(map(uuid.UUID, d.first["area_ids"])) == {area.booths[0], area.section, area.booths[1]}
+    # booth 2 itself did not change, so it is not in `areas`: the phone sees an unknown id and downloads again
+    assert d.first["areas"] == []
+    owner_conn.execute("DELETE FROM app.user_area_assignments WHERE user_id = %s AND geo_unit_id = %s",
+                       (area.users["survey1"], area.booths[0]))
+    d = download(client, surveyor, since=w)
+    assert set(map(uuid.UUID, d.first["area_ids"])) == {area.booths[1]}
+
+
+def test_switched_off_area_leaves_area_ids(client, area, owner_conn):
+    h = bearer(login(client, area, "sup1").json())
+    w = start(client, h)
+    owner_conn.execute("UPDATE app.geo_units SET is_active = false WHERE id = %s", (area.booths[1],))
+    d = download(client, h, since=w)
+    assert set(map(uuid.UUID, d.first["area_ids"])) == {area.ward, area.booths[0], area.section}
+
+
+def test_changed_list_entry_and_settings(client, area, owner_conn):
+    h = bearer(login(client, area, "sup1").json())
+    w = start(client, h)
+    owner_conn.execute("UPDATE app.color_tags SET label_en = 'Ours!' WHERE tenant_id = %s AND code = 'green'",
+                       (area.tenant,))
+    owner_conn.execute("""INSERT INTO app.tenant_settings (tenant_id, election_name_en) VALUES (%s, 'Test poll')
+                          ON CONFLICT (tenant_id) DO UPDATE SET election_name_en = 'Test poll'""", (area.tenant,))
+    first = download(client, h, since=w).first
+    assert [t["label_en"] for t in first["lists"]["color_tags"]] == ["Ours!"]
+    assert first["lists"]["castes"] == []
+    assert first["settings"]["election_name_en"] == "Test poll"
+
+
+def test_delta_paging_sends_each_change_once(client, area, owner_conn):
+    h = bearer(login(client, area, "admin1").json())
+    w = start(client, h)
+    owner_conn.execute("UPDATE app.voters SET house_no = '9Z' WHERE id = ANY(%s)", (area.b1 + area.b2,))
+    d = download(client, h, limit=1, since=w)
+    assert sorted(d.ids("voters")) == sorted(area.b1 + area.b2)
+    assert d.first["total_voters"] == 5
+    assert len({p["watermark"] for p in d.pages}) == 1
+
+
+@pytest.mark.parametrize("since", [None, "1"])
+def test_blocked_phone_is_told_to_wipe(client, area, set_device_status, since):
+    t = login(client, area, "survey1", device=phone("phone-pull-0006")).json()
+    set_device_status(t["device"]["id"], "blocked")
+    r = client.get(f"{API}/sync/pull", headers=bearer(t), params={"since": since} if since else {})
+    assert r.status_code == 200 and r.json()["wipe"] is True
+    assert r.json()["voters"] == [] and r.json()["area_ids"] is None
+
+
+def test_pending_phone_still_403(client, area):
+    t = login(client, area, "survey1", device=phone("phone-pull-0007")).json()
+    r = client.get(f"{API}/sync/pull", headers=bearer(t), params={"since": "1"})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "device_pending"
+
+
+@pytest.mark.parametrize("since", ["abc", "-1", "1.5", "123456789012345678901"])
+def test_bad_since_is_422(client, area, since):
+    r = client.get(f"{API}/sync/pull", headers=bearer(login(client, area, "sup1").json()), params={"since": since})
+    assert r.status_code == 422

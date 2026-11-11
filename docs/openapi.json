@@ -1506,7 +1506,7 @@
         "tags": [
           "sync"
         ],
-        "summary": "First download of the user's area, in pages (see SyncPage). All roles, from the app.",
+        "summary": "First download (no since) or changes since a watermark, in pages. All roles, from the app. A blocked phone gets wipe=true.",
         "operationId": "pull",
         "security": [
           {
@@ -1514,6 +1514,25 @@
           }
         ],
         "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,20}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "watermark from the last complete pull; leave out for a first download",
+              "title": "Since"
+            },
+            "description": "watermark from the last complete pull; leave out for a first download"
+          },
           {
             "name": "cursor",
             "in": "query",
@@ -1527,10 +1546,10 @@
                   "type": "null"
                 }
               ],
-              "description": "next_cursor from the previous page; none = start",
+              "description": "next_cursor from the previous page; it carries `since`, so `since` is ignored with a cursor",
               "title": "Cursor"
             },
-            "description": "next_cursor from the previous page; none = start"
+            "description": "next_cursor from the previous page; it carries `since`, so `since` is ignored with a cursor"
           },
           {
             "name": "limit",
@@ -1540,11 +1559,11 @@
               "type": "integer",
               "maximum": 2000,
               "minimum": 1,
-              "description": "Voters or surveys per page",
+              "description": "Voters, surveys or ids per page",
               "default": 1000,
               "title": "Limit"
             },
-            "description": "Voters or surveys per page"
+            "description": "Voters, surveys or ids per page"
           }
         ],
         "responses": {
@@ -3620,7 +3639,7 @@
                 "type": "null"
               }
             ],
-            "description": "First page only"
+            "description": "Page 1 only; on a delta pull only when the settings changed"
           },
           "lists": {
             "anyOf": [
@@ -3631,7 +3650,13 @@
                 "type": "null"
               }
             ],
-            "description": "First page only"
+            "description": "Page 1 only; on a delta pull only the entries that changed"
+          },
+          "wipe": {
+            "type": "boolean",
+            "title": "Wipe",
+            "description": "The phone was blocked: delete all local data and log out",
+            "default": false
           },
           "areas": {
             "items": {
@@ -3639,7 +3664,23 @@
             },
             "type": "array",
             "title": "Areas",
-            "description": "The user's areas (first page)"
+            "description": "Page 1: the user's areas (delta: only those changed since `since`)"
+          },
+          "area_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Ids",
+            "description": "Page 1 only: ids of all the user's areas now"
           },
           "total_voters": {
             "anyOf": [
@@ -3651,7 +3692,7 @@
               }
             ],
             "title": "Total Voters",
-            "description": "First page only: for a progress bar"
+            "description": "Page 1 only: voters this pull will send (progress bar)"
           },
           "total_surveys": {
             "anyOf": [
@@ -3663,7 +3704,7 @@
               }
             ],
             "title": "Total Surveys",
-            "description": "First page only: for a progress bar"
+            "description": "Page 1 only: surveys this pull will send"
           },
           "voters": {
             "items": {
@@ -3678,6 +3719,15 @@
             },
             "type": "array",
             "title": "Surveys"
+          },
+          "gone_voter_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Gone Voter Ids",
+            "description": "Delta only: voters that changed and are now outside the user's area; delete them on the phone"
           }
         },
         "type": "object",
@@ -3686,7 +3736,7 @@
           "next_cursor"
         ],
         "title": "SyncPage",
-        "description": "One page of a sync pull. Save every row it holds (insert or replace by id), then ask\nfor `next_cursor`. When `next_cursor` is null the download is complete: store `watermark`\nand use it as `since` on the next pull."
+        "description": "One page of a sync pull. If `wipe` is true, delete all local data and log out; nothing else\nin the page applies. Otherwise save every row it holds (insert or replace by id; a voter with\n`deleted_at` set is deleted), delete `gone_voter_ids`, then ask for `next_cursor`. When\n`next_cursor` is null the pull is complete: store `watermark` and send it as `since` next time.\n`area_ids` (page 1): the user's areas now. Drop local areas (and their voters) not in it; if it\nholds an area the phone does not have, run a first download again (no `since`)."
       },
       "SyncVoter": {
         "properties": {

@@ -1,11 +1,15 @@
-"""GET /sync/pull without `since`: the first download of a phone's area, in pages.
+"""GET /sync/pull: the first download (no `since`) and the delta pull (`since=W`), in pages.
 
-Page order: (1) settings, lists, areas and totals; (2) voters by id; (3) surveys by voter id.
-The watermark W is taken once, on the first page, and carried in the cursor, so every page
-of one download returns the same W. Pages after the first run in later transactions and so
-see everything committed up to then: a row changed while the phone is still downloading
-either arrives in a later page or (sync_xid >= W) in the first delta pull. It may arrive
-twice; the phone replaces rows by id, so that is harmless.
+Page 1: settings, lists, areas, `area_ids`, totals and a new watermark W'.
+Then phases, each keyset-paged by id:
+    voters    first download: every voter in the area (removed ones left out)
+              delta: voters in the area with sync_xid >= since, removed ones included (deleted_at set)
+    surveys   surveys of voters in the area (delta: sync_xid >= since)
+    gone      delta only: ids of voters changed since W that are now outside the area
+W' is taken once, on page 1, and carried in the cursor with `since`, so every page of one pull
+returns the same W'. Later pages run in later transactions and see everything committed up to
+then; anything written after page 1 has sync_xid >= W' and comes again in the next delta pull.
+Rows may arrive twice; the phone replaces them by id. How the phone uses this: context/sync.md.
 """
 
 from __future__ import annotations
@@ -23,8 +27,10 @@ from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, Survey, SyncAr
 from .scope import Scope
 from .workspace_settings import load_workspace_settings
 
-PHASES = ("voters", "surveys")
-_WATERMARK_RE = re.compile(r"^[0-9]{1,20}$")
+FIRST_PHASES = ("voters", "surveys")
+DELTA_PHASES = ("voters", "surveys", "gone")
+WATERMARK_PATTERN = r"^[0-9]{1,20}$"
+_WATERMARK_RE = re.compile(WATERMARK_PATTERN)
 
 VOTER_COLS = ", ".join(f"v.{c}" for c in SyncVoter.model_fields)
 SURVEY_COLS = ", ".join(f"s.{c}" for c in SURVEY_COLUMNS)
@@ -40,85 +46,125 @@ def _rows(conn: Connection, sql: str, params: dict | None = None) -> list[Any]:
     return list(conn.execute(text(sql), params or {}).mappings().all())
 
 
-def load_lists(conn: Connection) -> SyncLists:
-    """Castes, professions, colour tags and custom field labels of the workspace (RLS), inactive included."""
+def _changed(alias: str, since: str | None) -> str:
+    """SQL: the row changed since the watermark (always true on a first download)."""
+    prefix = f"{alias}." if alias else ""
+    return f"{prefix}sync_xid >= CAST(:since AS xid8)" if since is not None else "TRUE"
+
+
+def load_lists(conn: Connection, since: str | None = None) -> SyncLists:
+    """Castes, professions, colour tags and custom field labels (RLS: this workspace), inactive included.
+    With `since`: only entries changed since then."""
+    p = {"since": since}
+    ch = _changed("", since)
     return SyncLists(
         castes=[NamedListEntry(**r) for r in _rows(
-            conn, f"SELECT {_NAMED} FROM app.castes ORDER BY sort_order, name_mr")],
+            conn, f"SELECT {_NAMED} FROM app.castes WHERE {ch} ORDER BY sort_order, name_mr", p)],
         professions=[NamedListEntry(**r) for r in _rows(
-            conn, f"SELECT {_NAMED} FROM app.professions ORDER BY sort_order, name_mr")],
+            conn, f"SELECT {_NAMED} FROM app.professions WHERE {ch} ORDER BY sort_order, name_mr", p)],
         color_tags=[ColorTag(**r) for r in _rows(
-            conn, f"SELECT {', '.join(ColorTag.model_fields)} FROM app.color_tags ORDER BY sort_order, code")],
+            conn, f"SELECT {', '.join(ColorTag.model_fields)} FROM app.color_tags WHERE {ch} ORDER BY sort_order, code",
+            p)],
         custom_field_labels=[CustomFieldLabel(**r) for r in _rows(
-            conn, "SELECT field_key::text AS field_key, label_mr, label_en, label_hi, is_enabled "
-                  "FROM app.custom_field_labels ORDER BY field_key")],
+            conn, f"SELECT field_key::text AS field_key, label_mr, label_en, label_hi, is_enabled "
+                  f"FROM app.custom_field_labels WHERE {ch} ORDER BY field_key", p)],
     )
 
 
-def load_areas(conn: Connection, scope: Scope) -> list[SyncArea]:
-    cond, params = scope.filter("g.path")
-    return [SyncArea(**a) for a in _rows(conn, f"""
-        SELECT {_AREA_COLS} FROM app.geo_units g WHERE g.is_active AND {cond}
-         ORDER BY nlevel(g.path), g.sort_order, g.number NULLS LAST, g.code
-    """, params)]
-
-
-def _first_page(conn: Connection, scope: Scope) -> SyncPage:
+def _first_page(conn: Connection, scope: Scope, since: str | None) -> SyncPage:
     watermark = current_watermark(conn)
-    cond, params = scope.filter("v.geo_path")
-    total_voters, total_surveys = conn.execute(text(f"""
-        SELECT count(*), count(s.voter_id)
-          FROM app.voters v
-          LEFT JOIN app.voter_surveys s ON s.tenant_id = v.tenant_id AND s.voter_id = v.id
-         WHERE v.deleted_at IS NULL AND {cond}
-    """), params).one()
-    return SyncPage(watermark=watermark, next_cursor=encode_cursor([PHASES[0], None, watermark]),
-                    settings=load_workspace_settings(conn), lists=load_lists(conn), areas=load_areas(conn, scope),
-                    total_voters=total_voters, total_surveys=total_surveys)
+    gcond, gparams = scope.filter("g.path")
+    areas = _rows(conn, f"""
+        SELECT {_AREA_COLS}, {_changed("g", since)} AS changed
+          FROM app.geo_units g WHERE g.is_active AND {gcond}
+         ORDER BY nlevel(g.path), g.sort_order, g.number NULLS LAST, g.code
+    """, {**gparams, "since": since})
+
+    vcond, vparams = scope.filter("v.geo_path")
+    vparams["since"] = since
+    voters_where = f"v.deleted_at IS NULL AND {vcond}" if since is None else f"{_changed('v', since)} AND {vcond}"
+    total_voters = conn.execute(text(f"SELECT count(*) FROM app.voters v WHERE {voters_where}"), vparams).scalar_one()
+    total_surveys = conn.execute(text(f"""
+        SELECT count(*) FROM app.voter_surveys s JOIN app.voters v ON v.tenant_id = s.tenant_id AND v.id = s.voter_id
+         WHERE v.deleted_at IS NULL AND {_changed('s', since)} AND {vcond}
+    """), vparams).scalar_one()
+
+    settings_changed = since is None or bool(conn.execute(
+        text(f"SELECT EXISTS (SELECT 1 FROM app.tenant_settings WHERE {_changed('', since)})"),
+        {"since": since}).scalar())
+    phases = FIRST_PHASES if since is None else DELTA_PHASES
+    # Only phases that have rows are visited (the cursor carries the list), so an idle delta pull
+    # is a single request and a small one is page 1 plus one page per phase with rows.
+    gone = 0 if since is None else conn.execute(text(
+        f"SELECT count(*) FROM app.voters v WHERE {_changed('v', since)} AND NOT ({vcond})"), vparams).scalar_one()
+    todo = {"voters": total_voters, "surveys": total_surveys, "gone": gone}
+    with_rows = [p for p in phases if todo[p] > 0]
+    return SyncPage(
+        watermark=watermark,
+        next_cursor=_cursor(with_rows, None, watermark, since),
+        settings=load_workspace_settings(conn) if settings_changed else None,
+        lists=load_lists(conn, since),
+        areas=[SyncArea(**{k: v for k, v in a.items() if k != "changed"}) for a in areas if a["changed"]],
+        area_ids=[a["id"] for a in areas],
+        total_voters=total_voters, total_surveys=total_surveys)
 
 
-def _read_cursor(cursor: str) -> tuple[str, uuid.UUID | None, str]:
-    phase, after, watermark = decode_cursor(cursor, 3)
-    if phase not in PHASES or not isinstance(watermark, str) or not _WATERMARK_RE.match(watermark):
+def _cursor(phases_left: list[str], after: str | None, watermark: str, since: str | None) -> str | None:
+    """Cursor [phases still to send (current first), last id sent, W, since]; None when nothing is left."""
+    return encode_cursor([phases_left, after, watermark, since]) if phases_left else None
+
+
+def _read_cursor(cursor: str) -> tuple[list[str], uuid.UUID | None, str, str | None]:
+    phases_left, after, watermark, since = decode_cursor(cursor, 4)
+    allowed = FIRST_PHASES if since is None else DELTA_PHASES
+    for w in (watermark, since):
+        if w is not None and (not isinstance(w, str) or not _WATERMARK_RE.match(w)):
+            raise invalid_cursor()
+    if (watermark is None or not isinstance(phases_left, list) or not phases_left
+            or any(p not in allowed for p in phases_left)):
         raise invalid_cursor()
     try:
-        return phase, (uuid.UUID(after) if after is not None else None), watermark
+        return phases_left, (uuid.UUID(after) if after is not None else None), watermark, since
     except (TypeError, ValueError, AttributeError):
         raise invalid_cursor() from None
 
 
-def first_download_page(conn: Connection, scope: Scope, cursor: str | None, limit: int) -> SyncPage:
+def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | None, limit: int) -> SyncPage:
+    """One page of a first download (since=None) or of a delta pull."""
     if cursor is None:
-        return _first_page(conn, scope)
-    phase, after, watermark = _read_cursor(cursor)
+        return _first_page(conn, scope, since)
+    phases_left, after, watermark, since = _read_cursor(cursor)
+    phase = phases_left[0]
 
     cond, params = scope.filter("v.geo_path")
-    params.update(after=after, limit=limit + 1)
+    params.update(after=after, limit=limit + 1, since=since)
     if phase == "voters":
         key, select, source = "v.id", VOTER_COLS, "app.voters v"
-    else:
+        where = f"v.deleted_at IS NULL AND {cond}" if since is None else f"{_changed('v', since)} AND {cond}"
+    elif phase == "surveys":
         key, select = "s.voter_id", SURVEY_COLS
         source = "app.voter_surveys s JOIN app.voters v ON v.tenant_id = s.tenant_id AND v.id = s.voter_id"
+        where = f"v.deleted_at IS NULL AND {_changed('s', since)} AND {cond}"
+    else:  # gone: changed since W and now outside the area (ids only)
+        key, select, source = "v.id", "v.id", "app.voters v"
+        where = f"{_changed('v', since)} AND NOT ({cond})"
     after_sql = f"AND {key} > :after" if after is not None else ""
-    rows = _rows(conn, f"""
-        SELECT {select} FROM {source}
-         WHERE v.deleted_at IS NULL AND {cond} {after_sql}
-         ORDER BY {key}
-         LIMIT :limit
-    """, params)
+    rows = _rows(conn, f"SELECT {select} FROM {source} WHERE {where} {after_sql} ORDER BY {key} LIMIT :limit",
+                 params)
 
     more = len(rows) > limit
     rows = rows[:limit]
     if more:
-        last = rows[-1]["id" if phase == "voters" else "voter_id"]
-        next_cursor: str | None = encode_cursor([phase, str(last), watermark])
+        last = rows[-1]["voter_id" if phase == "surveys" else "id"]
+        next_cursor = _cursor(phases_left, str(last), watermark, since)
     else:
-        nxt = PHASES.index(phase) + 1
-        next_cursor = encode_cursor([PHASES[nxt], None, watermark]) if nxt < len(PHASES) else None
+        next_cursor = _cursor(phases_left[1:], None, watermark, since)
 
     page = SyncPage(watermark=watermark, next_cursor=next_cursor)
     if phase == "voters":
         page.voters = [SyncVoter(**r) for r in rows]
-    else:
+    elif phase == "surveys":
         page.surveys = [Survey(**r) for r in rows]
+    else:
+        page.gone_voter_ids = [r["id"] for r in rows]
     return page

@@ -447,15 +447,24 @@ class SyncLists(BaseModel):
 
 
 class SyncPage(BaseModel):
-    """One page of a sync pull. Save every row it holds (insert or replace by id), then ask
-    for `next_cursor`. When `next_cursor` is null the download is complete: store `watermark`
-    and use it as `since` on the next pull."""
+    """One page of a sync pull. If `wipe` is true, delete all local data and log out; nothing else
+    in the page applies. Otherwise save every row it holds (insert or replace by id; a voter with
+    `deleted_at` set is deleted), delete `gone_voter_ids`, then ask for `next_cursor`. When
+    `next_cursor` is null the pull is complete: store `watermark` and send it as `since` next time.
+    `area_ids` (page 1): the user's areas now. Drop local areas (and their voters) not in it; if it
+    holds an area the phone does not have, run a first download again (no `since`)."""
     watermark: str = Field(description="The same on every page of one download (a whole number, as text)")
     next_cursor: str | None
-    settings: WorkspaceSettings | None = Field(None, description="First page only")
-    lists: SyncLists | None = Field(None, description="First page only")
-    areas: list[SyncArea] = Field(default_factory=list, description="The user's areas (first page)")
-    total_voters: int | None = Field(None, description="First page only: for a progress bar")
-    total_surveys: int | None = Field(None, description="First page only: for a progress bar")
+    settings: WorkspaceSettings | None = Field(None, description=(
+        "Page 1 only; on a delta pull only when the settings changed"))
+    lists: SyncLists | None = Field(None, description="Page 1 only; on a delta pull only the entries that changed")
+    wipe: bool = Field(False, description="The phone was blocked: delete all local data and log out")
+    areas: list[SyncArea] = Field(default_factory=list, description=(
+        "Page 1: the user's areas (delta: only those changed since `since`)"))
+    area_ids: list[uuid.UUID] | None = Field(None, description="Page 1 only: ids of all the user's areas now")
+    total_voters: int | None = Field(None, description="Page 1 only: voters this pull will send (progress bar)")
+    total_surveys: int | None = Field(None, description="Page 1 only: surveys this pull will send")
     voters: list[SyncVoter] = Field(default_factory=list)
     surveys: list[Survey] = Field(default_factory=list)
+    gone_voter_ids: list[uuid.UUID] = Field(default_factory=list, description=(
+        "Delta only: voters that changed and are now outside the user's area; delete them on the phone"))
