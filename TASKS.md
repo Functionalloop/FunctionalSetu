@@ -3,12 +3,12 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 12 / 75 done (16%)** `███░░░░░░░░░░░░░░░░░`
+**Overall: 15 / 75 done (20%)** `████░░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
 | Step 4 – Demo API | 12 / 12 | `██████████` |
-| Step 5 – Android demo app | 0 / 13 | `░░░░░░░░░░` |
+| Step 5 – Android demo app | 3 / 13 | `██░░░░░░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 0 / 10 | `░░░░░░░░░░` |
@@ -33,12 +33,12 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **4.9** Demo users · due 15 Nov · done 2026-11-11 · `40ff705`
 - [x] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions · done 2026-11-11 · `9f7ab97`
 
-## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 0/13
+## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 3/13
 
 - [ ] **5.1** Project · due 14 Nov
-- [ ] **5.2** Local database · due 15 Nov
-- [ ] **5.3** Search · due 16 Nov
-- [ ] **5.4** API client · due 17 Nov
+- [x] **5.2** Local database · due 15 Nov · done 2026-11-12 · `1f62e80`
+- [x] **5.3** Search · due 16 Nov · done 2026-11-12 · `8e5bfe2`
+- [x] **5.4** API client · due 17 Nov · done 2026-11-12 · `1230213`
 - [ ] **5.5** Login, Set password, Device approval · due 17–18 Nov
 - [ ] **5.6** First download · due 18–19 Nov
 - [ ] **5.7** Home, bottom bar, More menu shell · due 19 Nov
