@@ -16,6 +16,8 @@ Row fields:
   works        False: skip the "allowed role succeeds" check (covered in the endpoint's own tests)
   fresh_login  the call ends the session (logout): use a new login for the success check
   wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
+  stub         contract only (4.10): an allowed role reaches it and gets 501 not_implemented (or 422 when
+               the row has no sample body). Building it: drop `stub`, add `target` / `lists` and its own tests.
 """
 
 from __future__ import annotations
@@ -25,11 +27,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.deps import POLLING_ROLES, SURVEY_ROLES  # noqa: F401  (POLLING_ROLES: used by later rows)
+from app.deps import POLLING_ROLES, SURVEY_ROLES
 from app.schemas import Role
 
 ALL = frozenset(Role)
 ADMINS = frozenset({Role.super_admin, Role.admin})
+SUPERVISORS = frozenset({Role.super_admin, Role.admin, Role.supervisor})
+SUPER = frozenset({Role.super_admin})
 
 
 @dataclass(frozen=True)
@@ -45,6 +49,7 @@ class Endpoint:
     works: bool = True
     fresh_login: bool = False
     wipe_on_block: bool = False
+    stub: bool = False
 
     @property
     def label(self) -> str:
@@ -73,7 +78,99 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("POST", "/sync/push", body={"items": []}),  # per-item roles: test_sync_push.py
     Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
              body={"version": 0, "notes": "rule check"}),
-]
+] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
+    # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
+    # sync conflicts (7.10; who resolves: gap-table proposal)
+    ("GET", "/sync/conflicts", SURVEY_ROLES, "ready"),
+    ("POST", "/sync/conflicts/{conflict_id}/resolve", SURVEY_ROLES, "ready"),
+    # field work (7)
+    ("GET", "/voters/{voter_id}/family", ALL, "ready"),
+    ("PUT", "/voters/{voter_id}/family", SURVEY_ROLES, "ready"),
+    ("GET", "/families", ALL, "ready"),
+    ("POST", "/voters/{voter_id}/visits", SURVEY_ROLES, "ready"),
+    ("GET", "/new-voters", SURVEY_ROLES, "ready"),
+    ("POST", "/new-voters", SURVEY_ROLES, "ready"),
+    ("PATCH", "/new-voters/{new_voter_id}", SURVEY_ROLES, "ready"),
+    ("GET", "/voters/{voter_id}/history", ALL, "ready"),
+    ("POST", "/voters/{voter_id}/slip-events", ALL, "ready"),
+    ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
+    ("GET", "/birthdays", ALL, "ready"),
+    # More menu, app version (6.3, 7.9)
+    ("GET", "/app/version", ALL, "public"),
+    ("GET", "/terms/current", ALL, "public"),
+    ("POST", "/terms/accept", ALL, "active"),
+    ("GET", "/announcements", ALL, "ready"),
+    ("POST", "/announcements/{announcement_id}/read", ALL, "ready"),
+    ("POST", "/problem-reports", ALL, "active"),
+    # polling day (8.1): not surveyors
+    ("GET", "/turnout/summary", POLLING_ROLES, "ready"),
+    ("POST", "/turnout/marks", POLLING_ROLES, "ready"),
+    ("DELETE", "/turnout/marks/{voter_id}", POLLING_ROLES, "ready"),
+    # admin (9)
+    ("GET", "/users", ADMINS, "ready"),
+    ("POST", "/users", ADMINS, "ready"),
+    ("GET", "/users/{user_id}", ADMINS, "ready"),
+    ("PATCH", "/users/{user_id}", ADMINS, "ready"),
+    ("POST", "/users/{user_id}/reset-password", ADMINS, "ready"),
+    ("GET", "/users/{user_id}/assignments", ADMINS, "ready"),
+    ("PUT", "/users/{user_id}/assignments", ADMINS, "ready"),
+    ("GET", "/constituencies", SUPER, "ready"),
+    ("POST", "/constituencies", SUPER, "ready"),
+    ("PATCH", "/constituencies/{constituency_id}", SUPER, "ready"),
+    ("GET", "/settings/election", ADMINS, "ready"),
+    ("PUT", "/settings/election", ADMINS, "ready"),
+    *[(m, f"/masters/{lst}{suffix}", ADMINS, "ready") for lst in ("castes", "professions", "color-tags")
+      for m, suffix in (("GET", ""), ("POST", ""), ("PATCH", "/{entry_id}"))],
+    ("GET", "/masters/custom-fields", ADMINS, "ready"),
+    ("PATCH", "/masters/custom-fields/{field_key}", ADMINS, "ready"),
+    ("GET", "/masters/message-templates", ADMINS, "ready"),
+    ("PATCH", "/masters/message-templates/{kind}", ADMINS, "ready"),
+    ("POST", "/files", ADMINS, "ready"),
+    ("GET", "/files/{file_id}", ALL, "ready"),
+    ("POST", "/announcements", ADMINS, "ready"),
+    ("DELETE", "/announcements/{announcement_id}", ADMINS, "ready"),
+    ("GET", "/problem-reports", ADMINS, "ready"),
+    ("GET", "/audit-log", ADMINS, "ready"),
+    ("GET", "/reports/worker-activity", ADMINS, "ready"),
+    ("GET", "/worker-locations", ADMINS, "ready"),
+    # roll and data quality (10)
+    ("POST", "/rolls/imports", ADMINS, "ready"),
+    ("GET", "/rolls/imports", ADMINS, "ready"),
+    ("GET", "/rolls/imports/{import_id}", ADMINS, "ready"),
+    ("GET", "/rolls/imports/{import_id}/rows", ADMINS, "ready"),
+    ("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", ADMINS, "ready"),
+    ("POST", "/rolls/imports/{import_id}/apply", ADMINS, "ready"),
+    ("POST", "/rolls/imports/{import_id}/discard", ADMINS, "ready"),
+    ("POST", "/voters", ADMINS, "ready"),
+    ("PATCH", "/voters/{voter_id}/roll", ADMINS, "ready"),
+    ("POST", "/voters/{voter_id}/remove", ADMINS, "ready"),
+    ("POST", "/voters/{voter_id}/restore", ADMINS, "ready"),
+    ("GET", "/voters/{voter_id}/roll-edits", ADMINS, "ready"),
+    ("GET", "/data-quality/summary", SUPERVISORS, "ready"),
+    ("GET", "/data-quality/duplicates", SUPERVISORS, "ready"),
+    ("POST", "/data-quality/duplicates/{pair_id}/resolve", SUPERVISORS, "ready"),
+    ("GET", "/name-fixes", ADMINS, "ready"),
+    ("POST", "/name-fixes/{fix_id}/resolve", ADMINS, "ready"),
+    ("POST", "/mobile-imports", ADMINS, "ready"),
+    ("GET", "/mobile-imports/{import_id}", ADMINS, "ready"),
+    ("POST", "/mobile-imports/{import_id}/rows/{row_id}/resolve", ADMINS, "ready"),
+    # reports and exports (11)
+    ("GET", "/reports/survey-progress", SUPERVISORS, "ready"),
+    ("GET", "/reports/colour-tags", SUPERVISORS, "ready"),
+    ("GET", "/reports/demographics", SUPERVISORS, "ready"),
+    ("GET", "/reports/turnout", SUPERVISORS, "ready"),
+    ("POST", "/exports", SUPERVISORS, "ready"),
+    ("GET", "/exports/{export_id}", SUPERVISORS, "ready"),
+    ("GET", "/exports/{export_id}/download", SUPERVISORS, "ready"),
+]]
+
+# Sample values for path parameters of stub routes (built routes use `target`).
+PATH_SAMPLES = {"row_id": "1", "field_key": "extra_check_1", "kind": "birthday"}
+# Required query parameters of stub routes, so a call is well-formed.
+QUERY_SAMPLES = {"/families": {"booth_id": str(uuid.UUID(int=1))},
+                 "/birthdays": {"date_from": "2026-11-01"},
+                 "/reports/worker-activity": {"date_from": "2026-11-01", "date_to": "2026-11-02"},
+                 "/worker-locations": {"date_from": "2026-11-01", "date_to": "2026-11-02"}}
 
 
 # --- kinds of records the checks create ---------------------------------------------

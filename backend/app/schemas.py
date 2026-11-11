@@ -468,6 +468,10 @@ class SyncPage(BaseModel):
     surveys: list[Survey] = Field(default_factory=list)
     gone_voter_ids: list[uuid.UUID] = Field(default_factory=list, description=(
         "Delta only: voters that changed and are now outside the user's area; delete them on the phone"))
+    families: list[dict] = Field(default_factory=list, description="Family rows (schema Family); from step 7.2")
+    visits: list[dict] = Field(default_factory=list, description="Visit rows (schema Visit); from step 7.3")
+    new_voters: list[dict] = Field(default_factory=list, description="NewVoter rows; from step 7.5")
+    turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
 
 
 # --- sync push ---------------------------------------------------------------------
@@ -475,7 +479,22 @@ MAX_PUSH_ITEMS = 500
 
 
 class PushType(StrEnum):
-    survey = "survey"  # visits, voted marks, new voters, families, slips: later steps
+    """`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);
+    visit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);
+    new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
+    family = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).
+    Only `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of
+    those types is rejected with not_implemented and NOT recorded, so a retry after the server
+    update applies it."""
+    survey = "survey"
+    visit = "visit"
+    voted = "voted"
+    unvoted = "unvoted"
+    new_voter = "new_voter"
+    new_voter_update = "new_voter_update"
+    family = "family"
+    slip_event = "slip_event"
+    name_fix = "name_fix"
 
 
 class PushStatus(StrEnum):

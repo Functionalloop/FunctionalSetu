@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 11 / 74 done (15%)** `███░░░░░░░░░░░░░░░░░`
+**Overall: 11 / 75 done (15%)** `███░░░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -11,7 +11,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 5 – Android demo app | 0 / 13 | `░░░░░░░░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 0 / 9 | `░░░░░░░░░░` |
+| Step 7 – Field screens | 0 / 10 | `░░░░░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
@@ -63,7 +63,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/9
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/10
 
 - [ ] **7.1** Families from house numbers · due 26 Nov
 - [ ] **7.2** Family and walk list API · due 26 Nov
@@ -74,6 +74,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **7.7** Voter slip · due 27 Nov
 - [ ] **7.8** Birthdays and Select many · due 27 Nov
 - [ ] **7.9** More menu items · due 27 Nov
+- [ ] **7.10** Conflict review · due 27 Nov
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
 

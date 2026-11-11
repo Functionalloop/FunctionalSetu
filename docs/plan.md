@@ -95,6 +95,7 @@ Goal: everything a surveyor uses besides the survey. Each subtask is the endpoin
 - [ ] **7.7 Voter slip:** drawn on the phone as an image and shared to WhatsApp; `POST /voters/{id}/slip-events` through push. Files: `A/ui/slip/`, `app/routers/slips.py`, `tests/test_slips.py`. Test: sharing offline leaves one outbox item. (27 Nov)
 - [ ] **7.8 Birthdays and Select many.** `GET /birthdays`; both screens read the local database; bulk colour tag goes through the outbox. Files: `app/routers/birthdays.py`, `A/ui/birthdays/`, `A/ui/search/BulkSelectScreen.kt`. Test: tagging 50 voters makes 50 outbox items and one push. (27 Nov)
 - [ ] **7.9 More menu items:** Terms (`GET /terms/current`, `POST /terms/accept`; the text comes from the client, and until it arrives the screen shows a line saying so), Announcements (`GET`, `POST .../read`), Help and report a problem (`POST /problem-reports`), Update required, Change password. Files: `app/routers/misc.py`, `tests/test_misc.py`, `A/ui/more/`. Test: an app below the minimum version is sent to Update required. (27 Nov)
+- [ ] **7.10 Conflict review:** `GET /sync/conflicts`, `POST /sync/conflicts/{id}/resolve` (contract in 4.10). A surveyor sees and resolves their own; supervisor and above any in their area. Keeping the phone's value writes it with a new version. Screen: conflicts on the Sync screen. Files: `app/routers/sync.py`, `tests/test_conflicts.py`. Test: keep-phone writes the value once; another surveyor's conflict is 404. (27 Nov)
 
 Portal (teammate): family view, new voters list, voter history.
 
@@ -196,15 +197,15 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 
 | SRS item | Gap | Proposed |
 |---|---|---|
-| Spelling fixes | The API can list and resolve fixes, but nothing creates one. | Add name fixes to `/sync/push`. |
+| Spelling fixes | The API can list and resolve fixes, but nothing creates one. | **In the contract (4.10):** push type `name_fix`; review in 10.5. |
 | Doubtful "dead" marks, confirmed by a supervisor | No endpoint to mark or confirm. | Two fields in the survey body; confirming needs supervisor. |
 | Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | **Decided 11 Nov:** added to the survey body in 4.4 (`has_new_address` + new address; `location` sets lat/lng/accuracy, left out = kept). |
 | Search by serial number or mobile | The server search text has names, EPIC and house only. | Handle numbers in the `/voters` query; no schema change. |
-| Candidate photo, symbol, slip header | `POST /files` exists, no way to download. | Add `GET /files/{id}`. |
-| Mobile number sheets | No endpoint to accept or reject a row under review. | Add `POST /mobile-imports/{id}/rows/{row_id}/resolve`. |
+| Candidate photo, symbol, slip header | `POST /files` exists, no way to download. | **In the contract (4.10):** `GET /files/{id}`, all roles. |
+| Mobile number sheets | No endpoint to accept or reject a row under review. | **In the contract (4.10):** `POST /mobile-imports/{id}/rows/{row_id}/resolve`. |
 | Possible duplicates | Nothing says what creates the pairs. | Worker job after each roll import. |
 | Roles | Surveyor and booth agent have the same rank in the code, but the SRS gives polling day only to booth agents and survey only to surveyors. | **Decided:** keep the SRS table. Surveyor does survey, booth agent does polling day; endpoints check a list of allowed roles (4.1, 4.4, 8.1). I confirm it with the client. |
-| Conflicts | The screen lets the worker choose "keep mine / keep server"; the API document says supervisor. | Worker resolves own conflicts, supervisor any in the ward. |
+| Conflicts | The screen lets the worker choose "keep mine / keep server"; the API document says supervisor. | **In the contract (4.10), task 7.10:** worker resolves own conflicts, supervisor any in the area (confirm with the client). |
 | History tab | `audit_log` is not synced to the phone. | History needs internet; the SRS does not promise it offline. |
 | Blocked phone | Nothing records that the phone finished wiping. | The phone reports it on its next `/devices/me` call. |
 | Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer, plus a Hostinger snapshot if the plan includes one (6.4, 12.5). |

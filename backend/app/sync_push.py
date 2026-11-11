@@ -61,6 +61,10 @@ def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> Pus
     prev = _stored(conn, user, item)
     if prev is not None:
         return _replay(conn, item, prev)
+    if item.type.value not in ENTITY:  # in the contract, not built yet: not recorded, so a later retry applies
+        return PushResult(id=item.id, status=PushStatus.rejected, duplicate=False,
+                          error=PushError(code="not_implemented",
+                                          message=f"Push type {item.type.value} is not built yet; send it again later."))
 
     savepoint = conn.begin_nested()
     try:

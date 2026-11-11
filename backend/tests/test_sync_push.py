@@ -184,3 +184,12 @@ def test_pushed_survey_comes_back_in_the_next_pull(client, ws):
             break
     surveys = [s for p in pages for s in p["surveys"]]
     assert [(s["voter_id"], s["notes"], s["version"]) for s in surveys] == [(str(ws.v[0]), "from the phone", 1)]
+
+
+@pytest.mark.parametrize("ptype", ["visit", "voted", "new_voter", "family", "slip_event", "name_fix"])
+def test_types_not_built_are_rejected_and_not_recorded(client, ws, owner_conn, ptype):
+    it = {**item(ws.v[0]), "type": ptype}
+    for _ in range(2):  # a retry gets the same answer, never a stored "duplicate"
+        [r] = push(client, ws.surveyor, it)
+        assert r["status"] == "rejected" and r["error"]["code"] == "not_implemented" and r["duplicate"] is False
+    assert count(owner_conn, "SELECT count(*) FROM app.sync_mutations WHERE tenant_id = %s", ws.tenant) == 0
