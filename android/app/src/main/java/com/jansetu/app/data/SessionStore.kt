@@ -70,19 +70,27 @@ class SessionStore @Inject constructor(@ApplicationContext private val context: 
         _session.value?.let { saveSession(change(it)) }
     }
 
-    /** Forget everything: tokens, session and the token key. */
+
+    /**
+     * Ends the session on this phone: forgets tokens and session, keeps the last workspace code and
+     * user ID, and stores [notice] for the Login screen. The session is cleared last, because
+     * clearing it shows Login at once and Login reads the notice when it appears.
+     */
     @Synchronized
-    fun clearAll() {
+    fun signOut(notice: String?) {
+        val last = lastLogin
         clearTokens()
         prefs.edit().clear().commit()
         cipher.deleteKey()
+        lastLogin = last
+        this.notice = notice
         _session.value = null
     }
 
     /** Last workspace code and user ID typed, to fill the Login form next time. */
     var lastLogin: Pair<String, String>?
         get() = prefs.getString(LAST_WS, null)?.let { it to (prefs.getString(LAST_USER, null) ?: "") }
-        set(v) { prefs.edit().putString(LAST_WS, v?.first).putString(LAST_USER, v?.second).apply() }
+        set(v) { prefs.edit().putString(LAST_WS, v?.first).putString(LAST_USER, v?.second).commit() }
 
     /** One message for the Login screen (why the user was sent back to it). Read once. */
     var notice: String?

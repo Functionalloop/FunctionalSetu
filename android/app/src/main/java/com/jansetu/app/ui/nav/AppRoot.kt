@@ -37,10 +37,7 @@ class RootViewModel @Inject constructor(
                     // Keep the database: the same user logging in again keeps unsent changes.
                     is SessionEvent.LoggedOut -> if (store.session.value != null) {
                         scheduler.cancel()
-                        val last = store.lastLogin
-                        store.clearAll()
-                        store.lastLogin = last
-                        store.notice = "Your login has ended. Please log in again. (${e.message})"
+                        store.signOut("Your login has ended. Please log in again. (${e.message})")
                     }
                 }
             }

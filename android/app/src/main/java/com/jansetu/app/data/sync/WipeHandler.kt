@@ -20,10 +20,7 @@ class WipeHandler @Inject constructor(
     fun wipe(notice: String?) {
         scheduler.cancel()
         local.wipe()
-        val last = store.lastLogin
-        store.clearAll()
-        store.lastLogin = last
-        store.notice = notice
+        store.signOut(notice)
     }
 
     companion object {
