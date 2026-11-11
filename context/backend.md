@@ -85,7 +85,10 @@ Everything else in `docs/02_tech_stack_and_api.md` is not built; step 4 starts i
 - Fixtures: `owner_conn` (BYPASSRLS, setup only), `app_conn` (RLS applies), `client`, `make_workspace(label, must_change=(), extra_users={})`, `set_device_status`.
 - `make_workspace` gives: 1 local body, 1 ward, booths 1001/1002, users `boss` (super_admin), `admin1`, `sup1` (assigned the ward), `survey1` (assigned booth 1 only). All use password `PASSWORD` (`Test@pass123`).
 - Helpers: `login(client, ws, username, device=phone())`, `bearer(tokens)`.
-- Every endpoint needs four tests: works, lower role 403, other workspace 404, other area 404.
+- `create_workspace(owner_conn, ...)` is the plain-function form of `make_workspace` (for module-scoped data).
+- **Generic checks:** every route needs a row in `tests/endpoints.py` (`roles`, `level`, `target`, `lists`, `area_params`, `body`). `tests/test_endpoint_rules.py` then checks 401s, pending / blocked phone, password not changed, 403 for each unlisted role, success for each listed role, 404 for another workspace / another area, 422 / 404 for bad / unknown ids, list isolation, and that refused writes change nothing. A new kind of record (path id or list item) needs a `Kind` in `KINDS` (how to make one in "own", "other_area", "other_ws"; optional state read-back). The shared data is built once per run (`World`): workspace A (+ a second constituency = "other area"), workspace B.
+- Pitfall: this FastAPI version does not flatten included routers into `app.routes`; list routes from `app.openapi()["paths"]`.
+- Each endpoint's own test file covers its behaviour (409, paging, search, ...), not the generic rules.
 
 ## Pitfalls
 

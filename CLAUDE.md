@@ -133,5 +133,5 @@ Nothing outside the SRS is built (see the last section of `docs/plan.md`). The L
 - Small, reviewable steps. Run the tests after each change (`pytest` in `backend/`).
 - Tests run only against `jansetu_test`; the dev database holds the real roll.
 - Comments in `001_jansetu_schema.sql` that mention Django, Celery or Nginx are out of date. Do not edit an applied migration; add a new numbered file.
-- Every endpoint gets a test, including a test that a user cannot see another workspace's or another area's data.
+- Every endpoint gets a test, including a test that a user cannot see another workspace's or another area's data. Add every new endpoint as a row in `backend/tests/endpoints.py`: the generic checks (401, 403 per role and phone state, 404 for another workspace or area, list isolation) then run on it, and a route without a row fails the tests. Its own test file covers what it does.
 - Keep explanations short and plain; I am the only backend developer.

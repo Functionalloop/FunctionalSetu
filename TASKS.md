@@ -3,11 +3,11 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 4 / 73 done (5%)** `█░░░░░░░░░░░░░░░░░░░`
+**Overall: 4 / 74 done (5%)** `█░░░░░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
-| Step 4 – Demo API | 4 / 11 | `████░░░░░░` |
+| Step 4 – Demo API | 4 / 12 | `███░░░░░░░` |
 | Step 5 – Android demo app | 0 / 13 | `░░░░░░░░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
@@ -18,12 +18,13 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 
-## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 4/11
+## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 4/12
 
 - [x] **4.0** Merge step 3 into `main` · due 12 Nov · done 2026-11-11 · `baae929`
 - [x] **4.1** Area scope helper · due 12 Nov · done 2026-11-11 · `ae6f6b8`
 - [x] **4.2** `GET /geo/tree` · due 12 Nov · done 2026-11-11 · `b298568`
 - [x] **4.3** `GET /voters` · due 13 Nov · done 2026-11-11 · `b8b95de`
+- [ ] **4.11** Generic endpoint checks · due 11 Nov
 - [ ] **4.4** `GET /voters/{id}` and `PUT /voters/{id}/survey` · due 13 Nov
 - [ ] **4.5** `GET /devices` · due 13 Nov
 - [ ] **4.6** `GET /sync/pull`, first download · due 14 Nov
