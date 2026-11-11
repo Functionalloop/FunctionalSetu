@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.deps import POLLING_ROLES, SURVEY_ROLES  # noqa: F401  (used by later rows)
+from app.deps import POLLING_ROLES, SURVEY_ROLES  # noqa: F401  (POLLING_ROLES: used by later rows)
 from app.schemas import Role
 
 ALL = frozenset(Role)
@@ -64,6 +64,9 @@ ENDPOINTS: list[Endpoint] = [
     # areas and voters
     Endpoint("GET", "/geo/tree"),  # tree isolation: test_geo.py
     Endpoint("GET", "/voters", lists="voter", area_params=("ward_id", "booth_id")),
+    Endpoint("GET", "/voters/{voter_id}", target="voter"),
+    Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
+             body={"version": 0, "notes": "rule check"}),
 ]
 
 
@@ -108,7 +111,13 @@ def _device_state(world, device_id: uuid.UUID):
     return world.conn.execute("SELECT status, decided_at FROM app.devices WHERE id = %s", (device_id,)).fetchone()
 
 
+def _voter_state(world, voter_id: uuid.UUID):
+    """The voter's survey row (None until the first save)."""
+    return world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
+                              (voter_id,)).fetchone()
+
+
 KINDS: dict[str, Kind] = {
-    "voter": Kind(_make_voter),
+    "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
 }

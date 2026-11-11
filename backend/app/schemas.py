@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Role(StrEnum):
@@ -202,6 +202,90 @@ class VoterListItem(BaseModel):
 class VoterPage(BaseModel):
     items: list[VoterListItem]
     next_cursor: str | None = Field(description="Pass as `cursor` for the next page; null on the last page")
+
+
+# --- survey ------------------------------------------------------------------------
+MOBILE_PATTERN = r"^[6-9][0-9]{9}$"
+
+
+class ListType(StrEnum):
+    main = "main"
+    supplementary = "supplementary"
+    draft = "draft"
+
+
+class SurveyFields(BaseModel):
+    """The part of a survey a worker edits. PUT replaces all of it: a field left out is cleared."""
+    mobile_1: str | None = Field(None, pattern=MOBILE_PATTERN, examples=["9876543210"])
+    mobile_2: str | None = Field(None, pattern=MOBILE_PATTERN, description="Only together with mobile_1")
+    dob: date | None = Field(None, description="Date of birth")
+    caste_id: uuid.UUID | None = None
+    profession_id: uuid.UUID | None = None
+    color_tag_id: uuid.UUID | None = None
+    has_new_address: bool = Field(False, description=(
+        "Residence check: true when the voter no longer lives at the roll address. "
+        "new_address_mr / new_address_en only with true."))
+    new_address_mr: str | None = Field(None, max_length=500)
+    new_address_en: str | None = Field(None, max_length=500)
+    notes: str | None = Field(None, max_length=2000, description="Notes about the voter, shared with the team")
+    extra_check_1: bool | None = Field(None, description="Custom yes/no field 1 (label in settings)")
+    extra_check_2: bool | None = None
+    extra_info_1: str | None = Field(None, max_length=500, description="Custom text field 1 (label in settings)")
+    extra_info_2: str | None = Field(None, max_length=500)
+    extra_info_3: str | None = Field(None, max_length=500)
+    extra_info_4: str | None = Field(None, max_length=500)
+    extra_info_5: str | None = Field(None, max_length=500)
+
+
+class Location(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    accuracy_m: float | None = Field(None, ge=0)
+
+
+class SurveyIn(SurveyFields):
+    version: int = Field(ge=0, description="The survey version you last saw; 0 if the voter had no survey yet")
+    location: Location | None = Field(None, description=(
+        "Where the phone was when the survey was saved. Left out: the previous location is kept."))
+
+    @model_validator(mode="after")
+    def _check(self) -> SurveyIn:
+        if self.mobile_2 and not self.mobile_1:
+            raise ValueError("mobile_2 needs mobile_1")
+        if not self.has_new_address and (self.new_address_mr or self.new_address_en):
+            raise ValueError("new_address_* needs has_new_address = true")
+        if self.dob and not (date(1900, 1, 1) <= self.dob <= date.today()):
+            raise ValueError("dob must be between 1900-01-01 and today")
+        return self
+
+
+class Survey(SurveyFields):
+    voter_id: uuid.UUID
+    version: int
+    is_surveyed: bool
+    surveyed_at: datetime | None = Field(description="First survey save")
+    lat: float | None
+    lng: float | None
+    location_accuracy_m: float | None
+    location_captured_at: datetime | None
+    updated_at: datetime
+    updated_by: uuid.UUID | None
+
+
+class VoterDetail(VoterListItem):
+    first_name_mr: str | None
+    middle_name_mr: str | None
+    last_name_mr: str | None
+    first_name_en: str | None
+    middle_name_en: str | None
+    last_name_en: str | None
+    age_as_of: date | None
+    address_mr: str | None = Field(description="Roll section text")
+    address_en: str | None
+    list_type: ListType
+    deletion_reason: str | None = Field(description="Only as printed in the roll")
+    is_repeated_in_roll: bool
+    survey: Survey | None = Field(description="Null until the first survey save")
 
 
 class MeUser(UserSummary):

@@ -1162,6 +1162,212 @@
           }
         }
       }
+    },
+    "/api/v1/voters/{voter_id}": {
+      "get": {
+        "tags": [
+          "voters"
+        ],
+        "summary": "One voter: roll details plus survey. All roles.",
+        "operationId": "get_voter",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoterDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/survey": {
+      "put": {
+        "tags": [
+          "voters"
+        ],
+        "summary": "Save the survey (first save creates it). Stale version: 409 with the server copy. Super admin, admin, supervisor, surveyor; not booth agent.",
+        "operationId": "save_survey",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Survey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1630,6 +1836,19 @@
               }
             ],
             "title": "Details"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "Only on 409 version_conflict: the server's copy of the record (null if it does not exist yet)."
           }
         },
         "type": "object",
@@ -1837,6 +2056,49 @@
           "hi"
         ],
         "title": "Lang"
+      },
+      "ListType": {
+        "type": "string",
+        "enum": [
+          "main",
+          "supplementary",
+          "draft"
+        ],
+        "title": "ListType"
+      },
+      "Location": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          },
+          "accuracy_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "Location"
       },
       "LoginRequest": {
         "properties": {
@@ -2046,6 +2308,546 @@
         ],
         "title": "RollStatus"
       },
+      "Survey": {
+        "properties": {
+          "mobile_1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[6-9][0-9]{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 1",
+            "examples": [
+              "9876543210"
+            ]
+          },
+          "mobile_2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[6-9][0-9]{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 2",
+            "description": "Only together with mobile_1"
+          },
+          "dob": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dob",
+            "description": "Date of birth"
+          },
+          "caste_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caste Id"
+          },
+          "profession_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profession Id"
+          },
+          "color_tag_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Tag Id"
+          },
+          "has_new_address": {
+            "type": "boolean",
+            "title": "Has New Address",
+            "description": "Residence check: true when the voter no longer lives at the roll address. new_address_mr / new_address_en only with true.",
+            "default": false
+          },
+          "new_address_mr": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Address Mr"
+          },
+          "new_address_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Address En"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Notes about the voter, shared with the team"
+          },
+          "extra_check_1": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Check 1",
+            "description": "Custom yes/no field 1 (label in settings)"
+          },
+          "extra_check_2": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Check 2"
+          },
+          "extra_info_1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 1",
+            "description": "Custom text field 1 (label in settings)"
+          },
+          "extra_info_2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 2"
+          },
+          "extra_info_3": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 3"
+          },
+          "extra_info_4": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 4"
+          },
+          "extra_info_5": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 5"
+          },
+          "voter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Voter Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "is_surveyed": {
+            "type": "boolean",
+            "title": "Is Surveyed"
+          },
+          "surveyed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surveyed At",
+            "description": "First survey save"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "location_accuracy_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Accuracy M"
+          },
+          "location_captured_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Captured At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voter_id",
+          "version",
+          "is_surveyed",
+          "surveyed_at",
+          "lat",
+          "lng",
+          "location_accuracy_m",
+          "location_captured_at",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "Survey"
+      },
+      "SurveyIn": {
+        "properties": {
+          "mobile_1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[6-9][0-9]{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 1",
+            "examples": [
+              "9876543210"
+            ]
+          },
+          "mobile_2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[6-9][0-9]{9}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 2",
+            "description": "Only together with mobile_1"
+          },
+          "dob": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dob",
+            "description": "Date of birth"
+          },
+          "caste_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caste Id"
+          },
+          "profession_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profession Id"
+          },
+          "color_tag_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Tag Id"
+          },
+          "has_new_address": {
+            "type": "boolean",
+            "title": "Has New Address",
+            "description": "Residence check: true when the voter no longer lives at the roll address. new_address_mr / new_address_en only with true.",
+            "default": false
+          },
+          "new_address_mr": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Address Mr"
+          },
+          "new_address_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Address En"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Notes about the voter, shared with the team"
+          },
+          "extra_check_1": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Check 1",
+            "description": "Custom yes/no field 1 (label in settings)"
+          },
+          "extra_check_2": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Check 2"
+          },
+          "extra_info_1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 1",
+            "description": "Custom text field 1 (label in settings)"
+          },
+          "extra_info_2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 2"
+          },
+          "extra_info_3": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 3"
+          },
+          "extra_info_4": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 4"
+          },
+          "extra_info_5": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Info 5"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Version",
+            "description": "The survey version you last saw; 0 if the voter had no survey yet"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Location"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the phone was when the survey was saved. Left out: the previous location is kept."
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "SurveyIn"
+      },
       "SurveyStatus": {
         "type": "string",
         "enum": [
@@ -2093,6 +2895,351 @@
           "role"
         ],
         "title": "UserSummary"
+      },
+      "VoterDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "local_body_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Local Body Id"
+          },
+          "ward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ward Id"
+          },
+          "booth_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booth Id"
+          },
+          "section_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Id"
+          },
+          "part_no": {
+            "type": "integer",
+            "title": "Part No"
+          },
+          "booth_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booth No"
+          },
+          "serial_no": {
+            "type": "integer",
+            "title": "Serial No"
+          },
+          "epic_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epic No"
+          },
+          "full_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name Mr"
+          },
+          "full_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name En"
+          },
+          "relation_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relative_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name Mr"
+          },
+          "relative_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Name En"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "house_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House No"
+          },
+          "roll_status": {
+            "$ref": "#/components/schemas/RollStatus"
+          },
+          "mobile_1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile 1",
+            "description": "From the survey; null until surveyed"
+          },
+          "color_tag_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Tag Id"
+          },
+          "is_surveyed": {
+            "type": "boolean",
+            "title": "Is Surveyed"
+          },
+          "first_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name Mr"
+          },
+          "middle_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name Mr"
+          },
+          "last_name_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name Mr"
+          },
+          "first_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name En"
+          },
+          "middle_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name En"
+          },
+          "last_name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name En"
+          },
+          "age_as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age As Of"
+          },
+          "address_mr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Mr",
+            "description": "Roll section text"
+          },
+          "address_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address En"
+          },
+          "list_type": {
+            "$ref": "#/components/schemas/ListType"
+          },
+          "deletion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deletion Reason",
+            "description": "Only as printed in the roll"
+          },
+          "is_repeated_in_roll": {
+            "type": "boolean",
+            "title": "Is Repeated In Roll"
+          },
+          "survey": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Survey"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the first survey save"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "local_body_id",
+          "ward_id",
+          "booth_id",
+          "section_id",
+          "part_no",
+          "booth_no",
+          "serial_no",
+          "epic_no",
+          "full_name_mr",
+          "full_name_en",
+          "relation_type",
+          "relative_name_mr",
+          "relative_name_en",
+          "gender",
+          "age",
+          "house_no",
+          "roll_status",
+          "mobile_1",
+          "color_tag_id",
+          "is_surveyed",
+          "first_name_mr",
+          "middle_name_mr",
+          "last_name_mr",
+          "first_name_en",
+          "middle_name_en",
+          "last_name_en",
+          "age_as_of",
+          "address_mr",
+          "address_en",
+          "list_type",
+          "deletion_reason",
+          "is_repeated_in_roll",
+          "survey"
+        ],
+        "title": "VoterDetail"
       },
       "VoterListItem": {
         "properties": {

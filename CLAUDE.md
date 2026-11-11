@@ -125,7 +125,8 @@ Nothing outside the SRS is built (see the last section of `docs/plan.md`). The L
 ## Git workflow
 
 - One branch per step (`step4-demo-api`, `step5-android-demo`, ...).
-- Merge into `main` when the tests pass.
+- At the end of each step, run one full check of everything before merging: all backend tests, `python scripts/tasks.py check`, and checks on the real roll in the dev database (counts and timings only; any write inside a transaction that is rolled back).
+- Merge into `main` when that check passes.
 - Never commit `.env` or anything in `jansetu-private/`.
 
 ## Working style

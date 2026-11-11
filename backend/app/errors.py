@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 log = logging.getLogger("jansetu")
@@ -18,6 +18,8 @@ class ErrorBody(BaseModel):
     code: str
     message: str
     details: list[dict[str, Any]] | None = None  # field errors, only on 422 validation_error
+    current: dict[str, Any] | None = Field(None, description=(
+        "Only on 409 version_conflict: the server's copy of the record (null if it does not exist yet)."))
 
 
 class ErrorResponse(BaseModel):
@@ -25,15 +27,19 @@ class ErrorResponse(BaseModel):
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str, headers: dict[str, str] | None = None):
+    def __init__(self, status: int, code: str, message: str, headers: dict[str, str] | None = None,
+                 extra: dict[str, Any] | None = None):
         super().__init__(message)
         self.status, self.code, self.message, self.headers = status, code, message, headers
+        self.extra = extra  # extra keys inside "error", e.g. {"current": {...}} on a 409
 
 
-def _body(code: str, message: str, details: list[dict[str, Any]] | None = None) -> dict:
+def _body(code: str, message: str, details: list[dict[str, Any]] | None = None,
+          extra: dict[str, Any] | None = None) -> dict:
     err: dict[str, Any] = {"code": code, "message": message}
     if details is not None:
         err["details"] = details
+    err.update(extra or {})
     return {"error": err}
 
 
@@ -53,7 +59,8 @@ ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
 def install(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
-        return JSONResponse(_body(exc.code, exc.message), status_code=exc.status, headers=exc.headers)
+        return JSONResponse(_body(exc.code, exc.message, extra=exc.extra), status_code=exc.status,
+                            headers=exc.headers)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:

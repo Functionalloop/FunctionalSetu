@@ -198,7 +198,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 |---|---|---|
 | Spelling fixes | The API can list and resolve fixes, but nothing creates one. | Add name fixes to `/sync/push`. |
 | Doubtful "dead" marks, confirmed by a supervisor | No endpoint to mark or confirm. | Two fields in the survey body; confirming needs supervisor. |
-| Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | Add to the survey body. |
+| Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | **Decided 11 Nov:** added to the survey body in 4.4 (`has_new_address` + new address; `location` sets lat/lng/accuracy, left out = kept). |
 | Search by serial number or mobile | The server search text has names, EPIC and house only. | Handle numbers in the `/voters` query; no schema change. |
 | Candidate photo, symbol, slip header | `POST /files` exists, no way to download. | Add `GET /files/{id}`. |
 | Mobile number sheets | No endpoint to accept or reject a row under review. | Add `POST /mobile-imports/{id}/rows/{row_id}/resolve`. |

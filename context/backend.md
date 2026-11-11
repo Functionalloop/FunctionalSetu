@@ -75,6 +75,13 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 
 | `GET /voters` | all roles, area scope. Filters `q`, `ward_id`, `booth_id` (404 outside scope), `age_min/max`, `gender`, `color_tag_id`, `survey_status`, `caste_id`, `profession_id`, `has_mobile`. Roll order (part, booth, serial, id), keyset cursor (opaque base64), `limit` 1–200. Removed voters (`deleted_at`) never listed. "voted" filter comes with step 8 |
 
+| `GET /voters/{voter_id}` | all roles, area scope (404 outside, removed or other workspace). Roll fields + `survey` (null until first save) |
+| `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
+
+Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta, important/influencer) are not in the body yet: not in the SRS survey, or later steps.
+
+Errors: `ApiError(..., extra={...})` adds keys inside `error`; `ErrorBody.current` documents the 409 server copy.
+
 `q` rules: up to 5 words, every word must match `voters.search_text` (names mr/en, EPIC, house; lowercase `LIKE`, wildcards escaped). An ASCII number also matches `serial_no` exactly, and `mobile_1/2` when 4+ digits. Real roll (11 Nov): paging all 31,871 voters at 200/page, slowest page 61 ms; searches 10–32 ms.
 
 Everything else in `docs/02_tech_stack_and_api.md` is not built; step 4 starts it (see `docs/plan.md`).
