@@ -40,6 +40,7 @@ python scripts/import_roll_parts.py --parts "DIR/S05A02P*.csv" [--dry-run] [--te
 python scripts/create_super_admin.py --username X --name "Full Name"   # prints a one-time temp password
 python scripts/create_demo_users.py [--parts 1,2] [--reset | --remove]  # demo.* users; passwords -> jansetu-private/demo_users.txt
 python scripts/export_openapi.py                          # rewrites docs/openapi.json
+python scripts/check_dev_data.py                          # end-of-step check on the real roll (read-only / rolled back)
 ```
 
 ## State (11 Nov 2026)
