@@ -47,6 +47,8 @@ Strictest last. Use the strictest that fits:
   - `check_roles(principal, roles)` does the same check for a single item, e.g. one entry in a sync push batch.
 - `last_seen_at` on the session is written at most once a minute.
 
+Cursors: `app/paging.py` (`encode_cursor(list)`, `decode_cursor(cursor, n)` → 400 `invalid_cursor`). Use it for every list.
+
 ## Area scope (`app/scope.py`)
 
 - `UserScope` dependency → `Scope`. Super admin: whole workspace. Admin: own constituency. Others: assigned wards/booths that are active and inside their own constituency. Each area covers its subtree.
@@ -71,6 +73,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /me` | user, workspace, assigned areas, settings |
 | `GET /devices/me` | phone polls this for approval; `CurrentUser` level |
 | `POST /devices/{id}/approve`, `/block` | admin (own constituency); block sets the wipe signal |
+| `GET /devices` | admin (own constituency) / super admin (all). `?status=`, newest request first, cursor on (requested_at, id). Items add username, full_name_en, role, last_seen_at |
 | `GET /geo/tree` | all roles; `{"roots": [GeoNode]}` nested by `children`. Roots = the scope's top areas (super admin: every constituency; supervisor: the assigned ward, no parent above it). Inactive areas and their subtree are left out. Not paged (real roll: ~300 areas) |
 
 | `GET /voters` | all roles, area scope. Filters `q`, `ward_id`, `booth_id` (404 outside scope), `age_min/max`, `gender`, `color_tag_id`, `survey_status`, `caste_id`, `profession_id`, `has_mobile`. Roll order (part, booth, serial, id), keyset cursor (opaque base64), `limit` 1–200. Removed voters (`deleted_at`) never listed. "voted" filter comes with step 8 |

@@ -59,6 +59,7 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/me"),
     # devices
     Endpoint("GET", "/devices/me", level="current"),
+    Endpoint("GET", "/devices", roles=ADMINS, lists="device"),
     Endpoint("POST", "/devices/{device_id}/approve", roles=ADMINS, target="device"),
     Endpoint("POST", "/devices/{device_id}/block", roles=ADMINS, target="device", body={"reason": "Phone lost"}),
     # areas and voters

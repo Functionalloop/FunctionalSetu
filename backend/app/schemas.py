@@ -111,6 +111,18 @@ class AdminDevice(DeviceDetail):
     blocked_reason: str | None
 
 
+class AdminDeviceListItem(AdminDevice):
+    username: str
+    full_name_en: str
+    role: Role
+    last_seen_at: datetime | None = Field(description="Last login or refresh from this phone")
+
+
+class DevicePage(BaseModel):
+    items: list[AdminDeviceListItem]
+    next_cursor: str | None = Field(description="Pass as `cursor` for the next page; null on the last page")
+
+
 class BlockDeviceRequest(BaseModel):
     reason: str | None = Field(None, max_length=500, examples=["Phone lost"])
 
