@@ -3,11 +3,11 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 11 / 75 done (15%)** `███░░░░░░░░░░░░░░░░░`
+**Overall: 12 / 75 done (16%)** `███░░░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
-| Step 4 – Demo API | 11 / 12 | `█████████░` |
+| Step 4 – Demo API | 12 / 12 | `██████████` |
 | Step 5 – Android demo app | 0 / 13 | `░░░░░░░░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
@@ -18,7 +18,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 
-## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 11/12
+## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
 - [x] **4.0** Merge step 3 into `main` · due 12 Nov · done 2026-11-11 · `baae929`
 - [x] **4.1** Area scope helper · due 12 Nov · done 2026-11-11 · `ae6f6b8`
@@ -31,7 +31,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **4.7** `GET /sync/pull?since=W` · due 14 Nov · done 2026-11-11 · `e3cabf4`
 - [x] **4.8** `POST /sync/push` · due 15 Nov · done 2026-11-11 · `54ca991`
 - [x] **4.9** Demo users · due 15 Nov · done 2026-11-11 · `40ff705`
-- [ ] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions
+- [x] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions · done 2026-11-11 · `9f7ab97`
 
 ## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 0/13
 
