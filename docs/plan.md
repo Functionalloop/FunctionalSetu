@@ -21,7 +21,7 @@ Written 11 Nov 2026. Scope is `docs/01_srs.md` only; anything else is a change r
 
 Goal: everything the phone needs from the server for the demo.
 
-- [ ] **4.0 Merge step 3 into `main`**, start the branch. Create `context/README.md`, `context/database.md` and `context/backend.md` from what steps 1–3 built (see CLAUDE.md, "Context files"). Test: 40 tests pass on `main`. (12 Nov)
+- [x] **4.0 Merge step 3 into `main`**, start the branch. Create `context/README.md`, `context/database.md` and `context/backend.md` from what steps 1–3 built (see CLAUDE.md, "Context files"). Test: 40 tests pass on `main`. (12 Nov)
 - [ ] **4.1 Area scope helper.** Super admin: whole workspace; admin: own constituency; others: assigned wards and booths. Also a role-list check (`require_roles`), because surveyor and booth agent are not interchangeable: survey work refuses booth agents, polling day refuses surveyors. Files: `app/scope.py`, `app/deps.py`, `tests/test_scope.py`. Test: a surveyor's scope holds only booth 1; `require_roles` lets a booth agent through only where listed. (12 Nov)
 - [ ] **4.2 `GET /geo/tree`.** Files: `app/routers/geo.py`, `app/schemas.py`, `tests/test_geo.py`. Test: supervisor sees only the assigned ward and its booths. (12 Nov)
 - [ ] **4.3 `GET /voters`** with `q` (name, EPIC, house; a number also matches serial and mobile), ward, booth, age, gender, colour tag, survey status, cursor paging. Files: `app/routers/voters.py`, `tests/test_voters_list.py`. Test: paging returns every voter once; a voter in booth 2 is not listed for a booth 1 surveyor. (13 Nov)
