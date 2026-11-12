@@ -3,12 +3,12 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 26 / 88 done (30%)** `██████░░░░░░░░░░░░░░`
+**Overall: 27 / 88 done (31%)** `██████░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
 | Step 4 – Demo API | 12 / 12 | `██████████` |
-| Step 5 – Android demo app | 14 / 16 | `█████████░` |
+| Step 5 – Android demo app | 15 / 16 | `█████████░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 0 / 12 | `░░░░░░░░░░` |
@@ -34,7 +34,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **4.9** Demo users · due 15 Nov · done 2026-11-11 · `40ff705`
 - [x] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions · done 2026-11-11 · `9f7ab97`
 
-## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 14/16
+## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 15/16
 
 - [x] **5.1** Project · due 14 Nov · done 2026-11-12 · `9ee861d`
 - [x] **5.2** Local database · due 15 Nov · done 2026-11-12 · `1f62e80`
@@ -44,7 +44,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **5.6** First download · due 18–19 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.7** Home, bottom bar, More menu shell · due 19 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.8** Filters · due 20 Nov · done 2026-11-12 · `7e617df`
-- [ ] **5.9** Voter profile, Details tab, · due 20 Nov
+- [x] **5.9** Voter profile, Details tab, · due 20 Nov · done 2026-11-12 · `1a240e6`
 - [x] **5.10** Survey tab · due 21 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.11** Push, delta pull and the Sync screen · due 21–22 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.12** Blocked phone and logout · due 22 Nov · done 2026-11-12 · `7e617df`
