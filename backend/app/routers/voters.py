@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from enum import Enum
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
@@ -64,6 +65,7 @@ def list_voters(
     caste_id: uuid.UUID | None = None,
     profession_id: uuid.UUID | None = None,
     has_mobile: bool | None = None,
+    important: Annotated[bool | None, Query(description="true: important voters only; false: the others")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: str | None = None,
 ) -> VoterPage:
@@ -104,6 +106,8 @@ def list_voters(
         where.append(("" if survey_status == SurveyStatus.surveyed else "NOT ") + "coalesce(s.is_surveyed, false)")
     if has_mobile is not None:
         where.append("s.mobile_1 IS " + ("NOT NULL" if has_mobile else "NULL"))
+    if important is not None:
+        where.append(("" if important else "NOT ") + "coalesce(s.is_important, false)")
 
     if cursor:
         params.update(_decode_cursor(cursor))
@@ -153,8 +157,10 @@ def read_survey(conn: Connection, voter_id: uuid.UUID) -> Survey | None:
 
 
 def check_survey_references(conn: Connection, body: SurveyIn) -> None:
-    """Caste, profession and colour tag must be active entries of this workspace (RLS), else 422."""
-    for field, table in (("caste_id", "castes"), ("profession_id", "professions"), ("color_tag_id", "color_tags")):
+    """Caste, profession, colour tag, position and influencer type must be active entries of this
+    workspace (RLS), else 422."""
+    for field, table in (("caste_id", "castes"), ("profession_id", "professions"), ("color_tag_id", "color_tags"),
+                         ("position_id", "positions"), ("influencer_type_id", "influencer_types")):
         value = getattr(body, field)
         if value is not None and not conn.execute(
                 text(f"SELECT EXISTS (SELECT 1 FROM app.{table} WHERE id = :id AND is_active)"), {"id": value}).scalar():
@@ -185,10 +191,14 @@ def save_survey(voter_id: uuid.UUID, body: SurveyIn, conn: Db, user: SurveyUser,
     return saved
 
 
+def _db_value(value: Any) -> Any:
+    return value.value if isinstance(value, Enum) else value
+
+
 def write_survey(conn: Connection, user: Principal, voter_id: uuid.UUID, body: SurveyIn) -> Survey | None:
     """Create (version 0) or update (current version) the survey; None when the version is stale.
     The caller has checked the role, the voter's area and the references. Used by PUT and sync push."""
-    values: dict[str, Any] = {c: getattr(body, c) for c in _EDIT_COLS}
+    values: dict[str, Any] = {c: _db_value(getattr(body, c)) for c in _EDIT_COLS}
     values.update(voter_id=voter_id, version=body.version, user=user.user_id, device=user.device_id)
     loc = body.location
     values.update(lat=loc.lat if loc else None, lng=loc.lng if loc else None, acc=loc.accuracy_m if loc else None)

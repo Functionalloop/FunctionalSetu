@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">JANSETU</string>
+    <color name="ic_launcher_background">#FF1B4F8A</color>
+
+    <style name="Theme.Jansetu" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FF1B4F8A</item>
+        <item name="android:windowBackground">#FFFFFFFF</item>
+    </style>
+</resources>

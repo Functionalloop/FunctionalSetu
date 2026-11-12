@@ -12,6 +12,11 @@ The web portal (React + TypeScript + Vite, TanStack Query) is the teammate's par
 - Lists: `?limit=&cursor=` → `{items, next_cursor}`. Dates UTC; show Indian time.
 - Rule: any contract change goes into OpenAPI first; tell the teammate the same day. Add fields, never break.
 
+## Contract changes (tell the teammate the same day)
+
+- 12 Nov (5.14), additions only: survey fields `is_important`, `position_id`, `is_influencer`, `influencer_type_id`, `in_self_help_group`, `self_help_group_name`, `ration_card` (`AAY` / `PHH` / `NPHH`); `GET /voters?important=`; settings `polling_start_time`, `polling_end_time`; sync lists `positions`, `influencer_types`. The white colour tag is inactive (do not offer inactive tags). 
+- 12 Nov (5.15): **removed** (never built, so nothing that worked breaks): `GET /name-fixes`, `POST /name-fixes/{id}/resolve`, push type `name_fix`, `DataQualitySummary.name_fixes_waiting`. **Role change**: roll writes are super admin only (`POST /rolls/imports`, row resolve, apply, discard, `POST /voters`, `PATCH /voters/{id}/roll`, remove, restore); an admin still reads imports and roll edits. **Added** (501 until built): `POST /families`, `PATCH /families/{id}`, `GET /booths/{id}/families`, `GET/PUT /booths/{id}/note`, push types `family_new` and `part_note`, `leave_family` in `FamilyChange`, `polling_start_time` / `polling_end_time` in `PUT /settings/election`. `GET /families` is still the walk list. Portal: no spelling fixes page; hide roll upload / corrections from an admin.
+
 ## What the portal needs from the server (not built)
 
 - CORS: `CORS_ORIGINS` in `deploy/.env` (dev: `http://localhost:5173`); only the portal domain in production (12.7).
