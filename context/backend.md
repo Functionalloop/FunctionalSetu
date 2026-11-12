@@ -86,6 +86,8 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
 
+Client's final list (12 Nov evening, `docs/change_log.md`): task 7.13 takes `is_important`, `position_id`, the positions list and `?important=` out again and adds `?influencer=`; on hold until the client approves the app flow.
+
 Survey, client changes (12 Nov, 5.14): `is_important` + `position_id`, `is_influencer` + `influencer_type_id`, `in_self_help_group` + `self_help_group_name` (200), `ration_card` (`AAY` / `PHH` / `NPHH`). Each second field only with its yes (422, and a CHECK in the database). Positions and influencer types are lists like castes (active entries of the workspace, else 422) and ride in the pull's `lists`. Adding a field to `SurveyFields` adds it to PUT, push, pull and the conflict diff by itself; the column must exist with the same name. Enum values go to SQL as `.value` (`_db_value`).
 
 Errors: `ApiError(..., extra={...})` adds keys inside `error`; `ErrorBody.current` documents the 409 server copy.

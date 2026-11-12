@@ -1,12 +1,12 @@
 # JANSETU – plan to final delivery
 
-Written 11 Nov 2026; changed 12 Nov for the client's changes (see "Client changes of 12 Nov"). Scope is `docs/01_srs.md` plus those changes; anything else is a change request.
+Written 11 Nov 2026; changed 12 Nov, twice, for the client's changes (see "Client changes of 12 Nov" and `docs/change_log.md`). Scope is `docs/01_srs.md` version 1.1 plus the change requests in Step 14, which are built only after the client approves the updated app flow (`docs/app_flow_v2.pdf`).
 
 | Date | Milestone | What must work |
 |---|---|---|
 | Wed 25 Nov | Demo | Login + phone approval, sync pull/push, area tree, voter list/search/profile, survey save, all offline on a real phone, server deployed |
-| Mon 30 Nov | Working APK | All 42 screens (the client removed Spelling fixes on 12 Nov) |
-| Tue 15 Dec | Final delivery | Fixes from client testing, scanned roll PDF import (English), live server, backups, restore test, load test, training, handover notes |
+| Mon 30 Nov | Working APK | The 42 screens of SRS 1.1, with the client's new names (Kutumb Connect, Information Updation, Eligible but Not Registered, Matching Engine) |
+| Tue 15 Dec | Final delivery | Fixes from client testing, scanned roll PDF import (English), the change requests of Step 14 as far as the client has approved them and sent their data, live server, backups, restore test, load test, training, handover notes |
 
 ## How to use this file
 
@@ -89,20 +89,22 @@ Not in the demo: Marathi search (the roll has no Marathi names yet). Say so befo
 
 Goal: everything a surveyor uses besides the survey. Each subtask is the endpoint, its sync part and its screen together.
 
-- [ ] **7.1 Families made by hand.** The client (12 Nov) wants surveyors to make families themselves, so the script that grouped voters by house number is dropped. `POST /families` (free-text name, in one booth; the phone makes the UUID), `PATCH /families/{id}` (rename), `PUT /voters/{id}/family` (add to a family, take out with `leave_family`, set the head), `GET /voters/{id}/family`, `GET /booths/{id}/families` (the booth's families). `GET /families` stays the walk list (houses), as in the 4.10 contract. Files: `app/routers/families.py`, `tests/test_families.py`. Test: a voter is in one family at most; a family in booth 2 is 404 for a booth 1 surveyor; a booth agent cannot make one. (26 Nov)
-- [ ] **7.2 Families in sync.** Families and their members in the pull; push types `family_new` and `family`. Files: `app/sync_pull.py`, `app/sync_push.py`, `tests/test_sync_families.py`. Test: a family made offline and pushed twice exists once. (26 Nov)
+- [ ] **7.13 Survey: influencer only.** Do this first, and only after the client approves the app flow (on hold, 12 Nov). The Important voter field and the positions list built in 5.14–5.16 go; Influencer = Yes shows the client's 11 entries (Sarpanch, Panch Member, Up Sarpanch, ZP Member, Ex. ZP Member, MLA, Ex. MLA, NGO, Social Worker, News Reporter, Social Media Influencer). Migration `003_client_changes_final.sql`: `positions` and `voter_surveys.position_id` are dropped, `is_important` is no longer read or written, the placeholder influencer types are replaced by the 11. API: `is_important`, `position_id`, the `positions` list and `?important=` leave the contract (they were added on 12 Nov; tell the teammate the same day); `GET /voters?influencer=true` and `?influencer_type_id=` are added. Phone: no Important switch or position picker; the Important filter becomes Influencer; local database version 3 with a real Room migration. Files: `db/migrations/003_client_changes_final.sql`, `db/seed/seed.py`, `app/routers/voters.py`, `app/sync_pull.py`, `app/schemas.py`, `tests/test_client_changes_survey.py`, `A/ui/voter/SurveyScreen.kt`, `A/ui/search/FiltersScreen.kt`, `A/data/local/`. Test: a survey with `is_important` is 422; the Influencer filter gives the same count as a direct query; a phone on database version 2 keeps its unsent surveys after the update. (26 Nov)
+
+- [ ] **7.1 Kutumb Connect, made by hand.** Decided 12 Nov: a surveyor makes each Kutumb, types its name (usually the name of the head of the family, as plain text) and adds or removes members. Nothing is grouped by house number and there is no head field (`families.head_voter_id` stays empty; "set the head" leaves the contract). `POST /families` (free-text name, in one booth; the phone makes the UUID), `PATCH /families/{id}` (rename), `PUT /voters/{id}/family` (add to a Kutumb, take out with `leave_family`), `GET /voters/{id}/family`, `GET /booths/{id}/families`. `GET /families` stays the walk list (houses), as in the 4.10 contract. Files: `app/routers/families.py`, `tests/test_families.py`. Test: a voter is in one Kutumb at most; a Kutumb in booth 2 is 404 for a booth 1 surveyor; a booth agent cannot make one; setting a head is 422. (26 Nov)
+- [ ] **7.2 Kutumb Connect in sync.** Families (Kutumbs) and their members in the pull; push types `family_new` and `family`. Files: `app/sync_pull.py`, `app/sync_push.py`, `tests/test_sync_families.py`. Test: a family made offline and pushed twice exists once. (26 Nov)
 - [ ] **7.3 Visits API:** `POST /voters/{id}/visits`, visits in push. Files: `app/routers/visits.py`, `tests/test_visits.py`. Test: a visit pushed twice is stored once. (26 Nov)
-- [ ] **7.4 Screens: Family, Walk list.** Family tab: make a family, name it, add members from search, take a member out. The walk list still goes house by house: it groups the booth's voters by the roll's house number on the phone and needs no family rows. Files: `A/ui/family/`, `A/ui/walklist/`. Test: marking a house "not home" offline shows on the walk list and syncs; a family made offline shows at once. (26 Nov)
-- [ ] **7.5 New voters:** `GET/POST /new-voters`, `PATCH /new-voters/{id}` with `version`, in pull and push. Screens: New voter, New voters list. Files: `app/routers/new_voters.py`, `tests/test_new_voters.py`, `A/ui/newvoter/`. Test: stale version gives 409. (26 Nov)
-- [ ] **7.6 History:** `GET /voters/{id}/history` from `audit_log`. Every update is listed (survey, notes, family, visits, voted marks, roll corrections), each with the fields that changed, the old and the new value, who and when. Screen: History tab (needs internet; says so when offline). Files: `app/routers/voters.py`, `tests/test_history.py`, `A/ui/voter/HistoryTab.kt`. Test: a survey save appears with user, time and the changed fields. (27 Nov)
+- [ ] **7.4 Screens: Kutumb Connect, Walk list.** The tab and screen are called "Kutumb Connect" everywhere (client, 12 Nov). Kutumb Connect tab: make a Kutumb, name it, add members from search, take a member out. The walk list still goes house by house: it groups the booth's voters by the roll's house number on the phone and needs no Kutumb rows. Files: `A/ui/family/`, `A/ui/walklist/`. Test: marking a house "not home" offline shows on the walk list and syncs; a Kutumb made offline shows at once. (26 Nov)
+- [ ] **7.5 Eligible but Not Registered** (the client's name for "new voter" and "not registered", which are one thing): `GET/POST /new-voters`, `PATCH /new-voters/{id}` with `version`, in pull and push. The paths keep their names; only the labels change. Screens: Eligible but Not Registered (the form) and its list. Files: `app/routers/new_voters.py`, `tests/test_new_voters.py`, `A/ui/newvoter/`. Test: stale version gives 409. (26 Nov)
+- [ ] **7.6 Information Updation** (the client's name for the History tab): `GET /voters/{id}/history` from `audit_log`. Every update is listed (survey, notes, family, visits, voted marks, roll corrections), each with the fields that changed, the old and the new value, who and when. Screen: Information Updation tab (needs internet; says so when offline). Files: `app/routers/voters.py`, `tests/test_history.py`, `A/ui/voter/HistoryTab.kt`. Test: a survey save appears with user, time and the changed fields. (27 Nov)
 - [ ] **7.7 Voter slip:** drawn on the phone as an image, with the polling date and time from the election settings, and shared to WhatsApp; `POST /voters/{id}/slip-events` through push. Files: `A/ui/slip/`, `app/routers/slips.py`, `tests/test_slips.py`. Test: sharing offline leaves one outbox item. (27 Nov)
-- [ ] **7.8 Birthdays and Select many.** `GET /birthdays`; both screens read the local database; bulk colour tag goes through the outbox. Files: `app/routers/birthdays.py`, `A/ui/birthdays/`, `A/ui/search/BulkSelectScreen.kt`. Test: tagging 50 voters makes 50 outbox items and one push. (27 Nov)
+- [ ] **7.8 Birthdays and Select many.** `GET /birthdays`; both screens read the local database; bulk colour tag goes through the outbox. Select many also offers "Share on WhatsApp" when 5 or fewer voters are ticked (7.12). Files: `app/routers/birthdays.py`, `A/ui/birthdays/`, `A/ui/search/BulkSelectScreen.kt`. Test: tagging 50 voters makes 50 outbox items and one push. (27 Nov)
 - [ ] **7.9 More menu items:** Terms (`GET /terms/current`, `POST /terms/accept`; the text comes from the client, and until it arrives the screen shows a line saying so), Announcements (`GET`, `POST .../read`), Help and report a problem (`POST /problem-reports`), Update required, Change password. Files: `app/routers/misc.py`, `tests/test_misc.py`, `A/ui/more/`. Test: an app below the minimum version is sent to Update required. (27 Nov)
 - [ ] **7.10 Conflict review:** `GET /sync/conflicts`, `POST /sync/conflicts/{id}/resolve` (contract in 4.10). A surveyor sees and resolves their own; supervisor and above any in their area. Keeping the phone's value writes it with a new version. Screen: conflicts on the Sync screen. Files: `app/routers/sync.py`, `tests/test_conflicts.py`. Test: keep-phone writes the value once; another surveyor's conflict is 404. (27 Nov)
 - [ ] **7.11 Part notes.** One shared note per part (up to 2,000 characters) that everyone assigned to the part sees: `GET/PUT /booths/{id}/note` with `version`, in pull and push (`part_note`). Surveyor and above can write; a booth agent reads. Shown at the top of the walk list and on the Survey tab. Files: `app/routers/part_notes.py`, `tests/test_part_notes.py`, `A/ui/partnote/`. Test: a note saved offline reaches a second phone on its next sync; a stale version gives a conflict, not a lost note. (27 Nov)
-- [ ] **7.12 Share to families on WhatsApp.** On the family list, tick up to 5 families and choose the voter slip or a message (the candidate message from the election settings, editable before sending). The phone's own WhatsApp then opens for **every voter in those families who has a mobile number**, one after another, each with their own slip or the message; the worker presses send each time. Not the family head only (client, 12 Nov). No WhatsApp API; a sixth family is refused. Voters without a mobile are skipped and counted. Files: `A/ui/family/ShareFamiliesScreen.kt`. Test: 2 families with 3 and 4 voters who have mobiles open WhatsApp 7 times, each with the right voter's slip; a voter without a mobile is skipped and counted. (27 Nov)
+- [ ] **7.12 Share on WhatsApp, at most 5 voters.** Decided 12 Nov: this is the only multi-send; there is no bulk message screen and no bulk SMS. On Kutumb Connect (the members) and on Select many, tick up to 5 voters and choose the voter slip or a message (the candidate message from the election settings, editable before sending). The phone's own WhatsApp then opens for each ticked voter who has a mobile number, one after another, with their own slip or the message; the worker presses send each time. A sixth voter cannot be ticked. A family larger than 5 is sent in two rounds. Voters without a mobile are skipped and counted. No WhatsApp API. Files: `A/ui/share/ShareWhatsAppScreen.kt`. Test: 5 ticked voters, one without a mobile, open WhatsApp 4 times with the right slips and report 1 skipped; a sixth tick is refused. (27 Nov)
 
-Portal (teammate): family view (hand-made families), new voters list, voter history.
+Portal (teammate): Kutumb Connect view (hand-made, no head), Eligible but Not Registered list, Information Updation (voter history). No bulk message on the portal.
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day`
 
@@ -121,29 +123,29 @@ Goal: an admin can run the workspace from the phone and the portal.
 - [ ] **9.1 Users:** `GET/POST /users`, `GET/PATCH /users/{id}`, `POST /users/{id}/reset-password` (limit 200). Files: `app/routers/users.py`, `tests/test_users.py`. Test: the 201st user is refused; an admin cannot create a user in another constituency. (28 Nov)
 - [ ] **9.2 Assignments:** `GET/PUT /users/{id}/assignments`. Files: same router, `tests/test_assignments.py`. Test: after a booth is removed, the next pull tells the phone to drop it. (28 Nov)
 - [ ] **9.3 Constituencies:** `GET/POST/PATCH /constituencies` (limit 5, super admin). Files: `app/routers/constituencies.py`, `tests/test_constituencies.py`. (28 Nov)
-- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also positions and influencer types), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (28 Nov)
+- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also the influencer list), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (28 Nov)
 - [ ] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (29 Nov)
 - [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** Files: `A/ui/admin/users/`. Test: approve a waiting phone from the app. (29 Nov)
-- [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with positions and influencer types).** Files: `A/ui/admin/settings/`. (29 Nov)
+- [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list).** Files: `A/ui/admin/settings/`. (29 Nov)
 - [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (29 Nov)
 - [ ] **9.9 Portal files on the server.** Caddy serves the teammate's build. Files: `deploy/Caddyfile`. Test: the portal login page loads from the domain. (29 Nov)
 
 Portal (teammate): users, assignments, phones, constituencies, election settings, lists, announcements, activity log, worker activity.
 
-## Step 10 – Roll update and data quality · 29–30 Nov · branch `step10-roll`
+## Step 10 – Matching Engine (roll update) and data quality · 29–30 Nov · branch `step10-roll`
 
 Goal: apply a new roll without losing survey work, and clean the list.
 
-Client, 12 Nov: only a super admin may change official roll data. Upload, resolve, apply, discard, add, correct, remove and restore answer 403 to everyone else; an admin can still read imports and roll edits (contract in 5.15).
+Client, 12 Nov: "Roll update" is called **Matching Engine** and is its own item in the More menu. Only a super admin may change official roll data. Upload, resolve, apply, discard, add, correct, remove and restore answer 403 to everyone else; an admin can still read imports and roll edits (contract in 5.15).
 
 - [ ] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (29 Nov)
 - [ ] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (29 Nov, two sessions)
 - [ ] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (30 Nov)
 - [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (30 Nov)
 - [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (30 Nov)
-- [ ] **10.6 Screens: Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Roll update and Correct roll record are shown to a super admin only. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (30 Nov, two sessions)
+- [ ] **10.6 Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Matching Engine is its own item in the More menu; it and Correct roll record are shown to a super admin (an admin can open Matching Engine to read, not to change). The results screen and the report download are 14.6. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (30 Nov, two sessions)
 
-Portal (teammate): roll upload, matching review and corrections (super admin only), duplicates, mobile number sheets. No spelling fixes page.
+Portal (teammate): Matching Engine page (roll upload, matching review; super admin only, admin reads), corrections, duplicates, mobile number sheets. No spelling fixes page.
 
 ## Step 11 – Reports and exports · 30 Nov · branch `step11-reports`
 
@@ -154,7 +156,7 @@ Goal: charts and printed lists; then hand over the working APK.
 - [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (30 Nov)
 - [ ] **11.4 Working APK.** Signed release build on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
 
-Portal (teammate): reports, charts, exports.
+Portal (teammate): reports, charts, exports. The client's eight reports at three levels are Step 14.
 
 ## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery`
 
@@ -192,52 +194,63 @@ Not now (12 Nov): Marathi / Maharashtra rolls. The SRS adds them only after the 
 
 Portal (teammate): PDF upload on the roll upload page, and the box image next to a review row.
 
+## Step 14 – Change requests of 12 Nov · 1–9 Dec · branch `step14-change-requests`
+
+Goal: what the client's final list of 12 Nov adds to SRS 1.1 (`docs/change_log.md`). **Nothing here starts before the client approves the app flow** (`docs/app_flow_v2.pdf`) and the time and cost. One migration, `004_change_requests.sql`, holds every schema change of this step.
+
+AC 2 is in Goa: two levels of local body (Village Panchayat, Zilla Panchayat) and Municipal Councils for towns; no gat, gan or Panchayat Samiti. The level between the constituency and the part is "Village Panchayat / Municipal Council".
+
+- [ ] **14.1 Village Panchayat level.** The guessed `ward` level (one per part) becomes Village Panchayat / Municipal Council: the API keeps `ward_id` and `level: ward` (no contract break) and `GET /geo/tree` gains a `kind` on each unit (`village_panchayat` or `municipal_council`); phone and portal show "Village Panchayat". `scripts/set_village_panchayats.py` reads the client's list (part number → panchayat), makes the units, moves the parts under them with their voters, families, new voters and user assignments, and removes the guessed wards; `--dry-run` prints counts only. Supervisors are then assigned panchayats. Blocked for the real data until the client sends the list; built and tested with a fake list. Files: `db/migrations/004_change_requests.sql`, `scripts/set_village_panchayats.py`, `app/routers/geo.py`, `tests/test_village_panchayats.py`, `A/ui/` labels. Test: after the script, every part has one panchayat, voter and survey counts are unchanged, and a supervisor of panchayat A no longer sees a part moved to B on the next pull. (1 Dec)
+- [ ] **14.2 Surname search.** `GET /voters?surname=` (the whole last name, any letter case); a Surname field in Filters on the phone, answered from the local database. Files: `app/routers/voters.py`, `tests/test_voters_list.py`, `A/data/local/VoterFts.kt`, `A/ui/search/FiltersScreen.kt`. Test: surname "Naik" does not return "Nayak" or a first name "Naik"; the phone's count equals a direct query. (2 Dec)
+- [ ] **14.3 Report numbers.** `GET /reports/area-summary?level=ac|vp|part` (per unit: voters, male, female, third gender, surveyed, influencers, eligible but not registered) and `GET /reports/surnames?level=…` (voters per surname). Filters on both: constituency, panchayat, part, surname, gender, age range, influencer. A surveyor gets the assigned parts, a supervisor the assigned panchayats, an admin the constituency (the SRS gave reports to supervisor and above; a surveyor's own parts are added). Files: `app/routers/reports.py`, `tests/test_reports_levels.py`. Test: the three levels add up to the same total; a surveyor asking for another part gets 404; "third gender" is gender `O`. (3 Dec)
+- [ ] **14.4 Report lists and downloads.** The detailed lists (voters of a surname, influencer list, eligible but not registered list) and the summaries of 14.3 as files: `POST /exports` gains the kinds `surname_list`, `surname_summary`, `area_summary`, `gender_count`, `influencer_list`, `eligible_not_registered` and the format `csv` next to `xlsx` and `pdf`. The worker writes them (11.2). A download holds voter data: it is written to the audit log, and a surveyor can download only the assigned parts. Files: `app/export_jobs.py`, `app/routers/exports.py`, `tests/test_exports_reports.py`. Test: the CSV, Excel and PDF of one report have the same rows as the screen; a download leaves an audit row. (4 Dec)
+- [ ] **14.5 Screens: Reports and Report view.** Reports lists the eight reports (surname summary, surname list, AC summary, Village Panchayat summary, part summary, gender count, influencer list, eligible but not registered list). Report view shows one report with its level, its filters and a Download button (Excel, PDF, CSV). Needs internet; says so when offline. Files: `A/ui/reports/`. Test: the part summary on the phone equals the home screen counts for that part. (5 Dec)
+- [ ] **14.6 Matching Engine results and report.** After a comparison: counts and lists of new, deleted and changed voters (the rows of 10.2 by status), on a results screen, and a download in the three formats (export kind `roll_match`). Survey data stays linked (10.3). Files: `app/routers/rolls.py`, `app/export_jobs.py`, `tests/test_roll_match_report.py`, `A/ui/admin/roll/MatchResultsScreen.kt`. Test: the fake roll of 10.2 gives 1 new, 1 deleted and 1 changed in the screen and in the file. (7 Dec)
+- [ ] **14.7 Know My Constituency: server.** Admin and super admin only ("core staff" = super admin); everyone else gets 403. `GET /constituency/geography` (panchayats with their parts, polling station names and voter counts), `GET /constituency/demographics` (total, male, female, third gender, age bands, by panchayat and part), both worked out from the roll already in JANSETU. Previous elections: tables `past_elections` (type MP / AC / ZP, year, name) and `past_election_results` (candidate, party, votes, for the whole constituency or one panchayat or part); `GET/POST/PATCH/DELETE /constituency/elections`. The figures come from the client and are typed in or pasted from a sheet. Files: `app/routers/constituency.py`, `tests/test_constituency.py`. Test: a supervisor gets 403 on every route; the demographics total equals the voter count. (8 Dec)
+- [ ] **14.8 Know My Constituency: screens.** An item in the More menu for admin and super admin only: Know My Constituency (three cards), Geography, Demographics, Previous elections (list by MP / AC / ZP, and a form to add results). Files: `A/ui/constituency/`. Test: the menu item is not shown to a supervisor; a result added on the phone shows on the portal. (9 Dec)
+
+Portal (teammate): "Village Panchayat" in every area picker, surname filter, the eight reports with their filters and the three download formats, Matching Engine results and download, Know My Constituency (admin and super admin).
+
 ## Client changes of 12 Nov
 
-The client sent these on 12 Nov. They are in the tasks above and in `docs/01_srs.md` version 1.1, which also adds scanned roll PDFs (Step 13). The client approved version 1.1 on 12 Nov.
+The client sent changes twice on 12 Nov. The morning list is in SRS version 1.1, which the client approved that day. The evening list (`docs/client_changes_12nov.pdf`, 40 items) replaces it where the two differ and adds change requests. Every item, its status and its decision are in `docs/change_log.md`; this table is the short form.
 
-| Client's change | Tasks | What it means here |
+| Change | Status | Tasks |
 |---|---|---|
-| Survey: remove white from the colour tags | 5.14, 5.16 | The white "Other" tag is switched off. A voter without a tag simply has none. Tags are Ours, Opposite, Doubtful. |
-| Important voter = Yes shows a position | 5.14, 5.16, 9.4 | New list `positions`, searchable on the phone. Placeholder entries until the client sends the real list. |
-| Influencer = Yes shows an influencer type | 5.14, 5.16, 9.4 | New list `influencer_types`. The client has not named the types yet; placeholders until then. |
-| Remove Two-Wheeler and Mandal/Group | none | Neither was built (they are only on the wireframe). They stay out of the form. |
-| Self help group = Yes shows a group name | 5.14, 5.16 | Yes/no plus a free-text name. |
-| Ration card: only AAY, PHH and NPHH | 5.14, 5.16 | One of the three, or empty. |
-| Synced notes for the entire part | 5.14, 7.11 | Assumed: one shared note per part that the whole team edits, not a list of dated notes. |
-| Important voters filter | 5.14, 5.16 | On the phone and in `GET /voters`. |
-| Families are made by hand, not from house numbers | 7.1, 7.2, 7.4 | The house-number script is dropped. Assumed: the walk list still goes house by house. |
-| Family name is free text | 7.1 | Uses `families.label`. |
-| WhatsApp to at most 5 families at a time, no API | 7.12 | The phone's own WhatsApp, to every voter in the chosen families who has a mobile (not the head only), one after another. The voter slip or a message. |
-| History tracks every update (what, who, when) | 7.6 | Already in the SRS; the task now names the changed fields with old and new values. |
-| Polling time on voter slips | 5.14, 7.7, 9.4, 12.2 | Start and end time in the election settings. |
-| Admin and super admin can edit elections and candidates | 9.4 | The contract already allowed both; a test is added. Assumed: still one election and one candidate per workspace, as in the SRS. |
-| Remove the Spelling fixes screen | 5.15, 10.5, 10.6 | Screen, endpoints and push type go. 42 screens. |
-| Only a super admin can edit official roll data | 5.15, 10.2–10.4, 10.6 | Changes the SRS roles table: an admin no longer imports or corrects rolls. |
-| Not registered = new voter | none | No change. |
+| No white colour tag; self help group with name; ration card AAY / PHH / NPHH; no two-wheeler or mandal | Built | 5.14, 5.16 |
+| Influencer yes / no with the client's 11 entries; **no Important voter field, no positions list**; Influencer filter in place of Important | Replaces what 5.14–5.16 built | 7.13 |
+| One shared note per part, synced | Planned | 7.11 |
+| Kutumb Connect (the new name for Family): made by the surveyor by hand, free-text name, no head. Not grouped by house number (decided 12 Nov; the client's PDF says automatic, so the app flow asks them to confirm) | Planned | 7.1, 7.2, 7.4 |
+| WhatsApp to at most 5 voters at a time, the phone's own WhatsApp; no bulk message screen, no bulk SMS (decided 12 Nov; less than the PDF asks) | Planned | 7.12 |
+| "Voter History" is "Information Updation"; every update with what, who, when | Planned | 7.6 |
+| "New voter" and "Not registered" are one thing, "Eligible but Not Registered" | Planned | 7.5 |
+| Polling time on the voter slip; admin and super admin edit elections and candidates | Planned | 7.7, 9.4 |
+| No Spelling fixes; only the super admin changes official roll data (403 for others) | In the contract | 5.15, Step 10 |
+| "Roll update" is "Matching Engine", its own menu item | Planned | Step 10 |
+| **Change request:** Village Panchayat level between constituency and part | After approval | 14.1 |
+| **Change request:** surname search | After approval | 14.2 |
+| **Change request:** eight reports at three levels, with filters, as Excel, PDF and CSV | After approval | 14.3–14.5 |
+| **Change request:** Matching Engine results screen and report download | After approval | 14.6 |
+| **Change request:** Know My Constituency (admin and super admin) | After approval | 14.7, 14.8 |
 
-Questions for the client that these raise:
+**First task (12 Nov):** the updated app flow and wireframes for the client to approve, `docs/app_flow_v2.pdf` (source in `docs/app_flow/`). Step 6 goes on meanwhile. 7.13 and Step 14 wait for the approval.
 
-1. The real list of positions, and the list of influencer types.
-2. Part notes: one shared note per part, or many dated notes?
-3. ~~WhatsApp to 5 families: what is sent, and to whom?~~ Answered 12 Nov: slips and messages go to every voter in the families, not the head only.
-4. Does the walk list stay house by house, from the roll's house numbers?
-5. May an admin still see roll imports and corrections, without changing them?
+Open with the client (asked in the app flow): Kutumb Connect by hand; WhatsApp to 5 as the bulk option; the parts of each Village Panchayat; the previous election figures; "Up Sarpanch" or "Deputy Sarpanch"; time and cost of the change requests.
 
-Done 12 Nov: `docs/01_srs.md` version 1.1 has all of these, the scanned roll PDFs, and the old app's data marked as not imported. Questions 1, 2 and 4 are in its "Points for the Company to confirm".
+## The screens: 42 in SRS 1.1, 51 with the change requests
 
-## The 42 screens
-
-43 in the wireframes; the client removed Spelling fixes on 12 Nov. Part notes and family sharing sit on existing screens.
+43 in the first wireframes; the client removed Spelling fixes on 12 Nov. The new names are used below. The new wireframes and the flow are in `docs/app_flow_v2.pdf`.
 
 | Step | Screens | Count |
 |---|---|---|
 | 5 (demo) | Login, Set password, Device approval, First download, Home, Search, Filters, Voter profile, Voter survey, Sync & list updates | 10 |
-| 7 | Family, Walk list, Voter history, Voter slip, Birthdays, New voter, New voters list, Select many voters, More, Terms of use, Update required, Announcements, Help & support | 13 |
+| 7 | Kutumb Connect, Walk list, Information Updation, Voter slip, Birthdays, Eligible but Not Registered, Eligible but Not Registered list, Select many voters, More, Terms of use, Update required, Announcements, Help & support | 13 |
 | 8 | Polling day, Mark voted, Mark many voted | 3 |
 | 9 | Users & devices, Add user, Booths & karyakartas, Constituencies, Election & candidate, Lists & labels, Activity log, Worker activity, Worker locations | 9 |
-| 10 | Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts | 5 |
+| 10 | Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts | 5 |
 | 11 | Reports & charts, Print or export a list | 2 |
+| 7 (new, small) | Part note, Share on WhatsApp | 2 |
+| 14 (change requests) | Report view, Matching results, Know My Constituency, Geography, Demographics, Previous elections, Village Panchayats | 7 |
 
 ## SRS items that are risky for the dates
 
@@ -252,7 +265,9 @@ Done 12 Nov: `docs/01_srs.md` version 1.1 has all of these, the scanned roll PDF
 9. **"Existing data will be imported before the demo."** The client has since decided against it; the SRS line should be changed in writing.
 10. **Part 4 file is a copy of part 3.** About 688 voters are missing until the client sends the right file.
 11. **Content from the client.** The terms of use text and the public website pages come from the client. No website content by 1 Dec means the website pages are dropped.
-12. **Client changes of 12 Nov.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. Five of the six land before 30 Nov, on top of risk 1. They are in SRS version 1.1, approved by the client on 12 Nov.
+12. **Client changes of 12 Nov, morning list.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. They are in SRS version 1.1, approved by the client on 12 Nov.
+13. **Client changes of 12 Nov, evening list.** One more session before 30 Nov (7.13, which also undoes part of 5.14–5.16) and eight in 1–9 Dec (Step 14). 1–15 Dec then holds Step 12 (10 tasks), Step 13 (8) and Step 14 (8), plus client fixes and training: that is more than the days allow. What slips first, in this order: 13.9, 13.7, 14.8 and 14.7 (Know My Constituency, which also waits for the client's election figures), 14.6. Tell the client when the app flow is sent: the change requests need their approval, their data (panchayat list, election figures) and an agreed date.
+14. **Waiting for the app flow approval.** 7.13 and Step 14 do not start before it. If it comes after 23 Nov, the demo still shows the Important voter field the client has removed; say so at the demo.
 
 ## SRS asks for it; the schema or API document does not cover it yet
 
@@ -279,6 +294,6 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 
 ## In the screens, schema or API document but not in the SRS: not built
 
-App labels in Marathi or Hindi (the language buttons on the Login screen), voter photos, Bluetooth slip printing, slip by SMS, saved filters, the extra filter chips (society, influencer; "important" is now built, client 12 Nov), matching the phone's own contacts, a separate karyakarta list for voters, comparing two days in reports. Each is a change request.
+App labels in Marathi or Hindi (the language buttons on the Login screen), voter photos, Bluetooth slip printing, slip by SMS, saved filters, the extra filter chips (society; the influencer filter is task 7.13, client 12 Nov), matching the phone's own contacts, a separate karyakarta list for voters, comparing two days in reports. Each is a change request.
 
-**Decided 11 Nov:** none of this is built. The Login screen has no language buttons. The client's changes of 12 Nov are the only additions.
+**Decided 11 Nov:** none of this is built. The Login screen has no language buttons. The client's changes of 12 Nov (`docs/change_log.md`) are the only additions. Also not built: a bulk message screen and bulk SMS (decided 12 Nov).
