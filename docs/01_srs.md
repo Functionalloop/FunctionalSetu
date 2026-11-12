@@ -34,6 +34,27 @@ Version 1.1 adds the changes the Company asked for on 12 Nov 2026, and scanned r
 - **Existing data:** the old app's data is not imported, by the Company's decision.
 - "Not registered" means a new voter; no change.
 
+## Draft for version 1.2 (not approved)
+
+The Company sent a further list on the evening of 12 Nov 2026 (`client_changes_12nov.pdf`). The text of version 1.1 below is unchanged until the Company approves the updated app flow (`app_flow_v2.pdf`); this section says what version 1.2 will change. The full list with each decision is in `change_log.md`.
+
+**Replaces parts of 1.1 (no extra cost):**
+
+- **Survey:** the Important voter field and its position list are removed. Influencer: yes / no, and when yes, one of Sarpanch, Panch Member, Up Sarpanch, ZP Member, Ex. ZP Member, MLA, Ex. MLA, NGO, Social Worker, News Reporter, Social Media Influencer.
+- **Search:** an Influencer filter in place of the Important voters filter.
+- **Kutumb Connect** is the new name for Family. A surveyor makes each Kutumb by hand, types its name and adds or removes members. There is no family head. (The Company's list says families are made automatically from the house number; to be confirmed.)
+- **WhatsApp:** to at most 5 voters at a time through the phone's own WhatsApp, in place of 5 families. No bulk message screen and no bulk SMS. (The Company's list asks for a bulk message option; to be confirmed.)
+- **Names:** "Voter History" becomes "Information Updation"; "New voter" and "Not registered" become "Eligible but Not Registered"; "Roll update" becomes "Matching Engine", with its own menu item.
+
+**Change requests (time and cost to be agreed before work starts):**
+
+- **Area structure for Goa:** Constituency (AC) → Village Panchayat or Municipal Council → Part / Booth. The Company gives the list of parts in each panchayat.
+- **Surname search** in voter search.
+- **Reports** at constituency, Village Panchayat and part level: surname summary, surname list, constituency / panchayat / part summaries, male / female / third gender count, influencer list, Eligible but Not Registered list. Filters: constituency, panchayat, part, surname, gender, age range, influencer. Download as Excel, PDF or CSV. A surveyor gets reports for the assigned parts, a supervisor for the assigned panchayats, an admin for the constituency. Reports need internet.
+- **Matching Engine:** a results screen (new, deleted and changed voters) and a report download.
+- **Know My Constituency**, for admin and super admin only: geography by panchayat and part, demographics (totals and gender), and previous MP, AC and ZP election results from figures the Company gives.
+- The app would have 51 screens in place of 42.
+
 ## Overview
 
 JANSETU lets a campaign team keep its voter list, survey every household and track polling day from an Android phone, even without internet. Admins manage the same data from a web admin portal.

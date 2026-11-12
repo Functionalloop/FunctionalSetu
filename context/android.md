@@ -75,5 +75,5 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11.
-- Client changes of 12 Nov still to come on the phone: 7.4 (families by hand), 7.11 (part notes), 7.12 (WhatsApp to families). See `docs/plan.md`.
+- Client changes of 12 Nov still to come on the phone (`docs/change_log.md`): 7.13 (Important voter and positions come out again; Influencer filter; local database version 3 with a real migration; on hold until the client approves `docs/app_flow_v2.pdf`), 7.4 (Kutumb Connect by hand, no head), 7.11 (part notes), 7.12 (WhatsApp to at most 5 voters), new names (Information Updation, Eligible but Not Registered, Matching Engine), Step 14 screens.
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.

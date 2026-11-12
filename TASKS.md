@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 28 / 88 done (32%)** `██████░░░░░░░░░░░░░░`
+**Overall: 28 / 97 done (29%)** `██████░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -11,13 +11,14 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 5 – Android demo app | 16 / 16 | `██████████` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 0 / 12 | `░░░░░░░░░░` |
+| Step 7 – Field screens | 0 / 13 | `░░░░░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
-| Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
+| Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 | Step 13 – Scanned roll PDFs (OCR) | 0 / 8 | `░░░░░░░░░░` |
+| Step 14 – Change requests of 12 Nov | 0 / 8 | `░░░░░░░░░░` |
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
@@ -67,20 +68,21 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/12
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/13
 
-- [ ] **7.1** Families made by hand · due 26 Nov
-- [ ] **7.2** Families in sync · due 26 Nov
+- [ ] **7.13** Survey: influencer only · due 26 Nov
+- [ ] **7.1** Kutumb Connect, made by hand · due 26 Nov
+- [ ] **7.2** Kutumb Connect in sync · due 26 Nov
 - [ ] **7.3** Visits API · due 26 Nov
-- [ ] **7.4** Screens: Family, Walk list · due 26 Nov
-- [ ] **7.5** New voters · due 26 Nov
-- [ ] **7.6** History · due 27 Nov
+- [ ] **7.4** Screens: Kutumb Connect, Walk list · due 26 Nov
+- [ ] **7.5** Eligible but Not Registered · due 26 Nov
+- [ ] **7.6** Information Updation · due 27 Nov
 - [ ] **7.7** Voter slip · due 27 Nov
 - [ ] **7.8** Birthdays and Select many · due 27 Nov
 - [ ] **7.9** More menu items · due 27 Nov
 - [ ] **7.10** Conflict review · due 27 Nov
 - [ ] **7.11** Part notes · due 27 Nov
-- [ ] **7.12** Share to families on WhatsApp · due 27 Nov
+- [ ] **7.12** Share on WhatsApp, at most 5 voters · due 27 Nov
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
 
@@ -96,18 +98,18 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **9.4** Settings and lists · due 28 Nov
 - [ ] **9.5** Team and logs · due 29 Nov
 - [ ] **9.6** Screens: Users & devices, Add user (also Add admin), Booths & karyakartas · due 29 Nov
-- [ ] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with positions and influencer types) · due 29 Nov
+- [ ] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list) · due 29 Nov
 - [ ] **9.8** Screens: Activity log, Worker activity, Worker locations · due 29 Nov
 - [ ] **9.9** Portal files on the server · due 29 Nov
 
-## Step 10 – Roll update and data quality · 29–30 Nov · branch `step10-roll` — 0/6
+## Step 10 – Matching Engine (roll update) and data quality · 29–30 Nov · branch `step10-roll` — 0/6
 
 - [ ] **10.1** Worker · due 29 Nov
 - [ ] **10.2** Roll upload and matching · due 29 Nov, two sessions
 - [ ] **10.3** Review and apply · due 30 Nov
 - [ ] **10.4** One-voter corrections · due 30 Nov
 - [ ] **10.5** Data quality · due 30 Nov
-- [ ] **10.6** Screens: Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts · due 30 Nov, two sessions
+- [ ] **10.6** Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts · due 30 Nov, two sessions
 
 ## Step 11 – Reports and exports · 30 Nov · branch `step11-reports` — 0/4
 
@@ -139,3 +141,14 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **13.6** Batch tool · due 7 Dec
 - [ ] **13.7** Admin upload · due 8 Dec
 - [ ] **13.9** Local AI helper (optional, off by default) · due 9 Dec
+
+## Step 14 – Change requests of 12 Nov · 1–9 Dec · branch `step14-change-requests` — 0/8
+
+- [ ] **14.1** Village Panchayat level · due 1 Dec
+- [ ] **14.2** Surname search · due 2 Dec
+- [ ] **14.3** Report numbers · due 3 Dec
+- [ ] **14.4** Report lists and downloads · due 4 Dec
+- [ ] **14.5** Screens: Reports and Report view · due 5 Dec
+- [ ] **14.6** Matching Engine results and report · due 7 Dec
+- [ ] **14.7** Know My Constituency: server · due 8 Dec
+- [ ] **14.8** Know My Constituency: screens · due 9 Dec
