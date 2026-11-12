@@ -73,6 +73,7 @@ Goal: the API on the Bluehost VPS with HTTPS, and a laptop fallback that has bee
 - [ ] **6.4 Server setup** on the Bluehost VPS (4 vCPU, 16 GB, 100 GB NVMe, Ubuntu 24.04 LTS; replaces the Hostinger KVM 4, 13 Nov): SSH key "FunctionalServer" only, no password login, firewall open for 22, 80, 443, Docker, domain pointed, compose up, HTTPS working. Check whether the Bluehost plan includes snapshots and switch them on if it does. Files: `deploy/README.md` (the exact commands). Test: `https://<domain>/api/v1/health` from a phone on mobile data. (20–21 Nov)
 - [ ] **6.5 Data on the server.** Migrations, super admin, then I copy the dev database over SSH myself. Test: voter count on the server is 31,871. (21 Nov)
 - [ ] **6.6 Laptop fallback.** Phone and laptop on one hotspot; the debug build lets me type the server address. Test: full demo flow against the laptop. Do this even if the server arrives on time. (22 Nov)
+- [ ] **6.7 Release keystore and first published APK.** Added 13 Nov: the demo starts by installing the APK from the server, and no task made the signing key. Make the release keystore (`.jks` outside the repo) and `android/keystore.properties` (git-ignored); keep two offline copies of the key and its passwords (e.g. a pen drive in the office and a password manager), never on the server: a lost key means phones cannot update without uninstalling, which deletes unsent surveys. Set `jansetu.releaseApiUrl` to `https://myjansetu.com`, build with `assembleRelease`, publish with `publish_apk.py`. Files: `android/gradle.properties`, `context/android.md`, `context/deploy.md`. Test: a phone on mobile data downloads the APK from `apk_url`, installs it and logs in against the server. (23 Nov)
 
 Done when: the phone syncs with the server over HTTPS, and with the laptop when the server is switched off.
 
@@ -154,7 +155,7 @@ Goal: charts and printed lists; then hand over the working APK.
 - [ ] **11.1 Reports:** `GET /reports/survey-progress`, `/colour-tags`, `/demographics`, `/turnout`. Files: `app/routers/reports.py`, `tests/test_reports.py`. Test: totals equal direct counts; a supervisor gets only own wards. (30 Nov)
 - [ ] **11.2 Exports:** `POST /exports`, `GET /exports/{id}`, `.../download`; the worker writes Excel and PDF. Files: `app/routers/exports.py`, `app/export_jobs.py`, `tests/test_exports.py`. Test: an Excel export of a filter has the same rows as `GET /voters` with that filter. (30 Nov)
 - [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (30 Nov)
-- [ ] **11.4 Working APK.** Signed release build on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
+- [ ] **11.4 Working APK.** Signed release build (key from 6.7) on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
 
 Portal (teammate): reports, charts, exports. The client's eight reports at three levels are Step 14.
 

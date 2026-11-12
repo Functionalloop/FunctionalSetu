@@ -14,7 +14,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 
 - `local.properties` (git-ignored): `sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk` (forward slashes: `\t` in a properties file is a tab), and for a real phone on Wi-Fi `jansetu.debugApiUrl=http://<laptop LAN IP>:8000/api/v1/` (then run uvicorn with `--host 0.0.0.0`).
 - Emulator reaches the laptop's API as `http://10.0.2.2:8000/api/v1/` (debug default). Run the API from `backend/` with the repo `.venv`: `../.venv/Scripts/python -m uvicorn app.main:app --port 8000`.
-- Release build: `jansetu.releaseApiUrl` in `gradle.properties` is a placeholder until the domain exists (step 6). Signing: copy `keystore.properties.example` to `keystore.properties` (git-ignored), keep the `.jks` outside the repo. Without it the release APK is unsigned.
+- Release build: `jansetu.releaseApiUrl` in `gradle.properties` is a placeholder until the domain exists (step 6). Signing: copy `keystore.properties.example` to `keystore.properties` (git-ignored), keep the `.jks` outside the repo. Without it the release APK is unsigned. The real release key is made in 6.7 (plan); keep its offline copies, a lost key blocks updates.
 
 ## Layout
 
