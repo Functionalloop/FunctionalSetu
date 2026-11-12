@@ -6,7 +6,8 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 
 - **Bluehost VPS**, replaces the Hostinger KVM 4 of the SRS: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, monthly ₹1,504. No India region. Logged in `docs/change_log.md` (13 Nov); the client still has to agree to data outside India and to 100 GB.
 - Bluehost names the key "FunctionalServer"; on the laptop it is `~/.ssh/id_ed25519`.
-- Snapshots: check whether the Bluehost plan has them (6.4; only in the panel).
+- Checked in the Bluehost panel 13 Nov: no snapshots or backups (switched off when ordering), no panel firewall (ufw on the server is the only one). Phone on mobile data: `/health` ok, no certificate warning.
+- So until 12.5 (office computer pulls the dumps) every backup lives only on this server: losing the VPS loses them too. Copy a dump to the laptop by hand after important data changes (`scp deploy@50.6.44.108:/var/backups/jansetu/<file>.dump jansetu-private/backups/`).
 - Set up 13 Nov with `deploy/server_setup.sh` and `deploy/make_env.sh` (see `deploy/README.md`): Docker 29.9 + compose v5.7 from Docker's apt repo, ufw (22, 80, 443 tcp, 443 udp), unattended security upgrades, Docker log limit 10 MB x 5, cron + logrotate (not in Bluehost's minimal image). Code in `/srv/jansetu` (copied with `git archive`, no git on the server), server `.env` there (mode 600, passwords generated on the server, never copied off). Server clock UTC.
 - Tested 13 Nov: HTTPS with a Let's Encrypt certificate for `myjansetu.com` and `www` (www → 301 to the main name, http → 308), `/health` ok, `/app/version` 404 (nothing published), 5432 closed from outside; backup + restore check on the server (47 tables); after `sudo reboot` all containers, ufw and the SSH lockdown came back by themselves.
 - Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
