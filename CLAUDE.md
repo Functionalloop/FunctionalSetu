@@ -98,17 +98,19 @@ scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, c
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml, .env.example
 jansetu-private/      real roll files (git-ignored, never committed)
-Not created yet:      backend/app/worker.py, scripts/backup.sh, android/, portal/ (teammate),
+android/              Android app (Kotlin, Compose)
+Not created yet:      backend/app/worker.py, scripts/backup.sh, portal/ (teammate),
                       deploy/docker-compose.yml, deploy/Caddyfile
 ```
 
-## Build status (11 Nov 2026)
+## Build status (12 Nov 2026)
 
 - **Step 1 done:** dev database (Docker, port 5442), `scripts/migrate.py`, fake seed.
 - **Step 2 done:** 51 official roll part files imported with `scripts/import_roll_parts.py` (31,871 voters, AC 2, workspace `naik`). The old VoterappDB data will NOT be imported (client decision); `import_legacy.py` is not run.
 - **Step 3 done:** FastAPI skeleton; auth (login, refresh, logout, change-password; Argon2id; JWT 15 min; rotating refresh token in `auth_sessions`; lockout after 5 wrong tries); `/me`, `/health`, `/devices/me`, `POST /devices/{id}/approve` and `/block`; error format; `scripts/create_super_admin.py`; `openapi.json` with an export check; separate `jansetu_test` database with a name guard. 40 tests pass.
 - **Step 4 done (11 Nov):** area scope and role lists, area tree, voter search / detail / survey, admin phone list, sync pull (first + delta + wipe) and push for surveys, demo users (`scripts/create_demo_users.py`), the full contract (82 more endpoints answer 501 until built), generic endpoint checks, per-runner test databases. 1,131 tests; `scripts/check_dev_data.py` all pass.
-- **Next:** step 5 (Android) and filling in the 501 stubs (steps 7–11); see `docs/plan.md`.
+- **Step 5 done (12 Nov):** Android demo app (`android/`, see `context/android.md`): login, phone approval, first download, offline search and filters, voter details with call / WhatsApp / SMS, survey with the client's fields of 12 Nov, outbox sync. Migration `002_client_changes.sql`. Rehearsed on two real phones (Android 15 and 16). 1,178 backend tests; `check_dev_data.py` all pass.
+- **Next:** step 6 (server, APK download) and filling in the 501 stubs (steps 7–11); see `docs/plan.md`.
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
 
