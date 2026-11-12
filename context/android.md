@@ -62,6 +62,8 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 ## Not done yet
 
+- **Until 5.16:** the phone does not know the survey fields of 12 Nov (important + position, influencer + type, self help group, ration card). A phone save replaces the whole survey, so it would clear those fields if the portal had set them. Build 5.16 before anyone edits surveys in both places.
+
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11. Tested so far on the API 35 emulator only; the real phone is Android 16.
 - Client changes of 12 Nov on the phone: task 5.16 (survey fields, Important filter, local database version 2), then 7.4, 7.11, 7.12. See `docs/plan.md`.
 - Call / WhatsApp / SMS buttons (5.9) checked only by building; check on the real phone. Real-phone rehearsal (5.13).

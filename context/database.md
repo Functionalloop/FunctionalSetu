@@ -1,6 +1,6 @@
 # Database
 
-Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`). Treat it as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
+Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
 
 ## Roles
 
@@ -48,6 +48,7 @@ python scripts/check_dev_data.py                          # end-of-step check on
 - Dev database `jansetu` holds the real roll: workspace `naik`, AC 2, 31,871 voters. Mapping: one ward per roll part (50), one booth per part. Dev DB is Docker volume `pgdata`.
 - Users in `naik` (11 Nov): only the four demo users from `create_demo_users.py` (demo.superadmin, demo.admin, demo.supervisor = wards of parts 1-2, demo.surveyor = booths of parts 1-2, 872 voters). All must change their temporary password at first login. **No real super admin yet**: create it with `create_super_admin.py` when the client names the person; switch the demo users off after the demo (`--remove`).
 - `--reset` before each rehearsal: new temporary passwords, sessions ended, demo phones back to pending.
+- 002 (12 Nov): white colour tag switched off in every workspace and no longer seeded; tables `positions`, `influencer_types` (placeholder entries from `app.seed_client_lists`, also run for existing workspaces), `part_notes` (one row per booth, `version`); survey columns for position, influencer type, self help group, ration card; `tenant_settings.polling_start_time` / `polling_end_time`.
 - Not imported (decided): the old VoterappDB data. `scripts/import_legacy.py` is not run; `import_roll_parts.py` reuses its helpers.
 - Import leaves: no Marathi names, no `voter_surveys` rows (first survey save creates it), no `families`.
 - Re-running an import skips voters already present (EPIC, or booth + serial).
@@ -56,5 +57,6 @@ python scripts/check_dev_data.py                          # end-of-step check on
 
 - Real voter data: show counts and shapes only, never names, EPICs or mobiles. Import error files go to `../jansetu-private/`.
 - `migrate.py`: a file with its own `BEGIN/COMMIT` (like 001) runs as written; any other file runs in one transaction with its record. Prefer the second form from 002 on.
+- A new migration must start with `SET LOCAL ROLE jansetu_owner;` (as 002 does): migrate.py connects as the superuser, and only objects owned by `jansetu_owner` get the default grants to `jansetu_app`. New tables also need their `touch_row` / `audit_changes` triggers and the RLS policy (002's loop).
 - Port 5442 is used so it does not clash with other local PostgreSQL containers.
 - The tests use `jansetu_test` or `jansetu_test_<runner>` (see `backend.md`); never point them at `jansetu`.

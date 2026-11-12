@@ -114,9 +114,9 @@ The Android app does most of this from its local copy and sends changes through 
 | Method and path | What it does | Who |
 | --- | --- | --- |
 | `GET /geo/tree` | Constituency → ward → booth → section tree for the user's area. | All |
-| `GET /voters` | Search and filter: `q`, ward, booth, age, gender, colour tag, survey status, caste, profession, has mobile, voted. | All |
+| `GET /voters` | Search and filter: `q`, ward, booth, age, gender, colour tag, survey status, caste, profession, has mobile, important, voted. | All |
 | `GET /voters/{id}` | Roll details plus survey. | All |
-| `PUT /voters/{id}/survey` | Save survey: mobiles, caste, profession, colour tag, residence check, date of birth, notes, custom fields, location. Needs `version`. | Surveyor |
+| `PUT /voters/{id}/survey` | Save survey: mobiles, caste, profession, colour tag, residence check, date of birth, notes, custom fields, important voter + position, influencer + type, self help group + name, ration card, location. Needs `version`. | Surveyor |
 | `GET /voters/{id}/family` | Family members. | All |
 | `PUT /voters/{id}/family` | Move the voter into a family, or set the family head. | Surveyor |
 | `GET /voters/{id}/history` | Every change: surveys, notes, visits, roll edits, voted marks. | All |

@@ -1193,6 +1193,24 @@
             }
           },
           {
+            "name": "important",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: important voters only; false: the others",
+              "title": "Important"
+            },
+            "description": "true: important voters only; false: the others"
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -13512,6 +13530,31 @@
             ],
             "title": "Polling Date"
           },
+          "polling_start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling Start Time",
+            "description": "Polling hours, local (Indian) time; shown on voter slips"
+          },
+          "polling_end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling End Time"
+          },
           "code_of_conduct_mode": {
             "type": "boolean",
             "title": "Code Of Conduct Mode"
@@ -13771,6 +13814,8 @@
           "election_name_en",
           "election_type",
           "polling_date",
+          "polling_start_time",
+          "polling_end_time",
           "code_of_conduct_mode",
           "candidate_name_mr",
           "candidate_name_en",
@@ -15445,7 +15490,7 @@
           "is_active"
         ],
         "title": "NamedListEntry",
-        "description": "A caste or a profession."
+        "description": "An entry of a simple list: caste, profession, position or influencer type."
       },
       "NewVoter": {
         "properties": {
@@ -16299,6 +16344,15 @@
         ],
         "title": "PushType",
         "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).\nOnly `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of\nthose types is rejected with not_implemented and NOT recorded, so a retry after the server\nupdate applies it."
+      },
+      "RationCard": {
+        "type": "string",
+        "enum": [
+          "AAY",
+          "PHH",
+          "NPHH"
+        ],
+        "title": "RationCard"
       },
       "RefreshRequest": {
         "properties": {
@@ -17203,6 +17257,72 @@
             ],
             "title": "Extra Info 5"
           },
+          "is_important": {
+            "type": "boolean",
+            "title": "Is Important",
+            "description": "Important voter",
+            "default": false
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id",
+            "description": "From the positions list; only with is_important"
+          },
+          "is_influencer": {
+            "type": "boolean",
+            "title": "Is Influencer",
+            "default": false
+          },
+          "influencer_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Influencer Type Id",
+            "description": "From the influencer types list; only with is_influencer"
+          },
+          "in_self_help_group": {
+            "type": "boolean",
+            "title": "In Self Help Group",
+            "description": "Member of a self help group",
+            "default": false
+          },
+          "self_help_group_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Self Help Group Name",
+            "description": "Only with in_self_help_group"
+          },
+          "ration_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RationCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "voter_id": {
             "type": "string",
             "format": "uuid",
@@ -17513,6 +17633,72 @@
             ],
             "title": "Extra Info 5"
           },
+          "is_important": {
+            "type": "boolean",
+            "title": "Is Important",
+            "description": "Important voter",
+            "default": false
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id",
+            "description": "From the positions list; only with is_important"
+          },
+          "is_influencer": {
+            "type": "boolean",
+            "title": "Is Influencer",
+            "default": false
+          },
+          "influencer_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Influencer Type Id",
+            "description": "From the influencer types list; only with is_influencer"
+          },
+          "in_self_help_group": {
+            "type": "boolean",
+            "title": "In Self Help Group",
+            "description": "Member of a self help group",
+            "default": false
+          },
+          "self_help_group_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Self Help Group Name",
+            "description": "Only with in_self_help_group"
+          },
+          "ration_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RationCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "integer",
             "minimum": 0.0,
@@ -17712,6 +17898,21 @@
             },
             "type": "array",
             "title": "Custom Field Labels"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/NamedListEntry"
+            },
+            "type": "array",
+            "title": "Positions",
+            "description": "Positions of important voters"
+          },
+          "influencer_types": {
+            "items": {
+              "$ref": "#/components/schemas/NamedListEntry"
+            },
+            "type": "array",
+            "title": "Influencer Types"
           }
         },
         "type": "object",
@@ -17719,7 +17920,9 @@
           "castes",
           "professions",
           "color_tags",
-          "custom_field_labels"
+          "custom_field_labels",
+          "positions",
+          "influencer_types"
         ],
         "title": "SyncLists"
       },
@@ -20165,6 +20368,31 @@
             ],
             "title": "Polling Date"
           },
+          "polling_start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling Start Time",
+            "description": "Polling hours, local (Indian) time; shown on voter slips"
+          },
+          "polling_end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling End Time"
+          },
           "code_of_conduct_mode": {
             "type": "boolean",
             "title": "Code Of Conduct Mode"
@@ -20424,6 +20652,8 @@
           "election_name_en",
           "election_type",
           "polling_date",
+          "polling_start_time",
+          "polling_end_time",
           "code_of_conduct_mode",
           "candidate_name_mr",
           "candidate_name_en",

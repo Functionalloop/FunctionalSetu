@@ -12,6 +12,10 @@ The web portal (React + TypeScript + Vite, TanStack Query) is the teammate's par
 - Lists: `?limit=&cursor=` → `{items, next_cursor}`. Dates UTC; show Indian time.
 - Rule: any contract change goes into OpenAPI first; tell the teammate the same day. Add fields, never break.
 
+## Contract changes (tell the teammate the same day)
+
+- 12 Nov (5.14), additions only: survey fields `is_important`, `position_id`, `is_influencer`, `influencer_type_id`, `in_self_help_group`, `self_help_group_name`, `ration_card` (`AAY` / `PHH` / `NPHH`); `GET /voters?important=`; settings `polling_start_time`, `polling_end_time`; sync lists `positions`, `influencer_types`. The white colour tag is inactive (do not offer inactive tags). Client changes still to come in 5.15: spelling fixes removed, roll writes super admin only, families made by hand, part notes.
+
 ## What the portal needs from the server (not built)
 
 - CORS: `CORS_ORIGINS` in `deploy/.env` (dev: `http://localhost:5173`); only the portal domain in production (12.7).
