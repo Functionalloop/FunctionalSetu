@@ -1,4 +1,4 @@
-"""More menu (7.9) and the app version check (6.3): terms, announcements, problem reports.
+"""More menu (7.9): terms, announcements, problem reports. The app version check (6.3) is in app_version.py.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -10,16 +10,10 @@ import uuid
 from fastapi import APIRouter, Response, status
 
 from ..deps import ActiveUser, Db, ReadyUser
-from ..schemas_field import AnnouncementPage, AppVersion, ProblemReportIn, Terms, TermsAccept
+from ..schemas_field import AnnouncementPage, ProblemReportIn, Terms, TermsAccept
 from ..stubs import Cursor, Limit, not_built
 
 router = APIRouter(tags=["more"])
-
-
-@router.get("/app/version", response_model=AppVersion,
-            summary="Latest and minimum app version and the APK link. Public (the app checks it before login).")
-def app_version() -> AppVersion:
-    not_built("6.3")
 
 
 @router.get("/terms/current", response_model=Terms, summary="Current terms of use. Public.")

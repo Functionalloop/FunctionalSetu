@@ -25,7 +25,22 @@
 		reverse_proxy api:8000
 	}
 
-	# Later: /download/* serves the APK (6.3); the portal's static files go at the root (9.9).
+	# The APK (6.3): deploy/apk/ on the host, published with scripts/publish_apk.py.
+	# Only plain *.apk names are served; no folder listing.
+	handle_path /download/* {
+		@apk path_regexp ^/[A-Za-z0-9._-]+\.apk$
+		handle @apk {
+			root * /srv/apk
+			header Content-Type application/vnd.android.package-archive
+			header Cache-Control "no-cache"
+			file_server
+		}
+		handle {
+			respond "Not found" 404
+		}
+	}
+
+	# Later: the portal's static files go at the root (9.9).
 	handle {
 		respond "Not found" 404
 	}

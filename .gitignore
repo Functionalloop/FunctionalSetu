@@ -24,6 +24,10 @@ __pycache__/
 *.egg-info/
 build/
 
+# Release APKs and build metadata copied in for publishing (scripts/publish_apk.py)
+deploy/apk/*
+!deploy/apk/.gitkeep
+
 # Android
 android/.gradle/
 android/build/

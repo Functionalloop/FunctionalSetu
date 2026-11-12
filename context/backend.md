@@ -75,6 +75,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /devices/me` | phone polls this for approval; `CurrentUser` level |
 | `POST /devices/{id}/approve`, `/block` | admin (own constituency); block sets the wipe signal |
 | `GET /devices` | admin (own constituency) / super admin (all). `?status=`, newest request first, cursor on (requested_at, id). Items add username, full_name_en, role, last_seen_at |
+| `GET /app/version` | public (no token; a bad token is ignored). Newest `app_releases` row; `min_version_code` = newest `is_required` release, else 1; `apk_url` absolute from the request's address (`/download/<file>`). 404 `not_found` while none is published. Router `app_version.py`. Releases are written only by `scripts/publish_apk.py` (owner) |
 | `GET /geo/tree` | all roles; `{"roots": [GeoNode]}` nested by `children`. Roots = the scope's top areas (super admin: every constituency; supervisor: the assigned ward, no parent above it). Inactive areas and their subtree are left out. Not paged (real roll: ~300 areas) |
 
 | `GET /voters` | all roles, area scope. Filters `q`, `ward_id`, `booth_id` (404 outside scope), `age_min/max`, `gender`, `color_tag_id`, `survey_status`, `caste_id`, `profession_id`, `has_mobile`, `important` (12 Nov). Roll order (part, booth, serial, id), keyset cursor (opaque base64), `limit` 1–200. Removed voters (`deleted_at`) never listed. "voted" filter comes with step 8 |

@@ -1,6 +1,6 @@
 # Deploy: server, Docker Compose, Caddy, backups, APK
 
-Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). Not yet: APK and `/app/version` (6.3), the stack on the server and `deploy/README.md` (6.4), the worker container (no `backend/app/worker.py` yet).
+Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). 6.3 done: APK download and `GET /app/version`. Not yet: the stack on the server and `deploy/README.md` (6.4), the worker container (no `backend/app/worker.py` yet).
 
 ## Server (decided 13 Nov)
 
@@ -27,7 +27,7 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 |---|---|
 | `db` | `postgres:16-bookworm`, volume `pgdata`, **no host port**. Memory from `PG_SHARED_BUFFERS` / `PG_EFFECTIVE_CACHE_SIZE` (server 4GB / 10GB, laptop 512MB / 2GB) |
 | `api` | image `jansetu-api` from `backend/Dockerfile`, uvicorn, `API_WORKERS` processes x `DB_POOL_SIZE` (x2 overflow) connections; port 8000 only inside the network. Gets only the app role password and the JWT secret |
-| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; anything else 404 until the APK (6.3) and portal (9.9). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
+| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; `/download/<name>.apk` → `deploy/apk/`; anything else 404 until the portal (9.9). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
 | `ops` | same image, profile `ops`, for one-off scripts; the only container with the superuser and owner passwords |
 
 Commands (repo root; compose reads `deploy/.env`):
@@ -55,6 +55,19 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - `COMPOSE_FILE` picks the stack (default production). Laptop test on the dev database: `COMPOSE_FILE=deploy/docker-compose.dev.yml bash scripts/backup.sh jansetu-private/backups`.
 - Server cron (6.4), deploy user, server clock UTC: `0 21 * * * /srv/jansetu/scripts/backup.sh >> /var/log/jansetu/backup.log 2>&1` (02:30 India time). The office computer pulls the dumps in 12.5.
 - Tested 13 Nov on the laptop with the real roll: dump 2.1 MB in 3 s; restore check 47 tables match; `--live` into the fresh laptop production stack: counts match, counter 1,490 → 2,201,724, `/health` ok, RLS shows 0 voters without context and 31,871 for workspace naik; retention deletes 14+ days and keeps other files.
+
+## APK publishing (6.3)
+
+1. Build the **signed release** APK (`gradlew assembleRelease`; needs `android/keystore.properties` and the `.jks`, not made yet). Raise `versionCode` first.
+2. Copy it into `deploy/apk/` with its version in the name (server: `scp app-release.apk deploy@50.6.44.108:/srv/jansetu/deploy/apk/jansetu-0.2.0.apk`), plus `output-metadata.json` from the same build folder, renamed entries matching.
+3. `docker compose -f deploy/docker-compose.yml run --rm ops python scripts/publish_apk.py deploy/apk/jansetu-0.2.0.apk [--version-code N --version-name X] [--required] [--notes-en ...]`
+4. Check `https://myjansetu.com/api/v1/app/version` and download `apk_url` on a phone.
+
+- `publish_apk.py` refuses: a file outside `deploy/apk/`, odd file names, non-zip files, unsigned APKs (no v2/v3 signing block), debug builds (from `output-metadata.json`), a `versionCode` not above every published one, a file name already published.
+- Never replace a published file: phones check its SHA-256. A new version = a new file.
+- `--required` sets the minimum: apps below it must update. The per-workspace `min_app_version_code` setting is separate (used after login, 7.9).
+- Caddy serves only `^/[A-Za-z0-9._-]+\.apk$` under `/download/`, as `application/vnd.android.package-archive`, `Cache-Control: no-cache`; no listing; other names 404. `deploy/apk/*` is git-ignored except `.gitkeep`; `caddy` and `ops` mount it read-only.
+- Tested 13 Nov on the laptop with the debug APK (40 MB) as a test row: `/app/version` through Caddy without a token, `apk_url` came out `https://`, downloaded file SHA-256 matched; the CLI refused the debug build; test row and files removed.
 
 ## Settings in `deploy/.env`
 

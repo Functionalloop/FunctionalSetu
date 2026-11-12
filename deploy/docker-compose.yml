@@ -7,7 +7,8 @@
 #
 # The dev database (docker-compose.dev.yml, project jansetu-dev) is separate:
 # different project name, different volume, so both can run on the laptop.
-# Not here yet: worker (no backend/app/worker.py yet), APK files (6.3), portal (9.9).
+# APK files: deploy/apk/ (git-ignored *.apk), served at /download/ (6.3).
+# Not here yet: worker (no backend/app/worker.py yet), portal (9.9).
 name: jansetu
 
 x-logging: &logging
@@ -85,6 +86,7 @@ services:
       - "${HTTPS_PORT:-443}:443/udp"   # HTTP/3
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apk:/srv/apk:ro                # APK files, served at /download/ (6.3)
       - caddy_data:/data               # certificates: keep this volume
       - caddy_config:/config
     depends_on:
@@ -107,6 +109,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./apk:/srv/jansetu/deploy/apk:ro   # for scripts/publish_apk.py (reads and hashes the APK)
     command: ["python", "scripts/migrate.py", "--status"]
     logging: *logging
 
