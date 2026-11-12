@@ -65,12 +65,12 @@ Portal (teammate): nothing from this step.
 
 ## Step 6 – Server · 19–23 Nov · branch `step6-server`
 
-Goal: the API on the KVM 4 with HTTPS, and a laptop fallback that has been tried.
+Goal: the API on the Bluehost VPS with HTTPS, and a laptop fallback that has been tried.
 
 - [ ] **6.1 Production containers,** tried on the laptop first: `caddy`, `api`, `db`. Files: `backend/Dockerfile`, `deploy/docker-compose.yml`, `deploy/Caddyfile`, `deploy/.env.example`. Test: `docker compose up` on the laptop, `/api/v1/health` answers through Caddy. (19 Nov)
 - [ ] **6.2 Nightly backup.** `pg_dump` at night, 14 days kept. Files: `scripts/backup.sh`, `scripts/restore.sh`. Test: on the laptop, restore a dump into a scratch database and compare row counts. (19 Nov)
 - [ ] **6.3 APK download and `GET /app/version`.** Caddy serves the APK; a script adds the `app_releases` row. Files: `app/routers/app_version.py`, `scripts/publish_apk.py`, `tests/test_app_version.py`. Test: the endpoint returns the newest row without a token. (20 Nov)
-- [ ] **6.4 Server setup** when the KVM 4 arrives: Ubuntu LTS, SSH keys only, firewall open for 22, 80, 443, Docker, domain pointed, compose up, HTTPS working. Check whether the Hostinger plan includes snapshots and switch them on if it does. Files: `deploy/README.md` (the exact commands). Test: `https://<domain>/api/v1/health` from a phone on mobile data. (20–21 Nov)
+- [ ] **6.4 Server setup** on the Bluehost VPS (4 vCPU, 16 GB, 100 GB NVMe, Ubuntu 24.04 LTS; replaces the Hostinger KVM 4, 13 Nov): SSH key "FunctionalServer" only, no password login, firewall open for 22, 80, 443, Docker, domain pointed, compose up, HTTPS working. Check whether the Bluehost plan includes snapshots and switch them on if it does. Files: `deploy/README.md` (the exact commands). Test: `https://<domain>/api/v1/health` from a phone on mobile data. (20–21 Nov)
 - [ ] **6.5 Data on the server.** Migrations, super admin, then I copy the dev database over SSH myself. Test: voter count on the server is 31,871. (21 Nov)
 - [ ] **6.6 Laptop fallback.** Phone and laptop on one hotspot; the debug build lets me type the server address. Test: full demo flow against the laptop. Do this even if the server arrives on time. (22 Nov)
 
@@ -165,7 +165,7 @@ Goal: what the SRS promises for final delivery.
 - [ ] **12.2 `GET /voters/{id}/slip`** from the server, for the portal. Files: `app/routers/slips.py`. (3 Dec)
 - [ ] **12.3 Fixes from client testing.** The client reports within 3 working days of 30 Nov, so by 3 Dec. One session per group of fixes. (3–10 Dec)
 - [ ] **12.4 Load test: 200 users syncing at once** on the server, in a fake workspace. Files: `scripts/loadtest.py`, results in `docs/load_test.md`. Pass mark: no errors and 95% of sync calls under 3 seconds (my figure; the SRS gives none). (5–6 Dec)
-- [ ] **12.5 Backups stored away from the server,** and a restore test. An office computer pulls the newest dump over SSH every night (and at next start if it was off) and keeps 14 days; the Hostinger snapshot is the second copy if the plan includes one. The copy holds real voter data, so it stays in a folder only I can open. Files: `scripts/pull_backup.ps1` (or `.sh`, to match the office computer), `scripts/backup.sh`, `docs/handover.md`. Test: last night's dump, taken from the office computer, restored into a scratch database; counts match. (7 Dec)
+- [ ] **12.5 Backups stored away from the server,** and a restore test. An office computer pulls the newest dump over SSH every night (and at next start if it was off) and keeps 14 days; the Bluehost snapshot is the second copy if the plan includes one. The copy holds real voter data, so it stays in a folder only I can open. Files: `scripts/pull_backup.ps1` (or `.sh`, to match the office computer), `scripts/backup.sh`, `docs/handover.md`. Test: last night's dump, taken from the office computer, restored into a scratch database; counts match. (7 Dec)
 - [ ] **12.6 Isolation check.** Every endpoint in `openapi.json` has its other-workspace and other-area test. Files: `tests/test_coverage_of_isolation.py`. (8 Dec)
 - [ ] **12.7 Server check.** New secrets, CORS only for the portal domain, API docs page off or admin only, disk and log size. Files: `deploy/`. (9 Dec)
 - [ ] **12.8 Handover notes.** Server access, deploy, backup and restore, new workspace and admin, publishing an APK, known limits. Files: `docs/handover.md`. (10–11 Dec)
@@ -286,7 +286,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 | Conflicts | The screen lets the worker choose "keep mine / keep server"; the API document says supervisor. | **In the contract (4.10), task 7.10:** worker resolves own conflicts, supervisor any in the area (confirm with the client). |
 | History tab | `audit_log` is not synced to the phone. | History needs internet; the SRS does not promise it offline. |
 | Blocked phone | Nothing records that the phone finished wiping. | The phone reports it on its next `/devices/me` call. |
-| Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer, plus a Hostinger snapshot if the plan includes one (6.4, 12.5). |
+| Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer, plus a Bluehost snapshot if the plan includes one (6.4, 12.5). |
 | Terms of use | The table is empty. | **Decided:** the text comes from the client. |
 | Public website pages (portal) | No content or page list anywhere. | **Decided:** content comes from the client. None by 1 Dec = the pages are dropped. |
 | Roll file format for import | The SRS names file types, not columns. | Use the columns of the 51 part files until a sample arrives. |

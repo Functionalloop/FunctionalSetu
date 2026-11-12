@@ -1,10 +1,10 @@
 # JANSETU – project guide for Claude Code
 
-JANSETU is a voter data management platform: an offline-first Android app for field workers, a web admin portal, and one backend + PostgreSQL database on a single Hostinger KVM 4 server.
+JANSETU is a voter data management platform: an offline-first Android app for field workers, a web admin portal, and one backend + PostgreSQL database on a single Bluehost VPS (4 vCPU, 16 GB RAM).
 
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
 - **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
-- **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The KVM 4 server is bought around 20 Nov; if it is late, the demo runs from my laptop.
+- **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The server is a Bluehost VPS (changed from the Hostinger KVM 4 on 13 Nov, see `docs/change_log.md`); if it is not ready, the demo runs from my laptop.
 - **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is committed on its step branch (not only when merged), run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
 ## Source of truth (read before big changes)
@@ -49,7 +49,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 2. **No outside paid services.** No OTP or SMS gateway, no WhatsApp API, no Firebase, no cloud storage, no Redis or Celery. Calls, WhatsApp and SMS use the phone's own apps (Android intents).
 3. **No Play Store.** The APK is downloaded from our server; the app checks `GET /api/v1/app/version`.
 4. **Android 8.0 minimum** (minSdk 26).
-5. **Everything runs on one KVM 4** (4 vCPU, 16 GB RAM, 200 GB NVMe) with Docker Compose.
+5. **Everything runs on one VPS** (Bluehost: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, no India region) with Docker Compose. SSH keys only, no password login.
 6. **Never commit secrets.** `.env` is git-ignored; keep `.env.example` up to date.
 
 ## Stack
@@ -59,7 +59,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 - **Database:** PostgreSQL 16. Migrations are plain numbered SQL files in `db/migrations/`, applied in order by `scripts/migrate.py`, which records them in a table.
 - **Android:** Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit + OkHttp, Room + SQLCipher (FTS for search), WorkManager for sync, Android Keystore for the DB key.
 - **Portal (teammate):** React + TypeScript + Vite static build, TanStack Query, API types generated from `openapi.json`.
-- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night, plus a Hostinger snapshot if the plan includes one.
+- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night, plus a Bluehost snapshot if the plan includes one.
 
 ## How the database must be used
 
