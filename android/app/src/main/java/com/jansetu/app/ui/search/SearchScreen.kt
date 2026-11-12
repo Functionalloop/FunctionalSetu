@@ -100,6 +100,10 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
     val nearEnd by remember { derivedStateOf { (list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= rows.size - 10 } }
     LaunchedEffect(nearEnd, rows.size, count) { if (nearEnd && rows.size < count && rows.isNotEmpty()) vm.loadMore() }
 
+    if (showFilters) {
+        FiltersScreen(vm.db, filter, onApply = { vm.setFilter(it); showFilters = false }, onClose = { showFilters = false })
+        return
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
@@ -116,7 +120,7 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
             }
         }
         Text(
-            "%,d voters".format(count), style = MaterialTheme.typography.labelLarge,
+            votersText(count), style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (rows.isEmpty()) EmptyState(if (filter.q.isBlank() && filter.activeFilterCount == 0) "No voters on this phone yet." else "No voter matches.")
@@ -127,8 +131,6 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
             }
         }
     }
-
-    if (showFilters) FiltersScreen(vm.db, filter, onApply = { vm.setFilter(it); showFilters = false }, onClose = { showFilters = false })
 }
 
 @Composable

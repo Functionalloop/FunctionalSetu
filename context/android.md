@@ -63,11 +63,12 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 - Driving the emulator with adb: Gboard opens a stylus tutorial on the first text field (`adb shell settings put secure stylus_handwriting_enabled 0`); an open keyboard moves buttons, so close it (`input keyevent 4`) and read bounds from `uiautomator dump`. `demo_users.txt` gets a new block on every `--reset`: take the last line per user. Quote passwords for the device shell (`adb shell "input text '...'"`) and never put them where an error can echo them.
 - No screenshots of voter screens (they show real names); use filtered UI dumps.
 
-## Real phone (12 Nov): vivo I2207, Android 15, on the laptop's Wi-Fi
+## Real phones (12 Nov) on the laptop's Wi-Fi: vivo I2207 (Android 15, demo.surveyor), Samsung M35 (Android 16, demo.supervisor, wireless debugging)
 
 - The API must be running with `--host 0.0.0.0` before logging in; when nothing listens on port 8000 the login just waits until it times out. Check from the phone's browser: `http://<laptop IP>:8000/api/v1/health`.
 - Checked by hand: login, approval, first download, search, voter details, Call / WhatsApp / SMS, the new survey fields.
-- Fixed after the check: the three contact buttons now share the row equally (SMS was squeezed); the full-screen Filters dialog draws under the system bars, so it pads with `WindowInsets.safeDrawing` (the navigation bar covered the Show button). Any new full-screen `Dialog` needs the same padding.
+- Fixed after the check: the three contact buttons now share the row equally (SMS was squeezed); Filters is no longer a full-screen `Dialog` but a screen shown in place of the search list (Back closes it). On Android 15-16 the full-screen dialog window was as tall as the screen but started below the status bar, so it spilled under the navigation bar and reported zero insets; neither `safeDrawing` padding nor `decorFitsSystemWindows = false` helped. Do not use full-screen dialogs; use a screen or a route.
+- Wireless debugging (no cable): phone Developer options → Wireless debugging → Pair with code; `adb pair <ip>:<pairing port> <code>` then `adb connect <ip>:<port on the main screen>`. Each code has its own pairing port. Turning on airplane mode cuts the adb link.
 - Approving a phone without the portal: log in as `demo.admin` through the API, `GET /devices?status=pending`, `POST /devices/{id}/approve`. A fresh `--reset` admin must set its own password first (`password_change_required`).
 
 ## Not done yet

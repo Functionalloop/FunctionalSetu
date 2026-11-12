@@ -1,6 +1,8 @@
 package com.jansetu.app.ui.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -11,9 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,14 +47,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.jansetu.app.data.local.AppDatabase
 import com.jansetu.app.data.local.AreaEntity
 import com.jansetu.app.data.local.VoterFilter
 import com.jansetu.app.data.local.VoterQuery
 
-/** Ward, booth, age, gender, colour tag and survey status (5.8). Shows the count before applying. */
+/** Ward, booth, age, gender, colour tag and survey status (5.8). Shows the count before applying. Shown in place of the search list. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FiltersScreen(db: AppDatabase, initial: VoterFilter, onApply: (VoterFilter) -> Unit, onClose: () -> Unit) {
@@ -66,65 +63,64 @@ fun FiltersScreen(db: AppDatabase, initial: VoterFilter, onApply: (VoterFilter) 
     var count by remember { mutableIntStateOf(0) }
     LaunchedEffect(f) { count = db.voters().countNow(VoterQuery.count(f)) }
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize()) {
-            // The full-screen dialog draws under the system bars (Android 15 edge-to-edge): keep the
-            // Show button above the navigation bar and the keyboard.
-            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-                    IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Close") }
-                    Text("Filters", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { f = VoterFilter(q = f.q) }) { Text("Clear all") }
+    // A plain screen in the app's own window, not a Dialog: on Android 15-16 a full-screen dialog window
+    // spilled under the navigation bar and reported no insets, so the Show button was hidden.
+    BackHandler(onBack = onClose)
+    Surface(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().imePadding()) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+                IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Close") }
+                Text("Filters", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                TextButton(onClick = { f = VoterFilter(q = f.q) }) { Text("Clear all") }
+            }
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                AreaPicker("Ward", wards, f.wardId) { f = f.copy(wardId = it, boothId = null) }
+                AreaPicker("Booth", booths.filter { f.wardId == null || it.parentId == f.wardId }, f.boothId) { f = f.copy(boothId = it) }
+
+                Text("Age", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NumberField("From", f.ageMin, Modifier.weight(1f)) { f = f.copy(ageMin = it) }
+                    NumberField("To", f.ageMax, Modifier.weight(1f)) { f = f.copy(ageMax = it) }
                 }
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    AreaPicker("Ward", wards, f.wardId) { f = f.copy(wardId = it, boothId = null) }
-                    AreaPicker("Booth", booths.filter { f.wardId == null || it.parentId == f.wardId }, f.boothId) { f = f.copy(boothId = it) }
 
-                    Text("Age", style = MaterialTheme.typography.titleSmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        NumberField("From", f.ageMin, Modifier.weight(1f)) { f = f.copy(ageMin = it) }
-                        NumberField("To", f.ageMax, Modifier.weight(1f)) { f = f.copy(ageMax = it) }
+                Text("Gender", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("M" to "Male", "F" to "Female", "O" to "Other").forEach { (code, label) ->
+                        FilterChip(f.gender == code, { f = f.copy(gender = if (f.gender == code) null else code) }, { Text(label) })
                     }
+                }
 
-                    Text("Gender", style = MaterialTheme.typography.titleSmall)
+                if (tags.isNotEmpty()) {
+                    Text("Colour tag", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("M" to "Male", "F" to "Female", "O" to "Other").forEach { (code, label) ->
-                            FilterChip(f.gender == code, { f = f.copy(gender = if (f.gender == code) null else code) }, { Text(label) })
-                        }
-                    }
-
-                    if (tags.isNotEmpty()) {
-                        Text("Colour tag", style = MaterialTheme.typography.titleSmall)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            tags.filter { it.isActive || it.id == f.colorTagId }.forEach { t ->
-                                FilterChip(
-                                    f.colorTagId == t.id, { f = f.copy(colorTagId = if (f.colorTagId == t.id) null else t.id) },
-                                    { Text(t.labelEn) },
-                                    leadingIcon = { ColorDot(t.hex) },
-                                )
-                            }
-                        }
-                    }
-
-                    Text("Important voters", style = MaterialTheme.typography.titleSmall)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(f.important == true, { f = f.copy(important = if (f.important == true) null else true) },
-                            { Text("Important only") })
-                    }
-
-                    Text("Survey", style = MaterialTheme.typography.titleSmall)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(true to "Surveyed", false to "Not surveyed").forEach { (v, label) ->
-                            FilterChip(f.surveyed == v, { f = f.copy(surveyed = if (f.surveyed == v) null else v) }, { Text(label) })
+                        tags.filter { it.isActive || it.id == f.colorTagId }.forEach { t ->
+                            FilterChip(
+                                f.colorTagId == t.id, { f = f.copy(colorTagId = if (f.colorTagId == t.id) null else t.id) },
+                                { Text(t.labelEn) },
+                                leadingIcon = { ColorDot(t.hex) },
+                            )
                         }
                     }
                 }
-                Button(onClick = { onApply(f) }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                    Text("Show %,d voters".format(count))
+
+                Text("Important voters", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(f.important == true, { f = f.copy(important = if (f.important == true) null else true) },
+                        { Text("Important only") })
                 }
+
+                Text("Survey", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(true to "Surveyed", false to "Not surveyed").forEach { (v, label) ->
+                        FilterChip(f.surveyed == v, { f = f.copy(surveyed = if (f.surveyed == v) null else v) }, { Text(label) })
+                    }
+                }
+            }
+            Button(onClick = { onApply(f) }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text("Show ${votersText(count)}")
             }
         }
     }
@@ -153,6 +149,8 @@ fun AreaPicker(label: String, areas: List<AreaEntity>, selected: String?, onPick
         }
     }
 }
+
+fun votersText(n: Int) = if (n == 1) "1 voter" else "%,d voters".format(n)
 
 fun areaLabel(a: AreaEntity) = listOfNotNull(a.number?.toString(), a.nameEn ?: a.nameMr).joinToString(" · ")
 
