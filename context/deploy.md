@@ -5,11 +5,21 @@ Current state (13 Nov): step 6 started on branch `step6-server`. Only the dev da
 ## Server (decided 13 Nov)
 
 - **Bluehost VPS**, replaces the Hostinger KVM 4 of the SRS: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, monthly ₹1,504. No India region. Logged in `docs/change_log.md` (13 Nov); the client still has to agree to data outside India and to 100 GB.
-- SSH key only, no password login. Bluehost names the key "FunctionalServer"; on the laptop it is `~/.ssh/id_ed25519`.
+- Bluehost names the key "FunctionalServer"; on the laptop it is `~/.ssh/id_ed25519`.
 - Snapshots: check whether the Bluehost plan has them (6.4).
-- Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk. Key login as root works.
-- The laptop key has a passphrase: it is loaded in the Windows ssh-agent (service set to Automatic). Use Windows `ssh.exe` (PowerShell); Git Bash's ssh does not see that agent.
-- Still to do in 6.4: password login and root login are on (sshd); `authorized_keys` for root holds our key three times plus `access@hal` (most likely Bluehost's support key; ask before removing).
+- Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
+
+## SSH (locked down 13 Nov)
+
+- Log in as **`deploy`** with the "FunctionalServer" key: `ssh deploy@50.6.44.108`. `deploy` is in the `sudo` group with passwordless sudo (`/etc/sudoers.d/90-deploy`), because it has no password.
+- `/etc/ssh/sshd_config.d/00-jansetu.conf`: `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, `PubkeyAuthentication yes`, `AllowUsers deploy`. It is loaded first, so it wins over Bluehost's `50-cloud-init.conf` and `51_permit_root_login.conf` (both say yes; sshd keeps the first value). Do not edit Bluehost's files; they may be rewritten.
+- Tested 13 Nov: deploy key login and sudo work; root is refused; the server offers only `publickey`.
+- Root's `authorized_keys` still holds `access@hal` (most likely Bluehost support) and our key; both are unused while root login is off. If Bluehost support needs SSH, they will have to ask.
+- The laptop key has a passphrase and is loaded in the Windows ssh-agent (service on Automatic). Use Windows `ssh.exe` (PowerShell); Git Bash's ssh does not see that agent.
+- Locked out? Use the VNC / console in the Bluehost panel (does not go through SSH), log in as root with the root password, and fix `00-jansetu.conf`.
+- Adding a second admin later: add their key to `/home/deploy/.ssh/authorized_keys`, or create a user and add it to `AllowUsers`.
+- Before applying a new sshd change: `sudo sshd -t`, then `sudo systemctl reload ssh`, and test a new connection while the old one is still open.
+- Still to do in 6.4: firewall (ufw: 22, 80, 443), Docker, compose up.
 
 ## Settings in `deploy/.env`
 
