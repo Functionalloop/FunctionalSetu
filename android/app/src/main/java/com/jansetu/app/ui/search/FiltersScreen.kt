@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -65,7 +68,9 @@ fun FiltersScreen(db: AppDatabase, initial: VoterFilter, onApply: (VoterFilter) 
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize()) {
+            // The full-screen dialog draws under the system bars (Android 15 edge-to-edge): keep the
+            // Show button above the navigation bar and the keyboard.
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
                     IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Close") }
                     Text("Filters", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))

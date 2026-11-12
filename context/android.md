@@ -63,10 +63,17 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 - Driving the emulator with adb: Gboard opens a stylus tutorial on the first text field (`adb shell settings put secure stylus_handwriting_enabled 0`); an open keyboard moves buttons, so close it (`input keyevent 4`) and read bounds from `uiautomator dump`. `demo_users.txt` gets a new block on every `--reset`: take the last line per user. Quote passwords for the device shell (`adb shell "input text '...'"`) and never put them where an error can echo them.
 - No screenshots of voter screens (they show real names); use filtered UI dumps.
 
+## Real phone (12 Nov): vivo I2207, Android 15, on the laptop's Wi-Fi
+
+- The API must be running with `--host 0.0.0.0` before logging in; when nothing listens on port 8000 the login just waits until it times out. Check from the phone's browser: `http://<laptop IP>:8000/api/v1/health`.
+- Checked by hand: login, approval, first download, search, voter details, Call / WhatsApp / SMS, the new survey fields.
+- Fixed after the check: the three contact buttons now share the row equally (SMS was squeezed); the full-screen Filters dialog draws under the system bars, so it pads with `WindowInsets.safeDrawing` (the navigation bar covered the Show button). Any new full-screen `Dialog` needs the same padding.
+- Approving a phone without the portal: log in as `demo.admin` through the API, `GET /devices?status=pending`, `POST /devices/{id}/approve`. A fresh `--reset` admin must set its own password first (`password_change_required`).
+
 ## Not done yet
 
 
-- Android 8 check: skipped for now (12 Nov), moved to task 12.11. Tested so far on the API 35 emulator only; the real phone is Android 16.
+- Android 8 check: skipped for now (12 Nov), moved to task 12.11.
 - Client changes of 12 Nov still to come on the phone: 7.4 (families by hand), 7.11 (part notes), 7.12 (WhatsApp to families). See `docs/plan.md`.
-- Call / WhatsApp / SMS buttons (5.9) and the new survey controls (5.16) checked only by build and tests; look at them on the real phone. Real-phone rehearsal (5.13).
+- Real-phone rehearsal (5.13): the airplane-mode survey, reconnect and a second login still to do on the phone.
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.

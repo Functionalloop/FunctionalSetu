@@ -7,10 +7,14 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,7 +42,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -143,22 +149,29 @@ private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, Area
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Column(Modifier.padding(12.dp)) {
                     Text(m, style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { context.open(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$m"))) }) {
-                            Icon(Icons.Default.Call, null); Text(" Call")
-                        }
-                        OutlinedButton(onClick = { context.open(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/91$m"))) }) {
-                            Icon(Icons.Default.Chat, null); Text(" WhatsApp")
-                        }
-                        OutlinedButton(onClick = { context.open(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$m"))) }) {
-                            Icon(Icons.AutoMirrored.Filled.Message, null); Text(" SMS")
-                        }
+                    // Three equal buttons; full-size buttons squeezed the last one on narrow phones.
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ContactButton(Icons.Default.Call, "Call") { context.open(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$m"))) }
+                        ContactButton(Icons.Default.Chat, "WhatsApp") { context.open(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/91$m"))) }
+                        ContactButton(Icons.AutoMirrored.Filled.Message, "SMS") { context.open(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$m"))) }
                     }
                 }
             }
         }
         if (s?.mobile1 == null) Text("No mobile number yet. Add it in the Survey tab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         s?.updatedAt?.let { Text("Survey updated ${istTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+@Composable
+private fun RowScope.ContactButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick, modifier = Modifier.weight(1f),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+    ) {
+        Icon(icon, null, Modifier.size(18.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
