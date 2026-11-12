@@ -3,13 +3,13 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 29 / 97 done (30%)** `██████░░░░░░░░░░░░░░`
+**Overall: 30 / 97 done (31%)** `██████░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
 | Step 4 – Demo API | 12 / 12 | `██████████` |
 | Step 5 – Android demo app | 16 / 16 | `██████████` |
-| Step 6 – Server | 1 / 6 | `██░░░░░░░░` |
+| Step 6 – Server | 2 / 6 | `███░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 0 / 13 | `░░░░░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
@@ -54,10 +54,10 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **5.16** Client changes: Survey screen and Important filter · due 14 Nov · done 2026-11-12 · `6ad84a7`
 - [x] **5.13** Rehearsal on a real phone · due 23 Nov · done 2026-11-12 · `9e08481`
 
-## Step 6 – Server · 19–23 Nov · branch `step6-server` — 1/6
+## Step 6 – Server · 19–23 Nov · branch `step6-server` — 2/6
 
 - [x] **6.1** Production containers, · due 19 Nov · done 2026-11-13 · `18dba3c`
-- [ ] **6.2** Nightly backup · due 19 Nov
+- [x] **6.2** Nightly backup · due 19 Nov · done 2026-11-13 · `591247d`
 - [ ] **6.3** APK download and `GET /app/version` · due 20 Nov
 - [ ] **6.4** Server setup · due 20–21 Nov
 - [ ] **6.5** Data on the server · due 21 Nov
