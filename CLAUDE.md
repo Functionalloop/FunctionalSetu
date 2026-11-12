@@ -11,7 +11,7 @@ JANSETU is a voter data management platform: an offline-first Android app for fi
 
 | File | What it is |
 |---|---|
-| `docs/01_srs.md` | Approved scope. Anything not in it is a change request. Do not add features beyond it. |
+| `docs/01_srs.md` | Approved scope. Anything not in it is a change request. Do not add features beyond it. The client's changes of 12 Nov (below) win where they differ. |
 | `docs/02_tech_stack_and_api.md` | Stack, sync design, API rules, the full endpoint list. |
 | `db/migrations/001_jansetu_schema.sql` | The database schema (PostgreSQL 16, schema `app`). Tested; treat as the data model. |
 | `docs/screen_flow.pdf` | The 43 Android screens and how they connect. |
@@ -112,6 +112,17 @@ Not created yet:      backend/app/worker.py, scripts/backup.sh, android/, portal
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
 
+## Client changes of 12 Nov
+
+The client changed the scope on 12 Nov; the full list, the tasks and the open questions are in `docs/plan.md` ("Client changes of 12 Nov"). The SRS text is not updated yet, so where it differs, follow the plan:
+
+- **Families are made by hand** by surveyors, with a free-text name. Do not group voters by house number (no `scripts/build_families.py`). The walk list still goes by house number.
+- **No spelling fixes:** no screen, no `/name-fixes` endpoints, no `name_fix` push type.
+- **Only a super admin changes official roll data** (import, apply, add, correct, remove, restore). An admin gets 403 and can still read.
+- **Survey:** no white colour tag; important voter + position, influencer + type, self help group + name, ration card (AAY / PHH / NPHH); an Important voters filter. No two-wheeler or mandal/group field.
+- **New:** one shared note per part (synced), WhatsApp share to at most 5 families, polling time on slips.
+- All schema changes for this list go into one migration, `002_client_changes.sql` (task 5.14). Do not add another `002`.
+
 ## Open questions with client
 
 - The part 4 roll file is a copy of part 3, so about 688 voters are missing.
@@ -122,7 +133,7 @@ What the import left for later steps: one booth per part, no Marathi voter names
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
 - The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
 
-Nothing outside the SRS is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
+Nothing outside the SRS and the client's changes of 12 Nov is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
 
 ## Git workflow
 

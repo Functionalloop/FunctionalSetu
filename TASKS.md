@@ -3,20 +3,20 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 22 / 75 done (29%)** `██████░░░░░░░░░░░░░░`
+**Overall: 23 / 81 done (28%)** `██████░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
 | Step 4 – Demo API | 12 / 12 | `██████████` |
-| Step 5 – Android demo app | 10 / 13 | `████████░░` |
+| Step 5 – Android demo app | 11 / 16 | `███████░░░` |
 | Step 6 – Server | 0 / 6 | `░░░░░░░░░░` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 0 / 10 | `░░░░░░░░░░` |
+| Step 7 – Field screens | 0 / 12 | `░░░░░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
-| Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
+| Step 12 – Hardening and handover | 0 / 11 | `░░░░░░░░░░` |
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
@@ -33,9 +33,9 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **4.9** Demo users · due 15 Nov · done 2026-11-11 · `40ff705`
 - [x] **4.10** Contract for the remaining endpoints · due 16–17 Nov, two sessions · done 2026-11-11 · `9f7ab97`
 
-## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 10/13
+## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo` — 11/16
 
-- [ ] **5.1** Project · due 14 Nov
+- [x] **5.1** Project · due 14 Nov · done 2026-11-12 · `9ee861d`
 - [x] **5.2** Local database · due 15 Nov · done 2026-11-12 · `1f62e80`
 - [x] **5.3** Search · due 16 Nov · done 2026-11-12 · `8e5bfe2`
 - [x] **5.4** API client · due 17 Nov · done 2026-11-12 · `1230213`
@@ -47,6 +47,9 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **5.10** Survey tab · due 21 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.11** Push, delta pull and the Sync screen · due 21–22 Nov · done 2026-11-12 · `4b239c2`
 - [x] **5.12** Blocked phone and logout · due 22 Nov · done 2026-11-12 · `7e617df`
+- [ ] **5.14** Client changes: database and survey API · due 13 Nov
+- [ ] **5.15** Client changes: contract · due 13 Nov
+- [ ] **5.16** Client changes: Survey screen and Important filter · due 14 Nov
 - [ ] **5.13** Rehearsal on a real phone · due 23 Nov
 
 ## Step 6 – Server · 19–23 Nov · branch `step6-server` — 0/6
@@ -63,10 +66,10 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/10
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/12
 
-- [ ] **7.1** Families from house numbers · due 26 Nov
-- [ ] **7.2** Family and walk list API · due 26 Nov
+- [ ] **7.1** Families made by hand · due 26 Nov
+- [ ] **7.2** Families in sync · due 26 Nov
 - [ ] **7.3** Visits API · due 26 Nov
 - [ ] **7.4** Screens: Family, Walk list · due 26 Nov
 - [ ] **7.5** New voters · due 26 Nov
@@ -75,6 +78,8 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **7.8** Birthdays and Select many · due 27 Nov
 - [ ] **7.9** More menu items · due 27 Nov
 - [ ] **7.10** Conflict review · due 27 Nov
+- [ ] **7.11** Part notes · due 27 Nov
+- [ ] **7.12** Share to families on WhatsApp · due 27 Nov
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
 
@@ -90,7 +95,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **9.4** Settings and lists · due 28 Nov
 - [ ] **9.5** Team and logs · due 29 Nov
 - [ ] **9.6** Screens: Users & devices, Add user (also Add admin), Booths & karyakartas · due 29 Nov
-- [ ] **9.7** Screens: Constituencies, Election & candidate, Lists & labels · due 29 Nov
+- [ ] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with positions and influencer types) · due 29 Nov
 - [ ] **9.8** Screens: Activity log, Worker activity, Worker locations · due 29 Nov
 - [ ] **9.9** Portal files on the server · due 29 Nov
 
@@ -101,7 +106,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **10.3** Review and apply · due 30 Nov
 - [ ] **10.4** One-voter corrections · due 30 Nov
 - [ ] **10.5** Data quality · due 30 Nov
-- [ ] **10.6** Screens: Data quality, Repeated voters, Spelling fixes, Roll update, Correct roll record, Mobile numbers & contacts · due 30 Nov, two sessions
+- [ ] **10.6** Screens: Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts · due 30 Nov, two sessions
 
 ## Step 11 – Reports and exports · 30 Nov · branch `step11-reports` — 0/4
 
@@ -110,7 +115,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **11.3** Screens: Reports & charts, Print or export a list · due 30 Nov
 - [ ] **11.4** Working APK · due 30 Nov
 
-## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/10
+## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/11
 
 - [ ] **12.1** Roll import from text PDF · due 1–3 Dec
 - [ ] **12.2** `GET /voters/{id}/slip` · due 3 Dec
@@ -121,4 +126,5 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **12.7** Server check · due 9 Dec
 - [ ] **12.8** Handover notes · due 10–11 Dec
 - [ ] **12.9** Admin training · due 12–14 Dec
+- [ ] **12.11** Android 8 check · due 4 Dec
 - [ ] **12.10** Final delivery · due 15 Dec

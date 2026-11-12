@@ -1,11 +1,11 @@
 # JANSETU – plan to final delivery
 
-Written 11 Nov 2026. Scope is `docs/01_srs.md` only; anything else is a change request.
+Written 11 Nov 2026; changed 12 Nov for the client's changes (see "Client changes of 12 Nov"). Scope is `docs/01_srs.md` plus those changes; anything else is a change request.
 
 | Date | Milestone | What must work |
 |---|---|---|
 | Wed 25 Nov | Demo | Login + phone approval, sync pull/push, area tree, voter list/search/profile, survey save, all offline on a real phone, server deployed |
-| Mon 30 Nov | Working APK | All 43 screens |
+| Mon 30 Nov | Working APK | All 42 screens (the client removed Spelling fixes on 12 Nov) |
 | Tue 15 Dec | Final delivery | Fixes from client testing, live server, backups, restore test, load test, training, handover notes |
 
 ## How to use this file
@@ -42,7 +42,7 @@ Portal (teammate): login, voter list, search and profile, phone approval list. A
 
 Goal: the demo flow on a real phone, working without internet.
 
-- [ ] **5.1 Project.** Kotlin, Compose, Hilt, minSdk 26, debug and release builds with their own server address, signing key kept outside git. Files: `android/` Gradle files, `A/JansetuApp.kt`, `A/MainActivity.kt`. Test: the debug APK installs on an Android 8 phone or emulator. (14 Nov)
+- [x] **5.1 Project.** Kotlin, Compose, Hilt, minSdk 26, debug and release builds with their own server address, signing key kept outside git. Files: `android/` Gradle files, `A/JansetuApp.kt`, `A/MainActivity.kt`. Test: the debug APK installs and runs on the Android 15 emulator (12 Nov) and on my Android 16 phone (5.13). There is no Android 8 device yet: that check is 12.11. (14 Nov)
 - [x] **5.2 Local database.** Room + SQLCipher, key from Android Keystore; tables for areas, voters, surveys, lists, outbox and sync state. Files: `A/data/local/`. Test: `androidTest` writes and reads a voter; the database file is not readable without the key. (15 Nov)
 - [x] **5.3 Search.** FTS table over English name, Marathi name, EPIC, house and mobile; a number also finds a serial. Search screen showing results while typing. Files: `A/data/local/VoterFts.kt`, `A/ui/search/`. Test: 32,000 fake voters, English and Marathi prefix search each answer in under 200 ms on the test phone. (16 Nov)
 - [x] **5.4 API client.** Retrofit + OkHttp, encrypted token store, automatic refresh on `token_expired`, error body mapping. Files: `A/data/remote/`. Test: fake server returns `token_expired` once; the call succeeds after one refresh. (17 Nov)
@@ -54,6 +54,9 @@ Goal: the demo flow on a real phone, working without internet.
 - [x] **5.10 Survey tab.** Mobiles, caste, profession, colour tag, residence check, date of birth, notes; location only at save. Saved locally and added to the outbox. Read-only for a booth agent. Files: `A/ui/voter/SurveyScreen.kt`, `A/data/OutboxRepository.kt`. Test: a save in airplane mode shows at once and leaves one outbox item. (21 Nov)
 - [x] **5.11 Push, delta pull and the Sync screen.** WorkManager every 15 minutes and "Sync now"; a conflict is shown, not lost. Files: `A/data/sync/`, `A/ui/sync/`. Test: with a fake server, a failed push is retried with the same UUID; a conflict item appears on the Sync screen. (21–22 Nov)
 - [x] **5.12 Blocked phone and logout.** A wipe signal deletes the local database. Files: `A/data/sync/WipeHandler.kt`. Test: after the signal the database file is gone and the app is at Login. (22 Nov)
+- [ ] **5.14 Client changes: database and survey API.** One migration holds every schema change in the client's list, so parallel sessions do not each add a `002`: the white colour tag is switched off and no longer seeded (a voter without a tag has none); lists `positions` and `influencer_types` (placeholder entries until the client sends the real ones); `voter_surveys` gets `position_id`, `influencer_type_id`, `in_self_help_group`, `self_help_group_name` and `ration_card` (AAY / PHH / NPHH); table `part_notes` (one shared note per part, with `version`); `polling_start_time` and `polling_end_time` in the election settings. The survey body (PUT, push and pull) gains `is_important`, `position_id`, `is_influencer`, `influencer_type_id`, the self help group pair and `ration_card`; the two new lists ride in the pull; `GET /voters?important=true`. Files: `db/migrations/002_client_changes.sql`, `db/seed/seed.py`, `app/routers/voters.py`, `app/sync_pull.py`, `app/schemas.py`, `tests/test_survey.py`, `tests/test_voters_list.py`. Test: a position without "important", an influencer type without "influencer" or a group name without "self help group" is 422; a ration card outside the three is 422; a new workspace has no white tag. (13 Nov)
+- [ ] **5.15 Client changes: contract.** Spelling fixes leave the API (`/name-fixes`, push type `name_fix`, `name_fixes_waiting`). Every write to official roll data becomes super admin only (`POST /rolls/imports`, row resolve, apply, discard, `POST /voters`, `PATCH /voters/{id}/roll`, remove, restore): an admin gets 403 and can still read imports and roll edits. New 501 routes with their shapes: `POST /families`, `PATCH /families/{id}`, `GET/PUT /booths/{id}/note`, push types `family_new` and `part_note`; `GET /families` now lists hand-made families. Polling times in the election settings shapes. Files: `app/routers/*.py`, `app/schemas*.py`, `tests/endpoints.py`, `docs/02_tech_stack_and_api.md`, `docs/openapi.json`. Test: an admin's roll write is 403; the endpoint table and the API document match `openapi.json`. Tell the teammate the same day: two routes are removed (never built), everything else is added. (13 Nov)
+- [ ] **5.16 Client changes: Survey screen and Important filter.** Important voter = Yes shows a searchable position picker; Influencer = Yes shows the influencer type; Self help group = Yes shows the group name; Ration card has three choices; no white tag. Filters gets "Important voters". Local database version 2 (no upgrade code: no phone holds data yet, and logout deletes it). Files: `A/ui/voter/SurveyScreen.kt`, `A/ui/search/FiltersScreen.kt`, `A/data/local/`, `A/data/remote/ApiModels.kt`, `A/data/OutboxRepository.kt`. Test: switching Important to No clears the position in the saved item; the Important filter gives the same count as a direct query. (14 Nov)
 - [ ] **5.13 Rehearsal on a real phone** against the server: full flow, then survey in airplane mode, reconnect, sync, see the change from a second login. Fix what breaks. Merge to `main`. (23 Nov)
 
 Done when: the demo script below runs twice in a row without touching the laptop.
@@ -86,18 +89,20 @@ Not in the demo: Marathi search (the roll has no Marathi names yet). Say so befo
 
 Goal: everything a surveyor uses besides the survey. Each subtask is the endpoint, its sync part and its screen together.
 
-- [ ] **7.1 Families from house numbers.** One-off script groups voters by booth and house into `families`. Files: `scripts/build_families.py`, `tests/test_build_families.py`. Test: running it twice creates nothing new. (26 Nov)
-- [ ] **7.2 Family and walk list API:** `GET/PUT /voters/{id}/family`, `GET /families`; families in pull and push. Files: `app/routers/families.py`, `tests/test_families.py`. (26 Nov)
+- [ ] **7.1 Families made by hand.** The client (12 Nov) wants surveyors to make families themselves, so the script that grouped voters by house number is dropped. `POST /families` (free-text name, in one booth; the phone makes the UUID), `PATCH /families/{id}` (rename), `PUT /voters/{id}/family` (add to a family, take out, set the head), `GET /voters/{id}/family`, `GET /families` (the booth's families). Files: `app/routers/families.py`, `tests/test_families.py`. Test: a voter is in one family at most; a family in booth 2 is 404 for a booth 1 surveyor; a booth agent cannot make one. (26 Nov)
+- [ ] **7.2 Families in sync.** Families and their members in the pull; push types `family_new` and `family`. Files: `app/sync_pull.py`, `app/sync_push.py`, `tests/test_sync_families.py`. Test: a family made offline and pushed twice exists once. (26 Nov)
 - [ ] **7.3 Visits API:** `POST /voters/{id}/visits`, visits in push. Files: `app/routers/visits.py`, `tests/test_visits.py`. Test: a visit pushed twice is stored once. (26 Nov)
-- [ ] **7.4 Screens: Family, Walk list.** Files: `A/ui/family/`, `A/ui/walklist/`. Test: marking a house "not home" offline shows on the walk list and syncs. (26 Nov)
+- [ ] **7.4 Screens: Family, Walk list.** Family tab: make a family, name it, add members from search, take a member out. The walk list still goes house by house: it groups the booth's voters by the roll's house number on the phone and needs no family rows. Files: `A/ui/family/`, `A/ui/walklist/`. Test: marking a house "not home" offline shows on the walk list and syncs; a family made offline shows at once. (26 Nov)
 - [ ] **7.5 New voters:** `GET/POST /new-voters`, `PATCH /new-voters/{id}` with `version`, in pull and push. Screens: New voter, New voters list. Files: `app/routers/new_voters.py`, `tests/test_new_voters.py`, `A/ui/newvoter/`. Test: stale version gives 409. (26 Nov)
-- [ ] **7.6 History:** `GET /voters/{id}/history` from `audit_log`. Screen: History tab (needs internet; says so when offline). Files: `app/routers/voters.py`, `tests/test_history.py`, `A/ui/voter/HistoryTab.kt`. Test: a survey save appears with user and time. (27 Nov)
-- [ ] **7.7 Voter slip:** drawn on the phone as an image and shared to WhatsApp; `POST /voters/{id}/slip-events` through push. Files: `A/ui/slip/`, `app/routers/slips.py`, `tests/test_slips.py`. Test: sharing offline leaves one outbox item. (27 Nov)
+- [ ] **7.6 History:** `GET /voters/{id}/history` from `audit_log`. Every update is listed (survey, notes, family, visits, voted marks, roll corrections), each with the fields that changed, the old and the new value, who and when. Screen: History tab (needs internet; says so when offline). Files: `app/routers/voters.py`, `tests/test_history.py`, `A/ui/voter/HistoryTab.kt`. Test: a survey save appears with user, time and the changed fields. (27 Nov)
+- [ ] **7.7 Voter slip:** drawn on the phone as an image, with the polling date and time from the election settings, and shared to WhatsApp; `POST /voters/{id}/slip-events` through push. Files: `A/ui/slip/`, `app/routers/slips.py`, `tests/test_slips.py`. Test: sharing offline leaves one outbox item. (27 Nov)
 - [ ] **7.8 Birthdays and Select many.** `GET /birthdays`; both screens read the local database; bulk colour tag goes through the outbox. Files: `app/routers/birthdays.py`, `A/ui/birthdays/`, `A/ui/search/BulkSelectScreen.kt`. Test: tagging 50 voters makes 50 outbox items and one push. (27 Nov)
 - [ ] **7.9 More menu items:** Terms (`GET /terms/current`, `POST /terms/accept`; the text comes from the client, and until it arrives the screen shows a line saying so), Announcements (`GET`, `POST .../read`), Help and report a problem (`POST /problem-reports`), Update required, Change password. Files: `app/routers/misc.py`, `tests/test_misc.py`, `A/ui/more/`. Test: an app below the minimum version is sent to Update required. (27 Nov)
 - [ ] **7.10 Conflict review:** `GET /sync/conflicts`, `POST /sync/conflicts/{id}/resolve` (contract in 4.10). A surveyor sees and resolves their own; supervisor and above any in their area. Keeping the phone's value writes it with a new version. Screen: conflicts on the Sync screen. Files: `app/routers/sync.py`, `tests/test_conflicts.py`. Test: keep-phone writes the value once; another surveyor's conflict is 404. (27 Nov)
+- [ ] **7.11 Part notes.** One shared note per part (up to 2,000 characters) that everyone assigned to the part sees: `GET/PUT /booths/{id}/note` with `version`, in pull and push (`part_note`). Surveyor and above can write; a booth agent reads. Shown at the top of the walk list and on the Survey tab. Files: `app/routers/part_notes.py`, `tests/test_part_notes.py`, `A/ui/partnote/`. Test: a note saved offline reaches a second phone on its next sync; a stale version gives a conflict, not a lost note. (27 Nov)
+- [ ] **7.12 Share to families on WhatsApp.** On the family list, tick up to 5 families; the phone's own WhatsApp opens for each family in turn with the message ready, and the worker presses send. No WhatsApp API; a sixth tick is refused. What is sent (the family's voter slips or a typed message) and to which number are open with the client; built for the slips to the family head's mobile until told otherwise. Files: `A/ui/family/ShareFamiliesScreen.kt`. Test: 5 families open WhatsApp 5 times; a family without a mobile number is skipped and named. (27 Nov)
 
-Portal (teammate): family view, new voters list, voter history.
+Portal (teammate): family view (hand-made families), new voters list, voter history.
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day`
 
@@ -116,10 +121,10 @@ Goal: an admin can run the workspace from the phone and the portal.
 - [ ] **9.1 Users:** `GET/POST /users`, `GET/PATCH /users/{id}`, `POST /users/{id}/reset-password` (limit 200). Files: `app/routers/users.py`, `tests/test_users.py`. Test: the 201st user is refused; an admin cannot create a user in another constituency. (28 Nov)
 - [ ] **9.2 Assignments:** `GET/PUT /users/{id}/assignments`. Files: same router, `tests/test_assignments.py`. Test: after a booth is removed, the next pull tells the phone to drop it. (28 Nov)
 - [ ] **9.3 Constituencies:** `GET/POST/PATCH /constituencies` (limit 5, super admin). Files: `app/routers/constituencies.py`, `tests/test_constituencies.py`. (28 Nov)
-- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election`, `GET/POST/PATCH /masters/{list}`, `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull. (28 Nov)
+- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also positions and influencer types), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (28 Nov)
 - [ ] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (29 Nov)
 - [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** Files: `A/ui/admin/users/`. Test: approve a waiting phone from the app. (29 Nov)
-- [ ] **9.7 Screens: Constituencies, Election & candidate, Lists & labels.** Files: `A/ui/admin/settings/`. (29 Nov)
+- [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with positions and influencer types).** Files: `A/ui/admin/settings/`. (29 Nov)
 - [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (29 Nov)
 - [ ] **9.9 Portal files on the server.** Caddy serves the teammate's build. Files: `deploy/Caddyfile`. Test: the portal login page loads from the domain. (29 Nov)
 
@@ -129,14 +134,16 @@ Portal (teammate): users, assignments, phones, constituencies, election settings
 
 Goal: apply a new roll without losing survey work, and clean the list.
 
+Client, 12 Nov: only a super admin may change official roll data. Upload, resolve, apply, discard, add, correct, remove and restore answer 403 to everyone else; an admin can still read imports and roll edits (contract in 5.15).
+
 - [ ] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (29 Nov)
 - [ ] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (29 Nov, two sessions)
 - [ ] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (30 Nov)
-- [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore. (30 Nov)
-- [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `GET /name-fixes`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (30 Nov)
-- [ ] **10.6 Screens: Data quality, Repeated voters, Spelling fixes, Roll update, Correct roll record, Mobile numbers & contacts.** Files: `A/ui/quality/`, `A/ui/admin/roll/`. (30 Nov, two sessions)
+- [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (30 Nov)
+- [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (30 Nov)
+- [ ] **10.6 Screens: Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Roll update and Correct roll record are shown to a super admin only. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (30 Nov, two sessions)
 
-Portal (teammate): roll upload, matching review, corrections, duplicates, mobile number sheets.
+Portal (teammate): roll upload, matching review and corrections (super admin only), duplicates, mobile number sheets. No spelling fixes page.
 
 ## Step 11 – Reports and exports · 30 Nov · branch `step11-reports`
 
@@ -162,11 +169,48 @@ Goal: what the SRS promises for final delivery.
 - [ ] **12.7 Server check.** New secrets, CORS only for the portal domain, API docs page off or admin only, disk and log size. Files: `deploy/`. (9 Dec)
 - [ ] **12.8 Handover notes.** Server access, deploy, backup and restore, new workspace and admin, publishing an APK, known limits. Files: `docs/handover.md`. (10–11 Dec)
 - [ ] **12.9 Admin training** with the client, using the notes. (12–14 Dec)
+- [ ] **12.11 Android 8 check.** Moved from 5.1: install the release APK on an Android 8 phone or emulator and run the demo script. The SRS promises Android 8.0 or newer. Test: the demo script passes on Android 8.0. (4 Dec)
 - [ ] **12.10 Final delivery.** Final APK published, tag `v1.0` on `main`. (15 Dec)
 
 Portal (teammate): fixes from client testing, final build on the server by 10 Dec. Public website pages only if the client's content arrives by 1 Dec; otherwise they are dropped and I tell the client in writing.
 
-## The 43 screens
+## Client changes of 12 Nov
+
+The client sent these on 12 Nov. They are in the tasks above. Where they differ from `docs/01_srs.md`, they win; the SRS is still a draft and should be changed before it is signed.
+
+| Client's change | Tasks | What it means here |
+|---|---|---|
+| Survey: remove white from the colour tags | 5.14, 5.16 | The white "Other" tag is switched off. A voter without a tag simply has none. Tags are Ours, Opposite, Doubtful. |
+| Important voter = Yes shows a position | 5.14, 5.16, 9.4 | New list `positions`, searchable on the phone. Placeholder entries until the client sends the real list. |
+| Influencer = Yes shows an influencer type | 5.14, 5.16, 9.4 | New list `influencer_types`. The client has not named the types yet; placeholders until then. |
+| Remove Two-Wheeler and Mandal/Group | none | Neither was built (they are only on the wireframe). They stay out of the form. |
+| Self help group = Yes shows a group name | 5.14, 5.16 | Yes/no plus a free-text name. |
+| Ration card: only AAY, PHH and NPHH | 5.14, 5.16 | One of the three, or empty. |
+| Synced notes for the entire part | 5.14, 7.11 | Assumed: one shared note per part that the whole team edits, not a list of dated notes. |
+| Important voters filter | 5.14, 5.16 | On the phone and in `GET /voters`. |
+| Families are made by hand, not from house numbers | 7.1, 7.2, 7.4 | The house-number script is dropped. Assumed: the walk list still goes house by house. |
+| Family name is free text | 7.1 | Uses `families.label`. |
+| WhatsApp to at most 5 families at a time, no API | 7.12 | The phone's own WhatsApp, one family after another. What is sent is assumed. |
+| History tracks every update (what, who, when) | 7.6 | Already in the SRS; the task now names the changed fields with old and new values. |
+| Polling time on voter slips | 5.14, 7.7, 9.4, 12.2 | Start and end time in the election settings. |
+| Admin and super admin can edit elections and candidates | 9.4 | The contract already allowed both; a test is added. Assumed: still one election and one candidate per workspace, as in the SRS. |
+| Remove the Spelling fixes screen | 5.15, 10.5, 10.6 | Screen, endpoints and push type go. 42 screens. |
+| Only a super admin can edit official roll data | 5.15, 10.2–10.4, 10.6 | Changes the SRS roles table: an admin no longer imports or corrects rolls. |
+| Not registered = new voter | none | No change. |
+
+Questions for the client that these raise:
+
+1. The real list of positions, and the list of influencer types.
+2. Part notes: one shared note per part, or many dated notes?
+3. WhatsApp to 5 families: what is sent (voter slips or a typed message), and to whose number (the family head's)?
+4. Does the walk list stay house by house, from the roll's house numbers?
+5. May an admin still see roll imports and corrections, without changing them?
+
+SRS lines to change before signing: the roles table (admin: "import and correct rolls"), Survey (new fields), Search and filters (important voters), Family and walk list ("voters grouped by house"), Data quality (spelling fixes), Roll updation (admin → super admin), Voter slip (polling time), "43 screens" → 42, and the two answered points to confirm (colour tag names, survey fields).
+
+## The 42 screens
+
+43 in the wireframes; the client removed Spelling fixes on 12 Nov. Part notes and family sharing sit on existing screens.
 
 | Step | Screens | Count |
 |---|---|---|
@@ -174,12 +218,12 @@ Portal (teammate): fixes from client testing, final build on the server by 10 De
 | 7 | Family, Walk list, Voter history, Voter slip, Birthdays, New voter, New voters list, Select many voters, More, Terms of use, Update required, Announcements, Help & support | 13 |
 | 8 | Polling day, Mark voted, Mark many voted | 3 |
 | 9 | Users & devices, Add user, Booths & karyakartas, Constituencies, Election & candidate, Lists & labels, Activity log, Worker activity, Worker locations | 9 |
-| 10 | Data quality, Repeated voters, Spelling fixes, Roll update, Correct roll record, Mobile numbers & contacts | 6 |
+| 10 | Data quality, Repeated voters, Roll update, Correct roll record, Mobile numbers & contacts | 5 |
 | 11 | Reports & charts, Print or export a list | 2 |
 
 ## SRS items that are risky for the dates
 
-1. **All 43 screens by 30 Nov.** 10 are done by the demo; the other 33, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone, because the portal covers the same work.
+1. **All 42 screens by 30 Nov.** 10 are done by the demo; the other 32, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone, because the portal covers the same work.
 2. **Marathi names and search.** The roll has English names only and the SRS excludes automatic conversion. The app will be built and tested for Marathi with fake data, but real Marathi names need a Marathi roll from the client.
 3. **Server around 20 Nov.** Five days before the demo, and a domain must be bought and pointed first. Subtask 6.6 is the fallback.
 4. **Roll import from text PDF.** No sample file yet, and every roll PDF is laid out differently. Planned after 30 Nov; CSV and Excel come first.
@@ -190,6 +234,7 @@ Portal (teammate): fixes from client testing, final build on the server by 10 De
 9. **"Existing data will be imported before the demo."** The client has since decided against it; the SRS line should be changed in writing.
 10. **Part 4 file is a copy of part 3.** About 688 voters are missing until the client sends the right file.
 11. **Content from the client.** The terms of use text and the public website pages come from the client. No website content by 1 Dec means the website pages are dropped.
+12. **Client changes of 12 Nov.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. Five of the six land before 30 Nov, on top of risk 1. The SRS is a draft: the changes go into it before the client signs, or are confirmed in writing as a change request with their effect on time and cost.
 
 ## SRS asks for it; the schema or API document does not cover it yet
 
@@ -197,7 +242,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 
 | SRS item | Gap | Proposed |
 |---|---|---|
-| Spelling fixes | The API can list and resolve fixes, but nothing creates one. | **In the contract (4.10):** push type `name_fix`; review in 10.5. |
+| Spelling fixes | The API can list and resolve fixes, but nothing creates one. | **Removed by the client, 12 Nov:** leaves the contract in 5.15. |
 | Doubtful "dead" marks, confirmed by a supervisor | No endpoint to mark or confirm. | Two fields in the survey body; confirming needs supervisor. |
 | Survey: residence check, location | Not in the API document's survey line (columns exist in the schema). | **Decided 11 Nov:** added to the survey body in 4.4 (`has_new_address` + new address; `location` sets lat/lng/accuracy, left out = kept). |
 | Search by serial number or mobile | The server search text has names, EPIC and house only. | Handle numbers in the `/voters` query; no schema change. |
@@ -216,6 +261,6 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 
 ## In the screens, schema or API document but not in the SRS: not built
 
-App labels in Marathi or Hindi (the language buttons on the Login screen), voter photos, Bluetooth slip printing, slip by SMS, saved filters, the extra filter chips (society, influencer, important), matching the phone's own contacts, a separate karyakarta list for voters, comparing two days in reports. Each is a change request.
+App labels in Marathi or Hindi (the language buttons on the Login screen), voter photos, Bluetooth slip printing, slip by SMS, saved filters, the extra filter chips (society, influencer; "important" is now built, client 12 Nov), matching the phone's own contacts, a separate karyakarta list for voters, comparing two days in reports. Each is a change request.
 
-**Decided 11 Nov:** none of this is built. The Login screen has no language buttons.
+**Decided 11 Nov:** none of this is built. The Login screen has no language buttons. The client's changes of 12 Nov are the only additions.

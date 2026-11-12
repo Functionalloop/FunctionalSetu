@@ -38,7 +38,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 - 11 Nov: outbox: one queued item per voter; a second save before sending replaces the unsent item's data (same id). Once sent (attempts > 0), a new edit is a new item; push sends at most one item per voter per batch and rebases the next one on the version the server returns.
 - 11 Nov: a pulled survey never overwrites a local copy that is pending or in conflict. Conflict: Sync screen offers "Use server copy" or "Send mine again" (new item on top of the server version). Who resolves conflicts for real is still open with the client.
 - 12 Nov: `SessionStore.signOut(notice)` writes the Login notice before clearing the session (clearing it shows Login at once; the notice was lost before).
-- 11 Nov: logout deletes the database (next user must not see this area); warns when changes are unsent. A dead refresh token (`LoggedOut`) keeps the database: the same user logging in again keeps unsent work; a different user wipes it.
+- 11 Nov (confirmed 12 Nov: every login downloads again): logout deletes the database (next user must not see this area); warns when changes are unsent. A dead refresh token (`LoggedOut`) keeps the database: the same user logging in again keeps unsent work; a different user wipes it.
 - 11 Nov: `device_uid` = `ANDROID_ID` (same across reinstalls), so a reinstalled blocked phone stays blocked.
 - 11 Nov: location: plain `LocationManager`, read once at survey save (8 s, else last fix under 5 min); no Play services.
 
@@ -62,6 +62,7 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 ## Not done yet
 
-- 5.1 check on an Android 8 device (only the API 35 emulator so far; no API 26 image installed).
+- Android 8 check: skipped for now (12 Nov), moved to task 12.11. Tested so far on the API 35 emulator only; the real phone is Android 16.
+- Client changes of 12 Nov on the phone: task 5.16 (survey fields, Important filter, local database version 2), then 7.4, 7.11, 7.12. See `docs/plan.md`.
 - Call / WhatsApp / SMS buttons (5.9) checked only by building; check on the real phone. Real-phone rehearsal (5.13).
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.
