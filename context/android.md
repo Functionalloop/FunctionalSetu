@@ -66,7 +66,7 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 ## Real phones (12 Nov) on the laptop's Wi-Fi: vivo I2207 (Android 15, demo.surveyor), Samsung M35 (Android 16, demo.supervisor, wireless debugging)
 
 - The API must be running with `--host 0.0.0.0` before logging in; when nothing listens on port 8000 the login just waits until it times out. Check from the phone's browser: `http://<laptop IP>:8000/api/v1/health`.
-- Checked by hand: login, approval, first download, search, voter details, Call / WhatsApp / SMS, the new survey fields.
+- Checked by hand: login, approval, first download, search, voter details, Call / WhatsApp / SMS, the new survey fields. Rehearsal (5.13): survey saved on the vivo in airplane mode, sent on reconnect, then seen on the Samsung after Sync now (Surveyed 1 → 2).
 - Fixed after the check: the three contact buttons now share the row equally (SMS was squeezed); Filters is no longer a full-screen `Dialog` but a screen shown in place of the search list (Back closes it). On Android 15-16 the full-screen dialog window was as tall as the screen but started below the status bar, so it spilled under the navigation bar and reported zero insets; neither `safeDrawing` padding nor `decorFitsSystemWindows = false` helped. Do not use full-screen dialogs; use a screen or a route.
 - Wireless debugging (no cable): phone Developer options → Wireless debugging → Pair with code; `adb pair <ip>:<pairing port> <code>` then `adb connect <ip>:<port on the main screen>`. Each code has its own pairing port. Turning on airplane mode cuts the adb link.
 - Approving a phone without the portal: log in as `demo.admin` through the API, `GET /devices?status=pending`, `POST /devices/{id}/approve`. A fresh `--reset` admin must set its own password first (`password_change_required`).
@@ -76,5 +76,4 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11.
 - Client changes of 12 Nov still to come on the phone: 7.4 (families by hand), 7.11 (part notes), 7.12 (WhatsApp to families). See `docs/plan.md`.
-- Real-phone rehearsal (5.13): the airplane-mode survey, reconnect and a second login still to do on the phone.
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.
