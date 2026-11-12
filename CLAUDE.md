@@ -98,11 +98,11 @@ backend/              FastAPI app (app/, tests/), pyproject.toml
 scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, export_openapi.py, tasks.py,
                       check_dev_data.py (end-of-step check on the real roll),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
-deploy/               docker-compose.dev.yml, .env.example
+deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example
+backend/Dockerfile    API image (build context = repo root, allow-list in .dockerignore)
 jansetu-private/      real roll files (git-ignored, never committed)
 android/              Android app (Kotlin, Compose)
-Not created yet:      backend/app/worker.py, scripts/backup.sh, portal/ (teammate),
-                      deploy/docker-compose.yml, deploy/Caddyfile
+Not created yet:      backend/app/worker.py, scripts/backup.sh, portal/ (teammate), deploy/README.md
 ```
 
 ## Build status (12 Nov 2026)

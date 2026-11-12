@@ -1,0 +1,34 @@
+# JANSETU: HTTPS in front of the API. Values come from deploy/.env through compose:
+#   SITE_ADDRESS  server: "myjansetu.com, www.myjansetu.com"   laptop: "localhost"
+#   DOMAIN        the main name; www.DOMAIN is redirected to it
+#   ACME_EMAIL    Let's Encrypt expiry notices
+# With a real domain Caddy gets and renews the certificate by itself (ports 80 and
+# 443 must be open). With "localhost" it uses its own local certificate (curl -k).
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_ADDRESS} {
+	@www host www.{$DOMAIN}
+	redir @www https://{$DOMAIN}{uri} permanent
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Later: /download/* serves the APK (6.3); the portal's static files go at the root (9.9).
+	handle {
+		respond "Not found" 404
+	}
+
+	log
+}
