@@ -99,11 +99,12 @@ scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, c
                       backup.sh, restore.sh (+ sql/ helpers), publish_apk.py,
                       check_dev_data.py (end-of-step check on the real roll),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
-deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example
+deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example,
+                      README.md (server setup and commands), server_setup.sh, make_env.sh
 backend/Dockerfile    API image (build context = repo root, allow-list in .dockerignore)
 jansetu-private/      real roll files (git-ignored, never committed)
 android/              Android app (Kotlin, Compose)
-Not created yet:      backend/app/worker.py, portal/ (teammate), deploy/README.md
+Not created yet:      backend/app/worker.py, portal/ (teammate)
 ```
 
 ## Build status (12 Nov 2026)

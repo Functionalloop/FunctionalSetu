@@ -1,12 +1,14 @@
 # Deploy: server, Docker Compose, Caddy, backups, APK
 
-Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). 6.3 done: APK download and `GET /app/version`. Not yet: the stack on the server and `deploy/README.md` (6.4), the worker container (no `backend/app/worker.py` yet).
+Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). 6.3 done: APK download and `GET /app/version`. 6.4 (13 Nov): the stack runs on the server at `https://myjansetu.com`, empty database (migrated, no workspace yet); commands in `deploy/README.md`. Not yet: data on the server (6.5), laptop fallback (6.6), release key and first APK (6.7), the worker container (no `backend/app/worker.py` yet).
 
 ## Server (decided 13 Nov)
 
 - **Bluehost VPS**, replaces the Hostinger KVM 4 of the SRS: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, monthly ₹1,504. No India region. Logged in `docs/change_log.md` (13 Nov); the client still has to agree to data outside India and to 100 GB.
 - Bluehost names the key "FunctionalServer"; on the laptop it is `~/.ssh/id_ed25519`.
-- Snapshots: check whether the Bluehost plan has them (6.4).
+- Snapshots: check whether the Bluehost plan has them (6.4; only in the panel).
+- Set up 13 Nov with `deploy/server_setup.sh` and `deploy/make_env.sh` (see `deploy/README.md`): Docker 29.9 + compose v5.7 from Docker's apt repo, ufw (22, 80, 443 tcp, 443 udp), unattended security upgrades, Docker log limit 10 MB x 5, cron + logrotate (not in Bluehost's minimal image). Code in `/srv/jansetu` (copied with `git archive`, no git on the server), server `.env` there (mode 600, passwords generated on the server, never copied off). Server clock UTC.
+- Tested 13 Nov: HTTPS with a Let's Encrypt certificate for `myjansetu.com` and `www` (www → 301 to the main name, http → 308), `/health` ok, `/app/version` 404 (nothing published), 5432 closed from outside; backup + restore check on the server (47 tables); after `sudo reboot` all containers, ufw and the SSH lockdown came back by themselves.
 - Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
 
 ## SSH (locked down 13 Nov)
@@ -77,5 +79,8 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - `DOMAIN`, `ACME_EMAIL`: for Caddy. Caddy gets the HTTPS certificate from Let's Encrypt itself; there is no SSL key to paste. The domain's A record must point at the server before `compose up`, and ports 80 and 443 must be open.
 
 ## Pitfalls
+
+- `docker compose exec -T` reads stdin: in a script piped over SSH (`ssh ... bash -s < file`) it swallows the rest of the script. Run such scripts with `< /dev/null` or as a direct command.
+- PowerShell 5.1 strips inner quotes from arguments to `ssh`; put multi-line server commands in a file and send it with `cmd /c "ssh ... bash -s < file"`.
 
 - 100 GB disk: keep Docker image pruning and the 14-day dump rotation; OCR (Step 13) does not run on this server.

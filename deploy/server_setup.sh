@@ -12,7 +12,8 @@ say() { echo "== $*"; }
 
 say "packages"
 sudo apt-get update -q
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ca-certificates curl ufw unattended-upgrades
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ca-certificates curl ufw unattended-upgrades cron logrotate
+sudo systemctl enable --now cron
 
 if ! command -v docker >/dev/null 2>&1; then
   say "Docker (from download.docker.com)"
