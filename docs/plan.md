@@ -6,7 +6,7 @@ Written 11 Nov 2026; changed 12 Nov for the client's changes (see "Client change
 |---|---|---|
 | Wed 25 Nov | Demo | Login + phone approval, sync pull/push, area tree, voter list/search/profile, survey save, all offline on a real phone, server deployed |
 | Mon 30 Nov | Working APK | All 42 screens (the client removed Spelling fixes on 12 Nov) |
-| Tue 15 Dec | Final delivery | Fixes from client testing, live server, backups, restore test, load test, training, handover notes |
+| Tue 15 Dec | Final delivery | Fixes from client testing, scanned roll PDF import (English), live server, backups, restore test, load test, training, handover notes |
 
 ## How to use this file
 
@@ -100,7 +100,7 @@ Goal: everything a surveyor uses besides the survey. Each subtask is the endpoin
 - [ ] **7.9 More menu items:** Terms (`GET /terms/current`, `POST /terms/accept`; the text comes from the client, and until it arrives the screen shows a line saying so), Announcements (`GET`, `POST .../read`), Help and report a problem (`POST /problem-reports`), Update required, Change password. Files: `app/routers/misc.py`, `tests/test_misc.py`, `A/ui/more/`. Test: an app below the minimum version is sent to Update required. (27 Nov)
 - [ ] **7.10 Conflict review:** `GET /sync/conflicts`, `POST /sync/conflicts/{id}/resolve` (contract in 4.10). A surveyor sees and resolves their own; supervisor and above any in their area. Keeping the phone's value writes it with a new version. Screen: conflicts on the Sync screen. Files: `app/routers/sync.py`, `tests/test_conflicts.py`. Test: keep-phone writes the value once; another surveyor's conflict is 404. (27 Nov)
 - [ ] **7.11 Part notes.** One shared note per part (up to 2,000 characters) that everyone assigned to the part sees: `GET/PUT /booths/{id}/note` with `version`, in pull and push (`part_note`). Surveyor and above can write; a booth agent reads. Shown at the top of the walk list and on the Survey tab. Files: `app/routers/part_notes.py`, `tests/test_part_notes.py`, `A/ui/partnote/`. Test: a note saved offline reaches a second phone on its next sync; a stale version gives a conflict, not a lost note. (27 Nov)
-- [ ] **7.12 Share to families on WhatsApp.** On the family list, tick up to 5 families; the phone's own WhatsApp opens for each family in turn with the message ready, and the worker presses send. No WhatsApp API; a sixth tick is refused. What is sent (the family's voter slips or a typed message) and to which number are open with the client; built for the slips to the family head's mobile until told otherwise. Files: `A/ui/family/ShareFamiliesScreen.kt`. Test: 5 families open WhatsApp 5 times; a family without a mobile number is skipped and named. (27 Nov)
+- [ ] **7.12 Share to families on WhatsApp.** On the family list, tick up to 5 families and choose the voter slip or a message (the candidate message from the election settings, editable before sending). The phone's own WhatsApp then opens for **every voter in those families who has a mobile number**, one after another, each with their own slip or the message; the worker presses send each time. Not the family head only (client, 12 Nov). No WhatsApp API; a sixth family is refused. Voters without a mobile are skipped and counted. Files: `A/ui/family/ShareFamiliesScreen.kt`. Test: 2 families with 3 and 4 voters who have mobiles open WhatsApp 7 times, each with the right voter's slip; a voter without a mobile is skipped and counted. (27 Nov)
 
 Portal (teammate): family view (hand-made families), new voters list, voter history.
 
@@ -160,7 +160,6 @@ Portal (teammate): reports, charts, exports.
 
 Goal: what the SRS promises for final delivery.
 
-- [ ] **12.1 Roll import from text PDF.** Needs a sample PDF from the client. Files: `app/roll_parse_pdf.py`, `tests/test_roll_pdf.py` (fake PDF made in the test). (1–3 Dec)
 - [ ] **12.2 `GET /voters/{id}/slip`** from the server, for the portal. Files: `app/routers/slips.py`. (3 Dec)
 - [ ] **12.3 Fixes from client testing.** The client reports within 3 working days of 30 Nov, so by 3 Dec. One session per group of fixes. (3–10 Dec)
 - [ ] **12.4 Load test: 200 users syncing at once** on the server, in a fake workspace. Files: `scripts/loadtest.py`, results in `docs/load_test.md`. Pass mark: no errors and 95% of sync calls under 3 seconds (my figure; the SRS gives none). (5–6 Dec)
@@ -174,9 +173,27 @@ Goal: what the SRS promises for final delivery.
 
 Portal (teammate): fixes from client testing, final build on the server by 10 Dec. Public website pages only if the client's content arrives by 1 Dec; otherwise they are dropped and I tell the client in writing.
 
+## Step 13 – Scanned roll PDFs (OCR) · 1–9 Dec · branch `step13-roll-ocr`
+
+Goal: an election office roll PDF in, the import CSV out, without typing. In the SRS from version 1.1 (12 Nov), for final delivery. Details, numbers and pitfalls: `context/roll_ocr.md`.
+
+The PDFs are page images with no text (part 49: 30 pages of 949 × 1343 at 115 dpi, letters about 6 pixels tall). Free tools only, run on our own machines; voter data never goes to an outside service. Output is the 35-column CSV that `scripts/import_roll_parts.py` already takes. The 51 hand-made CSVs are the answer key: parts 1–35 tune the reader, parts 36–51 test it. Never print names or EPICs: counts and percentages only.
+
+- [ ] **13.1 Measure first.** Install Tesseract 5 and OpenCV; take the page images out of part 49 at their own size; cut and read the boxes as simply as possible; record accuracy per field and seconds per page. Go / no-go: if names are far from the target, stop and decide with the client before more is built. Files: `context/roll_ocr.md`. Test: the numbers are written down. (1 Dec)
+- [ ] **13.2 Page and box cutter.** Page types (cover, voter pages, supplement, summary with the total), the 3 × 10 grid found from its lines with a layout profile as fallback; an unknown layout is refused, never guessed. A fake roll page drawn in the test (fake names, same layout, 115 dpi) so the normal suite runs without private data. Files: `app/roll_ocr/pages.py`, `app/roll_ocr/layout.py`, `tests/test_roll_ocr_layout.py`. Test: the fake page gives 30 boxes; a shifted grid is refused. (2 Dec)
+- [ ] **13.3 Field reading and rules.** One crop per field, enlarged 3–4 times; digits-only reading for serial and age, letters-and-digits for EPIC; EPIC fixed by position (3 letters + 7 digits); relation from the printed label; "DELETED" stamp. Files: `app/roll_ocr/fields.py`, `tests/test_roll_ocr_fields.py`. Test: every field of the fake page is exact. (3 Dec)
+- [ ] **13.4 Better reading.** Tesseract fine-tuned on real boxes from parts 1–35; a second, different reader (PaddleOCR); a field is accepted when the two agree, otherwise it goes to review. Files: `app/roll_ocr/readers.py`, `scripts/roll_ocr_train.py`. Test: held-out accuracy up and review rate down against 13.1. (4–5 Dec, two sessions)
+- [ ] **13.5 Checks, CSV, review file, accuracy test.** EPIC format (reuse `EPIC_RE`) and unique in the part, age 18–120, gender, serials 1..N without gaps, count equals the summary page. Clean rows to the CSV; failed rows to a private review file with the reason and the box image. A part whose count does not match the summary is never imported automatically. The accuracy test joins on part + serial and reports per field: exact, sent to review, and silent errors (wrong and not flagged). It skips when the private PDFs are absent. Files: `app/roll_ocr/checks.py`, `app/roll_ocr/output.py`, `tests/test_roll_ocr_accuracy.py`. Test: on parts 36–51, EPIC and age have zero silent errors and every field is 99%+ or the gap is reported; part 49 imports with `--dry-run`. (6 Dec)
+- [ ] **13.6 Batch tool.** `scripts/roll_ocr.py --in DIR --out DIR --shard 2/4 --workers N`: a folder of PDFs, split by file name across machines, resumes by file hash, needs no database. Run all 51 parts. Files: `scripts/roll_ocr.py`, `requirements-ocr.txt`. Test: every part's count equals its summary page and the database; a second run does nothing. (7 Dec)
+- [ ] **13.7 Admin upload.** A PDF in `POST /rolls/imports` (super admin) → job → worker runs the same library → rows in `roll_import_rows` → the review and apply of 10.2–10.3. One new endpoint for a review row's box image. Optional `ocr-worker` container, off by default. Files: `app/routers/rolls.py`, `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_roll_import_pdf.py`. Test: a fake PDF goes from upload to applied. (8 Dec)
+- [ ] **13.8 Marathi rolls.** Compare the free readers on the client's sample, Devanagari clean-up, a Maharashtra layout profile. Blocked until 2–3 sample PDFs and a checked list of about 1,000 voters arrive. Files: `app/roll_ocr/`, `context/roll_ocr.md`. Test: accuracy on the sample written down; nothing promised before that. (9 Dec)
+- [ ] **13.9 Local AI helper (optional, off by default).** A small vision model on the laptop GPU for boxes still in review; its answer is never accepted unless it agrees with one of the readers. Only if the review rate after 13.5 is still too high. Files: `app/roll_ocr/ai_fallback.py`. Test: switched off, nothing changes; switched on, the review rate on parts 36–51 drops with no new silent errors. (9 Dec)
+
+Portal (teammate): PDF upload on the roll upload page, and the box image next to a review row.
+
 ## Client changes of 12 Nov
 
-The client sent these on 12 Nov. They are in the tasks above. Where they differ from `docs/01_srs.md`, they win; the SRS is still a draft and should be changed before it is signed.
+The client sent these on 12 Nov. They are in the tasks above and in `docs/01_srs.md` version 1.1 (12 Nov), which also adds scanned roll PDFs (Step 13). The client still has to approve version 1.1 in writing.
 
 | Client's change | Tasks | What it means here |
 |---|---|---|
@@ -190,7 +207,7 @@ The client sent these on 12 Nov. They are in the tasks above. Where they differ 
 | Important voters filter | 5.14, 5.16 | On the phone and in `GET /voters`. |
 | Families are made by hand, not from house numbers | 7.1, 7.2, 7.4 | The house-number script is dropped. Assumed: the walk list still goes house by house. |
 | Family name is free text | 7.1 | Uses `families.label`. |
-| WhatsApp to at most 5 families at a time, no API | 7.12 | The phone's own WhatsApp, one family after another. What is sent is assumed. |
+| WhatsApp to at most 5 families at a time, no API | 7.12 | The phone's own WhatsApp, to every voter in the chosen families who has a mobile (not the head only), one after another. The voter slip or a message. |
 | History tracks every update (what, who, when) | 7.6 | Already in the SRS; the task now names the changed fields with old and new values. |
 | Polling time on voter slips | 5.14, 7.7, 9.4, 12.2 | Start and end time in the election settings. |
 | Admin and super admin can edit elections and candidates | 9.4 | The contract already allowed both; a test is added. Assumed: still one election and one candidate per workspace, as in the SRS. |
@@ -202,11 +219,11 @@ Questions for the client that these raise:
 
 1. The real list of positions, and the list of influencer types.
 2. Part notes: one shared note per part, or many dated notes?
-3. WhatsApp to 5 families: what is sent (voter slips or a typed message), and to whose number (the family head's)?
+3. ~~WhatsApp to 5 families: what is sent, and to whom?~~ Answered 12 Nov: slips and messages go to every voter in the families, not the head only.
 4. Does the walk list stay house by house, from the roll's house numbers?
 5. May an admin still see roll imports and corrections, without changing them?
 
-SRS lines to change before signing: the roles table (admin: "import and correct rolls"), Survey (new fields), Search and filters (important voters), Family and walk list ("voters grouped by house"), Data quality (spelling fixes), Roll updation (admin → super admin), Voter slip (polling time), "43 screens" → 42, and the two answered points to confirm (colour tag names, survey fields).
+Done 12 Nov: `docs/01_srs.md` version 1.1 has all of these, the scanned roll PDFs, and the old app's data marked as not imported. Questions 1, 2 and 4 are in its "Points for the Company to confirm".
 
 ## The 42 screens
 
@@ -226,7 +243,7 @@ SRS lines to change before signing: the roles table (admin: "import and correct 
 1. **All 42 screens by 30 Nov.** 10 are done by the demo; the other 32, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone, because the portal covers the same work.
 2. **Marathi names and search.** The roll has English names only and the SRS excludes automatic conversion. The app will be built and tested for Marathi with fake data, but real Marathi names need a Marathi roll from the client.
 3. **Server around 20 Nov.** Five days before the demo, and a domain must be bought and pointed first. Subtask 6.6 is the fallback.
-4. **Roll import from text PDF.** No sample file yet, and every roll PDF is laid out differently. Planned after 30 Nov; CSV and Excel come first.
+4. **Scanned roll PDFs (Step 13).** The election office PDFs have no text, only 115 dpi page images, so they need OCR. 99% on names is not certain at that resolution; EPIC and age are easier. Marathi OCR is clearly weaker and cannot be measured without a checked sample. Step 13 adds about 9 sessions in 1–9 Dec on top of Step 12; 13.7–13.9 slip first. 13.1 measures before anything more is promised. The SRS promises the reading and the review list, not an accuracy figure.
 5. **Roll matching and review.** The SRS describes the result, not the rules for "clear" and "uncertain" matches. I will use: same EPIC = clear; same booth, serial and similar name = clear; anything else similar = uncertain.
 6. **PDF lists in Marathi.** Devanagari needs a PDF tool that shapes the letters correctly; to be tried in 11.2 before promising a layout.
 7. **Client feedback window.** Problems from the demo arrive up to 28 Nov, in the middle of steps 7–9.
@@ -234,7 +251,7 @@ SRS lines to change before signing: the roles table (admin: "import and correct 
 9. **"Existing data will be imported before the demo."** The client has since decided against it; the SRS line should be changed in writing.
 10. **Part 4 file is a copy of part 3.** About 688 voters are missing until the client sends the right file.
 11. **Content from the client.** The terms of use text and the public website pages come from the client. No website content by 1 Dec means the website pages are dropped.
-12. **Client changes of 12 Nov.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. Five of the six land before 30 Nov, on top of risk 1. The SRS is a draft: the changes go into it before the client signs, or are confirmed in writing as a change request with their effect on time and cost.
+12. **Client changes of 12 Nov.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. Five of the six land before 30 Nov, on top of risk 1. They are in SRS version 1.1, which the client must approve in writing.
 
 ## SRS asks for it; the schema or API document does not cover it yet
 

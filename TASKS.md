@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 23 / 81 done (28%)** `██████░░░░░░░░░░░░░░`
+**Overall: 23 / 89 done (26%)** `█████░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -16,7 +16,8 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
-| Step 12 – Hardening and handover | 0 / 11 | `░░░░░░░░░░` |
+| Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
+| Step 13 – Scanned roll PDFs (OCR) | 0 / 9 | `░░░░░░░░░░` |
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
@@ -115,9 +116,8 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **11.3** Screens: Reports & charts, Print or export a list · due 30 Nov
 - [ ] **11.4** Working APK · due 30 Nov
 
-## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/11
+## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/10
 
-- [ ] **12.1** Roll import from text PDF · due 1–3 Dec
 - [ ] **12.2** `GET /voters/{id}/slip` · due 3 Dec
 - [ ] **12.3** Fixes from client testing · due 3–10 Dec
 - [ ] **12.4** Load test: 200 users syncing at once · due 5–6 Dec
@@ -128,3 +128,15 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **12.9** Admin training · due 12–14 Dec
 - [ ] **12.11** Android 8 check · due 4 Dec
 - [ ] **12.10** Final delivery · due 15 Dec
+
+## Step 13 – Scanned roll PDFs (OCR) · 1–9 Dec · branch `step13-roll-ocr` — 0/9
+
+- [ ] **13.1** Measure first · due 1 Dec
+- [ ] **13.2** Page and box cutter · due 2 Dec
+- [ ] **13.3** Field reading and rules · due 3 Dec
+- [ ] **13.4** Better reading · due 4–5 Dec, two sessions
+- [ ] **13.5** Checks, CSV, review file, accuracy test · due 6 Dec
+- [ ] **13.6** Batch tool · due 7 Dec
+- [ ] **13.7** Admin upload · due 8 Dec
+- [ ] **13.8** Marathi rolls · due 9 Dec
+- [ ] **13.9** Local AI helper (optional, off by default) · due 9 Dec
