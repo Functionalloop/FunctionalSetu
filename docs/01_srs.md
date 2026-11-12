@@ -11,7 +11,7 @@ This SRS fixes what JANSETU will deliver by 15 Dec 2026 for INR 75,000 (includin
 | Product | JANSETU – Citizen Connect and Constituency Development Management Platform |
 | Client (Company) | Naik Management Solutions Private Limited, Sawantwadi, Maharashtra |
 | Developer | Shree Samarth Krupa (Proprietor: Sachin Sadashiv Bhise), Moira, Goa |
-| Version | 1.1 – draft for client review |
+| Version | 1.1 – approved by the Company on 12 Nov 2026 |
 | Date | 12 Nov 2026 |
 | Attachments | Android app wireframes (43 screens; 42 are built, see "Changes in 1.1") and the screen flow PDF |
 

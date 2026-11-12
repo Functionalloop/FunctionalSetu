@@ -11,7 +11,7 @@ JANSETU is a voter data management platform: an offline-first Android app for fi
 
 | File | What it is |
 |---|---|
-| `docs/01_srs.md` | Scope, version 1.1 (12 Nov, with the client's changes; not yet approved in writing). Anything not in it is a change request. Do not add features beyond it. |
+| `docs/01_srs.md` | Approved scope, version 1.1 (approved by the client 12 Nov, with the client's changes). Anything not in it is a change request. Do not add features beyond it. |
 | `docs/02_tech_stack_and_api.md` | Stack, sync design, API rules, the full endpoint list. |
 | `db/migrations/001_jansetu_schema.sql` | The database schema (PostgreSQL 16, schema `app`). Tested; treat as the data model. |
 | `docs/screen_flow.pdf` | The 43 Android screens and how they connect. |
@@ -129,8 +129,6 @@ The client changed the scope on 12 Nov; the full list, the tasks and the open qu
 - The part 4 roll file is a copy of part 3, so about 688 voters are missing.
 - The roll is English only, but the SRS promises Marathi names and Marathi search.
 - 50 wards (one per part) and the name "Pernem (AC 2)" are guesses.
-- SRS 1.1 now says the old app's data is not imported; the client's approval of 1.1 puts it in writing.
-- SRS version 1.1 (12 Nov) is a draft; written approval is still needed.
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
 - The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
 

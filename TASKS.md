@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 23 / 89 done (26%)** `█████░░░░░░░░░░░░░░░`
+**Overall: 23 / 88 done (26%)** `█████░░░░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -17,7 +17,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 10 – Roll update and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
-| Step 13 – Scanned roll PDFs (OCR) | 0 / 9 | `░░░░░░░░░░` |
+| Step 13 – Scanned roll PDFs (OCR) | 0 / 8 | `░░░░░░░░░░` |
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
@@ -129,7 +129,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **12.11** Android 8 check · due 4 Dec
 - [ ] **12.10** Final delivery · due 15 Dec
 
-## Step 13 – Scanned roll PDFs (OCR) · 1–9 Dec · branch `step13-roll-ocr` — 0/9
+## Step 13 – Scanned roll PDFs (OCR) · 1–9 Dec · branch `step13-roll-ocr` — 0/8
 
 - [ ] **13.1** Measure first · due 1 Dec
 - [ ] **13.2** Page and box cutter · due 2 Dec
@@ -138,5 +138,4 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **13.5** Checks, CSV, review file, accuracy test · due 6 Dec
 - [ ] **13.6** Batch tool · due 7 Dec
 - [ ] **13.7** Admin upload · due 8 Dec
-- [ ] **13.8** Marathi rolls · due 9 Dec
 - [ ] **13.9** Local AI helper (optional, off by default) · due 9 Dec
