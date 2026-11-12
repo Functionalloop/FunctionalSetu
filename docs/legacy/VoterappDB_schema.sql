@@ -13,14 +13,14 @@ CREATE TABLE "activation" (
 );
 
 -- table: activation_details
-CREATE TABLE "activation_details" (
-	`device_type`	TEXT,
-	`deviceid`	TEXT,
-	`candidate_name`	TEXT,
-	`username`	TEXT,
-	`email_id`	TEXT,
-	`contactno`	TEXT,
-	`updated`	INTEGER
+CREATE TABLE "activation_details" (
+	`device_type`	TEXT,
+	`deviceid`	TEXT,
+	`candidate_name`	TEXT,
+	`username`	TEXT,
+	`email_id`	TEXT,
+	`contactno`	TEXT,
+	`updated`	INTEGER
 );
 
 -- table: activation_types
@@ -60,29 +60,29 @@ CREATE TABLE "applicationinfo" (
 , is_MobApp_MobileNo_MasterImport BOOLEAN, is_otp BOOLEAN, is_allow_change_slip BOOLEAN, is_sync_slip_image BOOLEAN, is_MobileNo_Master_Enabled BOOLEAN, is_aachar_sanhita BOOLEAN);
 
 -- table: area_type
-CREATE TABLE "area_type" (
-	"area_type_id" TEXT,
-	"area_type_name"	TEXT,
-	"level"	TEXT,
-	"level_id"	TEXT
+CREATE TABLE "area_type" (
+	"area_type_id" TEXT,
+	"area_type_name"	TEXT,
+	"level"	TEXT,
+	"level_id"	TEXT
 	);
 
 -- table: assembly_parts
-CREATE TABLE "assembly_parts" (
-	`assembly_no`	INTEGER,
-	`part_no`	INTEGER,
-	`l_village`	TEXT,
-	`e_village`	TEXT,
-	`l_assembly_name`	TEXT,
-	`e_assembly_name`	TEXT,
-	`l_list_description`	TEXT,
-	`e_list_description`	TEXT,
-	`date_published`	TEXT,
-	`idversion`	INTEGER,
-	`dataversion`	INTEGER,
-	`photoversion`	INTEGER,
-	`selected`	INTEGER,
-	PRIMARY KEY(assembly_no,part_no)
+CREATE TABLE "assembly_parts" (
+	`assembly_no`	INTEGER,
+	`part_no`	INTEGER,
+	`l_village`	TEXT,
+	`e_village`	TEXT,
+	`l_assembly_name`	TEXT,
+	`e_assembly_name`	TEXT,
+	`l_list_description`	TEXT,
+	`e_list_description`	TEXT,
+	`date_published`	TEXT,
+	`idversion`	INTEGER,
+	`dataversion`	INTEGER,
+	`photoversion`	INTEGER,
+	`selected`	INTEGER,
+	PRIMARY KEY(assembly_no,part_no)
 );
 
 -- table: cast_master
@@ -92,11 +92,11 @@ CREATE TABLE "cast_master" (
 );
 
 -- table: color
-CREATE TABLE "color" (
-	`color`	TEXT,
-	`local_description`	TEXT,
-	`english_description`	TEXT,
-	`hindi_description`	TEXT
+CREATE TABLE "color" (
+	`color`	TEXT,
+	`local_description`	TEXT,
+	`english_description`	TEXT,
+	`hindi_description`	TEXT
 );
 
 -- table: daily_report
@@ -169,14 +169,14 @@ CREATE TABLE "memberinfo" (
 );
 
 -- table: new_voters
-CREATE TABLE "new_voters" (
-	`id`	TEXT,
-	`name`	TEXT,
-	`village`	TEXT,
-	`address`	TEXT,
-	`mobile_no`	TEXT,
-	`dob`	TEXT,
-	`remark`	TEXT
+CREATE TABLE "new_voters" (
+	`id`	TEXT,
+	`name`	TEXT,
+	`village`	TEXT,
+	`address`	TEXT,
+	`mobile_no`	TEXT,
+	`dob`	TEXT,
+	`remark`	TEXT
 );
 
 -- table: profession_master

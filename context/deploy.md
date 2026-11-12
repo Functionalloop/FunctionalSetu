@@ -1,6 +1,6 @@
 # Deploy: server, Docker Compose, Caddy, backups, APK
 
-Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. Not yet: backups (6.2), APK and `/app/version` (6.3), the stack on the server and `deploy/README.md` (6.4), the worker container (no `backend/app/worker.py` yet).
+Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). Not yet: APK and `/app/version` (6.3), the stack on the server and `deploy/README.md` (6.4), the worker container (no `backend/app/worker.py` yet).
 
 ## Server (decided 13 Nov)
 
@@ -45,6 +45,16 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - Image contents are an allow-list (`.dockerignore`): backend code, `db/`, `scripts/`. Nothing from `jansetu-private/` or `.env` can enter it. Python packages pinned by `backend/constraints.txt` (refresh with `pip freeze --exclude-editable` after a dependency change).
 - A fresh `db` has no `jansetu_app` role, so `/health` is 503 until `migrate.py` has run.
 - Tested 13 Nov on the laptop: health 200 through Caddy, http → https 308, unknown path 404, API errors keep their JSON shape, client IP passed through from Caddy.
+
+## Backups (`scripts/backup.sh`, `scripts/restore.sh`)
+
+- `backup.sh [DIR]`: `pg_dump -Fc` of the live database through the `db` container, checked with `pg_restore --list`, then `jansetu_<UTC>.dump` + `jansetu_<UTC>.counts` (row count per table, `# xid` = transaction counter). Default DIR `/var/backups/jansetu`, mode 700. Deletes dumps 14 days or older (`KEEP_DAYS`), only after the new one is good. Real voter data: never into the repo.
+- `restore.sh DUMP [DB]`: restore check into a scratch database (`jansetu_restore_check`), counts compared with the `.counts` file, then dropped (`KEEP=1` keeps it). Exit 2 if counts differ.
+- `restore.sh --live DUMP`: replaces the live database; refuses while the api runs. Creates the two roles if missing (a new server; then run `migrate.py` via ops for their passwords) and the database-level grants that `pg_dump` does not carry.
+- **New server = new transaction counter.** `sync_xid` and phone watermarks are transaction numbers of the old server; a fresh one starts near 1,000, so phones would stop getting changes. `--live` moves the counter past max(backup `# xid`, every xid8 in the data) + `XID_MARGIN` (2,000,000, for phones that synced after the backup) with `pgbench`. Laptop: 2.2 million in about a minute. Same server: nothing to do. Needed for 6.5 too (dev database → server).
+- `COMPOSE_FILE` picks the stack (default production). Laptop test on the dev database: `COMPOSE_FILE=deploy/docker-compose.dev.yml bash scripts/backup.sh jansetu-private/backups`.
+- Server cron (6.4), deploy user, server clock UTC: `0 21 * * * /srv/jansetu/scripts/backup.sh >> /var/log/jansetu/backup.log 2>&1` (02:30 India time). The office computer pulls the dumps in 12.5.
+- Tested 13 Nov on the laptop with the real roll: dump 2.1 MB in 3 s; restore check 47 tables match; `--live` into the fresh laptop production stack: counts match, counter 1,490 → 2,201,724, `/health` ok, RLS shows 0 voters without context and 31,871 for workspace naik; retention deletes 14+ days and keeps other files.
 
 ## Settings in `deploy/.env`
 

@@ -6,8 +6,8 @@
 Connects as the PostgreSQL superuser (POSTGRES_USER), because 001 creates roles
 and extensions. Settings come from deploy/.env; real environment variables win.
 
-Applied files are recorded in public.schema_migrations with a SHA-256. A file
-that changed after it was applied stops the run: write a new migration instead.
+Applied files are recorded in public.schema_migrations with a SHA-256 (CRLF read
+as LF, see file_digest). A file that changed after it was applied stops the run: write a new migration instead.
 
 Transactions:
   * A file with its own top-level BEGIN; / COMMIT; (like 001) runs as written,
@@ -61,6 +61,16 @@ def migration_files() -> list[Path]:
     if bad:
         sys.exit(f"Bad migration file names (want 001_name.sql): {', '.join(bad)}")
     return files
+
+
+def file_digest(path: Path) -> str:
+    """SHA-256 of the file with Windows line endings (CRLF) read as LF.
+
+    Git on Windows may check a file out with CRLF (core.autocrlf), Linux with LF;
+    the same migration must give the same digest on the laptop and on the server.
+    For LF files this is the plain SHA-256, so digests recorded earlier stay valid.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def strip_psql_meta(text: str) -> str:
@@ -126,7 +136,7 @@ def main() -> None:
         done = applied(conn)
         pending: list[tuple[Path, str]] = []
         for path in migration_files():
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            digest = file_digest(path)
             if path.name in done:
                 if done[path.name] != digest:
                     sys.exit(f"{path.name} changed after it was applied. Add a new migration instead.")

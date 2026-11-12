@@ -6,6 +6,7 @@ Design: `docs/02_tech_stack_and_api.md` ("Offline sync"). Server code: `backend/
 
 - `app.sync_watermark()` = xmin of the current snapshot (xid8): every transaction below it has finished. Triggers stamp `sync_xid = pg_current_xact_id()` on every insert/update of synced tables.
 - A delta pull `since=W` returns rows with `sync_xid >= W`. Never use `>`: a transaction in flight at W has xid >= W. Rows may come twice; the phone replaces by id.
+- Watermarks are transaction numbers of one PostgreSQL server. Restoring a backup onto a **new** server needs `scripts/restore.sh --live`, which moves the new server's counter past the backup's (see `context/deploy.md`, Backups); a plain `pg_restore` there would leave phones never pulling new changes.
 - Sent as **text** (a whole number), never a JSON number: xid8 is 64-bit. `since` must match `^[0-9]{1,20}$` (else 422).
 
 ## `GET /sync/pull` (built 4.6 + 4.7)
