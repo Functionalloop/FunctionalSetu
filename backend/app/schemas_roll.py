@@ -161,7 +161,6 @@ class DataQualitySummary(BaseModel):
     repeated_in_roll: int
     shifted: int = Field(description="Residence check says moved, or last visit 'shifted'")
     doubtful_dead: int = Field(description="Marked dead by a worker, not yet confirmed")
-    name_fixes_waiting: int
 
 
 class PairStatus(StrEnum):
@@ -186,31 +185,6 @@ class DuplicatePairPage(Page):
 class PairResolution(BaseModel):
     same_person: bool
     keep_voter_id: uuid.UUID | None = Field(None, description="same_person: the record to keep; the other is hidden")
-
-
-class NameFix(BaseModel):
-    id: uuid.UUID
-    voter_id: uuid.UUID
-    current: dict = Field(description="first/middle/last name in English now")
-    suggested: dict = Field(description="first/middle/last name suggested")
-    status: ReviewStatus
-    requested_by: UserSummary
-    requested_at: datetime
-
-
-class NameFixPage(Page):
-    items: list[NameFix]
-
-
-class NameFixIn(BaseModel):
-    """Push type `name_fix` (plan gap table: spelling fixes come from the phone). entity_id = the voter."""
-    first_name_en: str | None = Field(None, max_length=100)
-    middle_name_en: str | None = Field(None, max_length=100)
-    last_name_en: str | None = Field(None, max_length=100)
-
-
-class Accept(BaseModel):
-    accept: bool
 
 
 # --- mobile number sheets (10.5) ---------------------------------------------------------

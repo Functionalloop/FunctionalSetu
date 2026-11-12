@@ -1316,7 +1316,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Add one voter to the roll by hand, with reason and reference. Admin.",
+        "summary": "Add one voter to the roll by hand, with reason and reference. Super admin.",
         "operationId": "add_voter",
         "security": [
           {
@@ -2443,6 +2443,590 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WalkListPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Make a family by hand (free-text name) in a booth. A repeat id is stored once. Survey roles.",
+        "operationId": "create_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Family"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/families/{family_id}": {
+      "patch": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Rename a family. Survey roles.",
+        "operationId": "rename_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Family"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booths/{booth_id}/families": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The families made in a booth, by name. All roles.",
+        "operationId": "booth_families",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booth_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booth Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booths/{booth_id}/note": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The shared note of a part (its booth); version 0 and empty text if none yet. All roles.",
+        "operationId": "get_part_note",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booth_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booth Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartNote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Save the part's shared note. Stale version: 409 with the server copy. Survey roles.",
+        "operationId": "save_part_note",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booth_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booth Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartNoteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartNote"
                 }
               }
             }
@@ -8351,7 +8935,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Upload a roll file (CSV or Excel; text PDF from 12.1). Starts a job; poll the import. Admin.",
+        "summary": "Upload a roll file (CSV or Excel; scanned PDF from 13.7). Starts a job; poll the import. Super admin.",
         "operationId": "start_roll_import",
         "security": [
           {
@@ -8855,7 +9439,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Accept or reject one uncertain match. Admin.",
+        "summary": "Accept or reject one uncertain match. Super admin.",
         "operationId": "resolve_roll_row",
         "security": [
           {
@@ -8982,7 +9566,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Apply the reviewed roll. Surveys stay linked; missing voters become 'not in current roll'. Admin.",
+        "summary": "Apply the reviewed roll. Surveys stay linked; missing voters become 'not in current roll'. Super admin.",
         "operationId": "apply_roll_import",
         "security": [
           {
@@ -9090,7 +9674,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Throw an import away. Admin.",
+        "summary": "Throw an import away. Super admin.",
         "operationId": "discard_roll_import",
         "security": [
           {
@@ -9198,7 +9782,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Correct one roll record, with reason and reference. Admin.",
+        "summary": "Correct one roll record, with reason and reference. Super admin.",
         "operationId": "correct_voter",
         "security": [
           {
@@ -9316,7 +9900,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Hide one voter (survey work is kept), with reason. Admin.",
+        "summary": "Hide one voter (survey work is kept), with reason. Super admin.",
         "operationId": "remove_voter",
         "security": [
           {
@@ -9434,7 +10018,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Bring back a hidden voter. Admin.",
+        "summary": "Bring back a hidden voter. Super admin.",
         "operationId": "restore_voter",
         "security": [
           {
@@ -9979,270 +10563,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DuplicatePair"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/name-fixes": {
-      "get": {
-        "tags": [
-          "roll and data quality"
-        ],
-        "summary": "Spelling fixes waiting for review. Admin.",
-        "operationId": "list_name_fixes",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(pending|accepted|rejected)$"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "pending",
-              "title": "Status"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NameFixPage"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/name-fixes/{fix_id}/resolve": {
-      "post": {
-        "tags": [
-          "roll and data quality"
-        ],
-        "summary": "Accept (writes the English name) or reject a spelling fix. Admin.",
-        "operationId": "resolve_name_fix",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "fix_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Fix Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Accept"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NameFix"
                 }
               }
             }
@@ -11460,19 +11780,6 @@
   },
   "components": {
     "schemas": {
-      "Accept": {
-        "properties": {
-          "accept": {
-            "type": "boolean",
-            "title": "Accept"
-          }
-        },
-        "type": "object",
-        "required": [
-          "accept"
-        ],
-        "title": "Accept"
-      },
       "AdminDevice": {
         "properties": {
           "id": {
@@ -13151,10 +13458,6 @@
             "type": "integer",
             "title": "Doubtful Dead",
             "description": "Marked dead by a worker, not yet confirmed"
-          },
-          "name_fixes_waiting": {
-            "type": "integer",
-            "title": "Name Fixes Waiting"
           }
         },
         "type": "object",
@@ -13165,8 +13468,7 @@
           "possible_duplicates",
           "repeated_in_roll",
           "shifted",
-          "doubtful_dead",
-          "name_fixes_waiting"
+          "doubtful_dead"
         ],
         "title": "DataQualitySummary"
       },
@@ -13912,6 +14214,31 @@
             ],
             "title": "Polling Date"
           },
+          "polling_start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling Start Time",
+            "description": "Polling hours, local (Indian) time; on voter slips"
+          },
+          "polling_end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling End Time"
+          },
           "code_of_conduct_mode": {
             "type": "boolean",
             "title": "Code Of Conduct Mode",
@@ -14422,7 +14749,7 @@
               }
             ],
             "title": "Label",
-            "description": "Shown name of the household, e.g. 'Patil house'"
+            "description": "Family name, typed by the surveyor (families are made by hand, client 12 Nov)"
           },
           "head_voter_id": {
             "anyOf": [
@@ -14513,11 +14840,92 @@
             "title": "Make Head",
             "description": "Make this voter the head of the family",
             "default": false
+          },
+          "leave_family": {
+            "type": "boolean",
+            "title": "Leave Family",
+            "description": "Take the voter out of their family (added 12 Nov)",
+            "default": false
           }
         },
         "type": "object",
         "title": "FamilyChange",
-        "description": "PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id."
+        "description": "PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id,\nor leave_family = true with neither (takes the voter out of their family)."
+      },
+      "FamilyIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Made by the phone; a repeat with the same id is stored once"
+          },
+          "booth_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booth Id",
+            "description": "The booth (part) the family belongs to"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "description": "Family name, free text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "booth_id",
+          "label"
+        ],
+        "title": "FamilyIn",
+        "description": "POST /families and push type `family_new` (entity_id = the family id): a family made by hand."
+      },
+      "FamilyPage": {
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as `cursor` for the next page; null on the last page"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Family"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "FamilyPage"
+      },
+      "FamilyPatch": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "FamilyPatch",
+        "description": "PATCH /families/{id}: rename."
       },
       "FamilySource": {
         "type": "string",
@@ -15311,82 +15719,6 @@
         ],
         "title": "MobileRowResolution"
       },
-      "NameFix": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "voter_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Voter Id"
-          },
-          "current": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Current",
-            "description": "first/middle/last name in English now"
-          },
-          "suggested": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Suggested",
-            "description": "first/middle/last name suggested"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ReviewStatus"
-          },
-          "requested_by": {
-            "$ref": "#/components/schemas/UserSummary"
-          },
-          "requested_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Requested At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "voter_id",
-          "current",
-          "suggested",
-          "status",
-          "requested_by",
-          "requested_at"
-        ],
-        "title": "NameFix"
-      },
-      "NameFixPage": {
-        "properties": {
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor",
-            "description": "Pass as `cursor` for the next page; null on the last page"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/NameFix"
-            },
-            "type": "array",
-            "title": "Items"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "title": "NameFixPage"
-      },
       "NamedEntryIn": {
         "properties": {
           "name_mr": {
@@ -16021,6 +16353,80 @@
         ],
         "title": "PairStatus"
       },
+      "PartNote": {
+        "properties": {
+          "booth_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Booth Id"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "0 = no note yet"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "booth_id",
+          "note",
+          "version",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "PartNote",
+        "description": "The one shared note of a roll part (its booth)."
+      },
+      "PartNoteIn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Note"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Version",
+            "description": "The version you last saw; 0 if the part had no note yet. A stale one: 409 with the server copy (push: conflict)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "note",
+          "version"
+        ],
+        "title": "PartNoteIn",
+        "description": "PUT /booths/{id}/note and push type `part_note` (entity_id = the booth id, base_version = version)."
+      },
       "ProblemReport": {
         "properties": {
           "id": {
@@ -16339,11 +16745,12 @@
           "new_voter",
           "new_voter_update",
           "family",
-          "slip_event",
-          "name_fix"
+          "family_new",
+          "part_note",
+          "slip_event"
         ],
         "title": "PushType",
-        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).\nOnly `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of\nthose types is rejected with not_implemented and NOT recorded, so a retry after the server\nupdate applies it."
+        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nOnly `survey` is built; the others come with plan steps 7 and 8. Until then an item of\nthose types is rejected with not_implemented and NOT recorded, so a retry after the server\nupdate applies it."
       },
       "RationCard": {
         "type": "string",

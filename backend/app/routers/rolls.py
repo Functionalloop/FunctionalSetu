@@ -1,5 +1,8 @@
 """Roll update and data quality (plan step 10): roll import and review, one-voter corrections,
-data quality, duplicates, spelling fixes, mobile number sheets.
+data quality, duplicates, mobile number sheets. (Spelling fixes were removed by the client, 12 Nov.)
+
+Official roll data is changed by the super admin only (client, 12 Nov): an admin can read
+imports and roll edits but every write answers 403.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -10,23 +13,23 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, UploadFile, status
 
 from ..deps import Db
 from ..schemas import ListType, VoterDetail
-from ..schemas_roll import (Accept, DataQualitySummary, DuplicatePair, DuplicatePairPage, MatchStatus, MobileImport,
-                            MobileRowResolution, NameFix, NameFixPage, PairResolution, RemoveRestore, RollEditPage,
+from ..schemas_roll import (DataQualitySummary, DuplicatePair, DuplicatePairPage, MatchStatus, MobileImport,
+                            MobileRowResolution, PairResolution, RemoveRestore, RollEditPage,
                             RollImport, RollImportPage, RollImportRow, RollImportRowPage, RollPatch, RowResolution,
                             VoterAdd)
-from ..stubs import Admin, Cursor, Limit, Supervisor, not_built
+from ..stubs import Admin, Cursor, Limit, SuperAdmin, Supervisor, not_built
 
 router = APIRouter(tags=["roll and data quality"])
 
 
 # --- roll import (10.2, 10.3) ----------------------------------------------------------------
 @router.post("/rolls/imports", response_model=RollImport, status_code=status.HTTP_202_ACCEPTED,
-             summary="Upload a roll file (CSV or Excel; text PDF from 12.1). Starts a job; poll the import. Admin.")
-def start_roll_import(conn: Db, user: Admin, file: Annotated[UploadFile, File()],
+             summary="Upload a roll file (CSV or Excel; scanned PDF from 13.7). Starts a job; poll the import. Super admin.")
+def start_roll_import(conn: Db, user: SuperAdmin, file: Annotated[UploadFile, File()],
                       local_body_id: Annotated[uuid.UUID, Form()], list_type: Annotated[ListType, Form()],
                       title: Annotated[str, Form(min_length=1, max_length=200)],
                       published_on: Annotated[date | None, Form()] = None) -> RollImport:
@@ -51,43 +54,43 @@ def roll_import_rows(import_id: uuid.UUID, conn: Db, user: Admin, match_status: 
 
 
 @router.post("/rolls/imports/{import_id}/rows/{row_id}/resolve", response_model=RollImportRow,
-             summary="Accept or reject one uncertain match. Admin.")
-def resolve_roll_row(import_id: uuid.UUID, row_id: int, body: RowResolution, conn: Db, user: Admin) -> RollImportRow:
+             summary="Accept or reject one uncertain match. Super admin.")
+def resolve_roll_row(import_id: uuid.UUID, row_id: int, body: RowResolution, conn: Db, user: SuperAdmin) -> RollImportRow:
     not_built("10.3")
 
 
 @router.post("/rolls/imports/{import_id}/apply", response_model=RollImport,
-             summary="Apply the reviewed roll. Surveys stay linked; missing voters become 'not in current roll'. Admin.")
-def apply_roll_import(import_id: uuid.UUID, conn: Db, user: Admin) -> RollImport:
+             summary="Apply the reviewed roll. Surveys stay linked; missing voters become 'not in current roll'. Super admin.")
+def apply_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin) -> RollImport:
     not_built("10.3")
 
 
-@router.post("/rolls/imports/{import_id}/discard", response_model=RollImport, summary="Throw an import away. Admin.")
-def discard_roll_import(import_id: uuid.UUID, conn: Db, user: Admin) -> RollImport:
+@router.post("/rolls/imports/{import_id}/discard", response_model=RollImport, summary="Throw an import away. Super admin.")
+def discard_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin) -> RollImport:
     not_built("10.3")
 
 
 # --- one-voter corrections (10.4) --------------------------------------------------------------
 @router.post("/voters", response_model=VoterDetail, status_code=status.HTTP_201_CREATED,
-             summary="Add one voter to the roll by hand, with reason and reference. Admin.")
-def add_voter(body: VoterAdd, conn: Db, user: Admin) -> VoterDetail:
+             summary="Add one voter to the roll by hand, with reason and reference. Super admin.")
+def add_voter(body: VoterAdd, conn: Db, user: SuperAdmin) -> VoterDetail:
     not_built("10.4")
 
 
 @router.patch("/voters/{voter_id}/roll", response_model=VoterDetail,
-              summary="Correct one roll record, with reason and reference. Admin.")
-def correct_voter(voter_id: uuid.UUID, body: RollPatch, conn: Db, user: Admin) -> VoterDetail:
+              summary="Correct one roll record, with reason and reference. Super admin.")
+def correct_voter(voter_id: uuid.UUID, body: RollPatch, conn: Db, user: SuperAdmin) -> VoterDetail:
     not_built("10.4")
 
 
 @router.post("/voters/{voter_id}/remove", response_model=VoterDetail,
-             summary="Hide one voter (survey work is kept), with reason. Admin.")
-def remove_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: Admin) -> VoterDetail:
+             summary="Hide one voter (survey work is kept), with reason. Super admin.")
+def remove_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: SuperAdmin) -> VoterDetail:
     not_built("10.4")
 
 
-@router.post("/voters/{voter_id}/restore", response_model=VoterDetail, summary="Bring back a hidden voter. Admin.")
-def restore_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: Admin) -> VoterDetail:
+@router.post("/voters/{voter_id}/restore", response_model=VoterDetail, summary="Bring back a hidden voter. Super admin.")
+def restore_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: SuperAdmin) -> VoterDetail:
     not_built("10.4")
 
 
@@ -115,19 +118,6 @@ def duplicate_pairs(conn: Db, user: Supervisor, unchecked_only: bool = True, lim
 @router.post("/data-quality/duplicates/{pair_id}/resolve", response_model=DuplicatePair,
              summary="Same person (hide one) or different people. Supervisor.")
 def resolve_duplicate(pair_id: uuid.UUID, body: PairResolution, conn: Db, user: Supervisor) -> DuplicatePair:
-    not_built("10.5")
-
-
-@router.get("/name-fixes", response_model=NameFixPage, summary="Spelling fixes waiting for review. Admin.")
-def list_name_fixes(conn: Db, user: Admin,
-                    status_filter: Annotated[str | None, Query(alias="status", pattern="^(pending|accepted|rejected)$")] = "pending",
-                    limit: Limit = 50, cursor: Cursor = None) -> NameFixPage:
-    not_built("10.5")
-
-
-@router.post("/name-fixes/{fix_id}/resolve", response_model=NameFix,
-             summary="Accept (writes the English name) or reject a spelling fix. Admin.")
-def resolve_name_fix(fix_id: uuid.UUID, body: Accept, conn: Db, user: Admin) -> NameFix:
     not_built("10.5")
 
 

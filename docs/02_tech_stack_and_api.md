@@ -99,7 +99,7 @@ All endpoints sit under `/api/v1` and speak JSON. This list is the first draft o
 | `GET /terms/current` | Current terms of use text. | Public |
 | `POST /terms/accept` | Records that the user accepted the terms. | All |
 | `GET /sync/pull` | Changes since `since=W` for the user's area, in pages, with the new watermark. No `since` = first download. | All (app) |
-| `POST /sync/push` | Batch of offline changes: surveys, visits, voted marks, new voters, family changes, slip events. Returns accepted / conflict per item. | All (app) |
+| `POST /sync/push` | Batch of offline changes: surveys, visits, voted marks, new voters, families made and family changes, part notes, slip events. Returns accepted / conflict per item. | All (app) |
 | `GET /sync/conflicts` | Open conflicts for review. | Supervisor |
 | `POST /sync/conflicts/{id}/resolve` | Keep the phone's copy or the server's copy. | Supervisor |
 | `GET /announcements` | Announcements for this user. | All |
@@ -118,12 +118,16 @@ The Android app does most of this from its local copy and sends changes through 
 | `GET /voters/{id}` | Roll details plus survey. | All |
 | `PUT /voters/{id}/survey` | Save survey: mobiles, caste, profession, colour tag, residence check, date of birth, notes, custom fields, important voter + position, influencer + type, self help group + name, ration card, location. Needs `version`. | Surveyor |
 | `GET /voters/{id}/family` | Family members. | All |
-| `PUT /voters/{id}/family` | Move the voter into a family, or set the family head. | Surveyor |
+| `PUT /voters/{id}/family` | Move the voter into a family, take them out, or set the family head. | Surveyor |
 | `GET /voters/{id}/history` | Every change: surveys, notes, visits, roll edits, voted marks. | All |
 | `POST /voters/{id}/visits` | Record a visit: met, not home, revisit, shifted, with location. | Surveyor |
 | `GET /voters/{id}/slip` | Voter slip as an image or PDF. | All |
 | `POST /voters/{id}/slip-events` | Logs that a slip was shared or printed. | All |
 | `GET /families` | Walk list: houses in a booth with visit status. | All |
+| `POST /families` | Make a family by hand in a booth, with a free-text name (client, 12 Nov). | Surveyor |
+| `PATCH /families/{id}` | Rename a family. | Surveyor |
+| `GET /booths/{id}/families` | The families made in a booth. | All |
+| `GET /booths/{id}/note`, `PUT /booths/{id}/note` | The part's one shared note (client, 12 Nov). Needs `version`. | All / Surveyor |
 | `GET /new-voters` | Voters added by hand, with Form 6 status. | Surveyor |
 | `POST /new-voters` | Add a person not on the roll. | Surveyor |
 | `PATCH /new-voters/{id}` | Edit or update the Form 6 status. Needs `version`. | Surveyor |
@@ -135,8 +139,6 @@ The Android app does most of this from its local copy and sends changes through 
 | `GET /data-quality/summary` | Counts: no mobile, no date of birth, duplicates, repeated, shifted, doubtful dead marks. | Supervisor |
 | `GET /data-quality/duplicates` | Possible duplicate and repeated pairs. | Supervisor |
 | `POST /data-quality/duplicates/{id}/resolve` | Same person or different people. | Supervisor |
-| `GET /name-fixes` | Suggested spelling fixes waiting for review. | Admin |
-| `POST /name-fixes/{id}/resolve` | Accept or reject a spelling fix. | Admin |
 
 ## Endpoints: roll, reports and admin
 
@@ -144,15 +146,15 @@ The web portal uses most of these; the app's admin screens use the same ones.
 
 | Method and path | What it does | Who |
 | --- | --- | --- |
-| `POST /rolls/imports` | Upload a new roll file (Excel, CSV or text PDF). Starts a job. | Admin |
+| `POST /rolls/imports` | Upload a new roll file (Excel, CSV or scanned PDF). Starts a job. | Super admin |
 | `GET /rolls/imports`, `GET /rolls/imports/{id}` | Import list and one import's progress and counts. | Admin |
 | `GET /rolls/imports/{id}/rows` | Rows by match status: matched, uncertain, possible duplicate, absent, new. | Admin |
-| `POST /rolls/imports/{id}/rows/{row_id}/resolve` | Accept or reject one uncertain match. | Admin |
-| `POST /rolls/imports/{id}/apply` | Apply the reviewed roll. | Admin |
-| `POST /rolls/imports/{id}/discard` | Throw the import away. | Admin |
-| `POST /voters` | Add one voter to the roll by hand, with reason and reference. | Admin |
-| `PATCH /voters/{id}/roll` | Correct one roll record, with reason and reference. | Admin |
-| `POST /voters/{id}/remove`, `POST /voters/{id}/restore` | Hide or bring back one voter, with reason. | Admin |
+| `POST /rolls/imports/{id}/rows/{row_id}/resolve` | Accept or reject one uncertain match. | Super admin |
+| `POST /rolls/imports/{id}/apply` | Apply the reviewed roll. | Super admin |
+| `POST /rolls/imports/{id}/discard` | Throw the import away. | Super admin |
+| `POST /voters` | Add one voter to the roll by hand, with reason and reference. | Super admin |
+| `PATCH /voters/{id}/roll` | Correct one roll record, with reason and reference. | Super admin |
+| `POST /voters/{id}/remove`, `POST /voters/{id}/restore` | Hide or bring back one voter, with reason. | Super admin |
 | `GET /voters/{id}/roll-edits` | Roll corrections made to this voter. | Admin |
 | `POST /mobile-imports`, `GET /mobile-imports/{id}` | Upload a mobile number sheet and review its matches. | Admin |
 | `GET /reports/survey-progress` | Surveyed vs total by ward and booth. | Supervisor |
@@ -170,7 +172,7 @@ The web portal uses most of these; the app's admin screens use the same ones.
 | `GET /users/{id}/assignments`, `PUT /users/{id}/assignments` | Wards and booths the user can see. | Admin |
 | `GET /devices` | Phones and their status. | Admin |
 | `POST /devices/{id}/approve`, `POST /devices/{id}/block` | Approve a new phone, or block and wipe a lost one. | Admin |
-| `GET /settings/election`, `PUT /settings/election` | Election, candidate, symbol, slip text and feature switches. | Admin |
+| `GET /settings/election`, `PUT /settings/election` | Election, candidate, symbol, polling date and time, slip text and feature switches. | Admin |
 | `GET /masters/{list}`, `POST /masters/{list}`, `PATCH /masters/{list}/{id}` | Lists and labels: `castes`, `professions`, `color-tags`, `custom-fields`, `message-templates`. | Admin |
 | `POST /files` | Upload candidate photo, symbol or slip header. | Admin |
 | `POST /announcements`, `DELETE /announcements/{id}` | Send or remove an announcement. | Admin |

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .schemas import MOBILE_PATTERN, Area, DeviceStatusEnum, Lang, Role, UserSummary, WorkspaceSettings
 from .schemas_field import Page
@@ -99,6 +99,8 @@ class ElectionSettingsIn(BaseModel):
     election_name_en: str | None = None
     election_type: str | None = Field(None, description="nagarpalika, ..., vidhan_sabha, lok_sabha, other")
     polling_date: date | None = None
+    polling_start_time: time | None = Field(None, description="Polling hours, local (Indian) time; on voter slips")
+    polling_end_time: time | None = None
     code_of_conduct_mode: bool = False
     candidate_name_mr: str | None = None
     candidate_name_en: str | None = None
@@ -130,6 +132,12 @@ class ElectionSettingsIn(BaseModel):
     min_app_version_code: int = Field(1, ge=1)
     sync_interval_minutes: int = Field(15, ge=5, le=240)
     middle_name_separator: str | None = None
+
+    @model_validator(mode="after")
+    def _times(self) -> ElectionSettingsIn:
+        if self.polling_start_time and self.polling_end_time and self.polling_end_time <= self.polling_start_time:
+            raise ValueError("polling_end_time must be after polling_start_time")
+        return self
 
 
 class ElectionSettings(WorkspaceSettings):

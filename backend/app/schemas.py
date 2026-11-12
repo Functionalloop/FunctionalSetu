@@ -506,8 +506,9 @@ class PushType(StrEnum):
     """`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);
     visit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);
     new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
-    family = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).
-    Only `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of
+    family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
+    without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
+    Only `survey` is built; the others come with plan steps 7 and 8. Until then an item of
     those types is rejected with not_implemented and NOT recorded, so a retry after the server
     update applies it."""
     survey = "survey"
@@ -517,8 +518,9 @@ class PushType(StrEnum):
     new_voter = "new_voter"
     new_voter_update = "new_voter_update"
     family = "family"
+    family_new = "family_new"
+    part_note = "part_note"
     slip_event = "slip_event"
-    name_fix = "name_fix"
 
 
 class PushStatus(StrEnum):
