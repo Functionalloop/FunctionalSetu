@@ -15,7 +15,7 @@ import javax.inject.Singleton
         ListEntryEntity::class, ColorTagEntity::class, CustomFieldLabelEntity::class,
         OutboxEntity::class, SyncStateEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -60,6 +60,9 @@ class LocalDb @Inject constructor(
         if (newKey) context.deleteDatabase(AppDatabase.NAME)
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(passphrase))
+            // Version 2 (12 Nov, client's survey fields): no phone held real data on version 1, so its
+            // file is dropped and downloaded again. From version 2 on, write real migrations.
+            .fallbackToDestructiveMigrationFrom(1)
             .addCallback(object : RoomDatabase.Callback() {
                 // Every page read is decrypted; a bigger cache keeps search pages decrypted while typing.
                 override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {

@@ -144,6 +144,13 @@ data class SurveyDto(
     @SerialName("extra_info_3") val extraInfo3: String? = null,
     @SerialName("extra_info_4") val extraInfo4: String? = null,
     @SerialName("extra_info_5") val extraInfo5: String? = null,
+    @SerialName("is_important") val isImportant: Boolean = false,
+    @SerialName("position_id") val positionId: String? = null,
+    @SerialName("is_influencer") val isInfluencer: Boolean = false,
+    @SerialName("influencer_type_id") val influencerTypeId: String? = null,
+    @SerialName("in_self_help_group") val inSelfHelpGroup: Boolean = false,
+    @SerialName("self_help_group_name") val selfHelpGroupName: String? = null,
+    @SerialName("ration_card") val rationCard: String? = null,
     val version: Int,
     @SerialName("is_surveyed") val isSurveyed: Boolean = false,
     @SerialName("surveyed_at") val surveyedAt: String? = null,
@@ -189,6 +196,8 @@ data class SyncLists(
     val professions: List<NamedListEntry> = emptyList(),
     @SerialName("color_tags") val colorTags: List<ColorTagDto> = emptyList(),
     @SerialName("custom_field_labels") val customFieldLabels: List<CustomFieldLabelDto> = emptyList(),
+    val positions: List<NamedListEntry> = emptyList(),
+    @SerialName("influencer_types") val influencerTypes: List<NamedListEntry> = emptyList(),
 )
 
 @Serializable

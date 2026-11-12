@@ -70,6 +70,14 @@ data class SurveyForm(
     val hasNewAddress: Boolean = false,
     val newAddress: String = "",
     val notes: String = "",
+    // Client changes of 12 Nov
+    val isImportant: Boolean = false,
+    val positionId: String? = null,
+    val isInfluencer: Boolean = false,
+    val influencerTypeId: String? = null,
+    val inSelfHelpGroup: Boolean = false,
+    val selfHelpGroupName: String = "",
+    val rationCard: String? = null,
 ) {
     fun error(): String? = when {
         mobile1.isNotEmpty() && !MOBILE.matches(mobile1) -> "Mobile 1 must be 10 digits starting with 6, 7, 8 or 9."
@@ -77,6 +85,7 @@ data class SurveyForm(
         mobile2.isNotEmpty() && mobile1.isEmpty() -> "Fill Mobile 1 before Mobile 2."
         newAddress.length > 500 -> "The new address is too long (500 characters at most)."
         notes.length > 2000 -> "Notes are too long (2000 characters at most)."
+        inSelfHelpGroup && selfHelpGroupName.trim().length > 200 -> "The group name is too long (200 characters at most)."
         else -> null
     }
 
@@ -91,6 +100,12 @@ data class SurveyForm(
             newAddressMr = if (marathi) addr else null,
             newAddressEn = if (!marathi) addr else null,
             notes = notes.trim().ifEmpty { null },
+            // A detail is kept only with its yes: switching "Important" off clears the position.
+            isImportant = isImportant, positionId = positionId.takeIf { isImportant },
+            isInfluencer = isInfluencer, influencerTypeId = influencerTypeId.takeIf { isInfluencer },
+            inSelfHelpGroup = inSelfHelpGroup,
+            selfHelpGroupName = selfHelpGroupName.trim().ifEmpty { null }.takeIf { inSelfHelpGroup },
+            rationCard = rationCard,
         )
     }
 
@@ -99,7 +114,12 @@ data class SurveyForm(
             mobile1 = s.mobile1 ?: "", mobile2 = s.mobile2 ?: "", dob = s.dob ?: "",
             casteId = s.casteId, professionId = s.professionId, colorTagId = s.colorTagId,
             hasNewAddress = s.hasNewAddress, newAddress = s.newAddressMr ?: s.newAddressEn ?: "", notes = s.notes ?: "",
+            isImportant = s.isImportant, positionId = s.positionId, isInfluencer = s.isInfluencer,
+            influencerTypeId = s.influencerTypeId, inSelfHelpGroup = s.inSelfHelpGroup,
+            selfHelpGroupName = s.selfHelpGroupName ?: "", rationCard = s.rationCard,
         )
+
+        val RATION_CARDS = listOf("AAY", "PHH", "NPHH")
     }
 }
 
@@ -109,6 +129,8 @@ data class SurveyForm(
 fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, readOnly: Boolean) {
     val castes by vm.castes.collectAsState(emptyList())
     val professions by vm.professions.collectAsState(emptyList())
+    val positions by vm.positions.collectAsState(emptyList())
+    val influencerTypes by vm.influencerTypes.collectAsState(emptyList())
     val tags by vm.colorTags.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
 
@@ -159,6 +181,31 @@ fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, 
             }
         }
 
+        YesNo("Important voter", form.isImportant, enabled) { form = form.copy(isImportant = it) }
+        if (form.isImportant) SearchablePicker("Position", positions, form.positionId, enabled) {
+            form = form.copy(positionId = it)
+        }
+        YesNo("Influencer", form.isInfluencer, enabled) { form = form.copy(isInfluencer = it) }
+        if (form.isInfluencer) Picker("Influencer type", influencerTypes, form.influencerTypeId, enabled) {
+            form = form.copy(influencerTypeId = it)
+        }
+        YesNo("Self help group member", form.inSelfHelpGroup, enabled) { form = form.copy(inSelfHelpGroup = it) }
+        if (form.inSelfHelpGroup) OutlinedTextField(
+            form.selfHelpGroupName, { form = form.copy(selfHelpGroupName = it.take(200)) }, label = { Text("Group name") },
+            enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        )
+
+        Text("Ration card", style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SurveyForm.RATION_CARDS.forEach { card ->
+                FilterChip(
+                    selected = form.rationCard == card, enabled = enabled,
+                    onClick = { form = form.copy(rationCard = if (form.rationCard == card) null else card) },
+                    label = { Text(card) },
+                )
+            }
+        }
+
         DobField(form.dob, enabled) { form = form.copy(dob = it) }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,6 +233,42 @@ fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, 
                 }
             }
             Text("Location is read once when you save.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun YesNo(label: String, value: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        Switch(value, onChange, enabled = enabled)
+    }
+}
+
+/** A list picker you can type into: the list narrows to entries containing the typed text. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchablePicker(label: String, items: List<ListEntryEntity>, selected: String?, enabled: Boolean,
+                             onPick: (String?) -> Unit) {
+    val current = items.firstOrNull { it.id == selected }
+    fun name(e: ListEntryEntity) = listOfNotNull(e.nameEn, e.nameMr).joinToString(" · ")
+    var open by remember { mutableStateOf(false) }
+    var typed by remember(selected, items) { mutableStateOf(current?.let(::name) ?: "") }
+    val shown = items.filter { it.isActive || it.id == selected }
+        .filter { typed.isBlank() || typed == current?.let(::name) || name(it).contains(typed.trim(), ignoreCase = true) }
+    ExposedDropdownMenuBox(expanded = open && enabled, onExpandedChange = { if (enabled) open = it }) {
+        OutlinedTextField(
+            value = typed, onValueChange = { typed = it; open = true }, enabled = enabled, singleLine = true,
+            label = { Text(label) }, placeholder = { Text("Type to search") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+        )
+        ExposedDropdownMenu(expanded = open && enabled, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("(none)") }, onClick = { onPick(null); typed = ""; open = false })
+            shown.forEach { e ->
+                DropdownMenuItem(text = { Text(name(e)) }, onClick = { onPick(e.id); typed = name(e); open = false })
+            }
+            if (shown.isEmpty()) DropdownMenuItem(text = { Text("Nothing matches") }, onClick = {}, enabled = false)
         }
     }
 }

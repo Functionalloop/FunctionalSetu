@@ -42,7 +42,7 @@ class OutboxRepository @Inject constructor(private val local: LocalDb) {
             )
             db.voters().saveLocalSurvey(row)
 
-            val data = surveyData(row, fix).toString()
+            val data = surveyPushData(row, fix).toString()
             val outbox = db.outbox()
             // An edit not sent yet is simply replaced (same id). Once sent, a new edit is a new item;
             // the push rebases it on the version the first one gets.
@@ -57,30 +57,41 @@ class OutboxRepository @Inject constructor(private val local: LocalDb) {
             }
         }
     }
+}
 
-    /** The PUT /voters/{id}/survey body without `version` (SurveyIn). `location` only when taken now. */
-    fun surveyData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
-        put("mobile_1", s.mobile1)
-        put("mobile_2", s.mobile2)
-        put("dob", s.dob)
-        put("caste_id", s.casteId)
-        put("profession_id", s.professionId)
-        put("color_tag_id", s.colorTagId)
-        put("has_new_address", s.hasNewAddress)
-        put("new_address_mr", s.newAddressMr)
-        put("new_address_en", s.newAddressEn)
-        put("notes", s.notes)
-        put("extra_check_1", s.extraCheck1)
-        put("extra_check_2", s.extraCheck2)
-        put("extra_info_1", s.extraInfo1)
-        put("extra_info_2", s.extraInfo2)
-        put("extra_info_3", s.extraInfo3)
-        put("extra_info_4", s.extraInfo4)
-        put("extra_info_5", s.extraInfo5)
-        if (fix != null) putJsonObject("location") {
-            put("lat", fix.lat)
-            put("lng", fix.lng)
-            put("accuracy_m", fix.accuracyM)
-        }
+/**
+ * The PUT /voters/{id}/survey body without `version` (SurveyIn). The server replaces every field,
+ * so every field the phone knows is sent. A detail is sent only with its yes (the server refuses a
+ * position without "important", and so on). `location` only when taken at this save.
+ */
+fun surveyPushData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
+    put("mobile_1", s.mobile1)
+    put("mobile_2", s.mobile2)
+    put("dob", s.dob)
+    put("caste_id", s.casteId)
+    put("profession_id", s.professionId)
+    put("color_tag_id", s.colorTagId)
+    put("has_new_address", s.hasNewAddress)
+    put("new_address_mr", s.newAddressMr)
+    put("new_address_en", s.newAddressEn)
+    put("notes", s.notes)
+    put("extra_check_1", s.extraCheck1)
+    put("extra_check_2", s.extraCheck2)
+    put("extra_info_1", s.extraInfo1)
+    put("extra_info_2", s.extraInfo2)
+    put("extra_info_3", s.extraInfo3)
+    put("extra_info_4", s.extraInfo4)
+    put("extra_info_5", s.extraInfo5)
+    put("is_important", s.isImportant)
+    put("position_id", s.positionId.takeIf { s.isImportant })
+    put("is_influencer", s.isInfluencer)
+    put("influencer_type_id", s.influencerTypeId.takeIf { s.isInfluencer })
+    put("in_self_help_group", s.inSelfHelpGroup)
+    put("self_help_group_name", s.selfHelpGroupName?.trim()?.ifEmpty { null }.takeIf { s.inSelfHelpGroup })
+    put("ration_card", s.rationCard)
+    if (fix != null) putJsonObject("location") {
+        put("lat", fix.lat)
+        put("lng", fix.lng)
+        put("accuracy_m", fix.accuracyM)
     }
 }

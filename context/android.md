@@ -40,6 +40,9 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 - 12 Nov: `SessionStore.signOut(notice)` writes the Login notice before clearing the session (clearing it shows Login at once; the notice was lost before).
 - 11 Nov (confirmed 12 Nov: every login downloads again): logout deletes the database (next user must not see this area); warns when changes are unsent. A dead refresh token (`LoggedOut`) keeps the database: the same user logging in again keeps unsent work; a different user wipes it.
 - 11 Nov: `device_uid` = `ANDROID_ID` (same across reinstalls), so a reinstalled blocked phone stays blocked.
+- 12 Nov (5.16): survey fields of the client's changes on the phone: important + searchable position, influencer + type, self help group + name, ration card (AAY / PHH / NPHH); Important filter. A detail is kept only with its yes (`SurveyForm.applyTo`, and again in `surveyPushData`). Positions and influencer types are `list_entries` kinds `position` / `influencer_type`. The white tag is inactive on the server, so the phone no longer offers it.
+- 12 Nov: local database version 2 with `fallbackToDestructiveMigrationFrom(1)` (no phone held real data on 1). From version 2 on, write real Room migrations: a destructive one would delete unsent changes.
+- Every survey field the phone knows must go into `surveyPushData`: the server replaces the whole survey, so a field left out is cleared on the server.
 - 11 Nov: location: plain `LocationManager`, read once at survey save (8 s, else last fix under 5 min); no Play services.
 
 ## Pitfalls
@@ -62,9 +65,8 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 ## Not done yet
 
-- **Until 5.16:** the phone does not know the survey fields of 12 Nov (important + position, influencer + type, self help group, ration card). A phone save replaces the whole survey, so it would clear those fields if the portal had set them. Build 5.16 before anyone edits surveys in both places.
 
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11. Tested so far on the API 35 emulator only; the real phone is Android 16.
-- Client changes of 12 Nov on the phone: task 5.16 (survey fields, Important filter, local database version 2), then 7.4, 7.11, 7.12. See `docs/plan.md`.
-- Call / WhatsApp / SMS buttons (5.9) checked only by building; check on the real phone. Real-phone rehearsal (5.13).
+- Client changes of 12 Nov still to come on the phone: 7.4 (families by hand), 7.11 (part notes), 7.12 (WhatsApp to families). See `docs/plan.md`.
+- Call / WhatsApp / SMS buttons (5.9) and the new survey controls (5.16) checked only by build and tests; look at them on the real phone. Real-phone rehearsal (5.13).
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.

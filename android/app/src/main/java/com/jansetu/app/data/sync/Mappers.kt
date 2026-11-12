@@ -31,6 +31,9 @@ fun SurveyDto.toEntity() = SurveyEntity(
     newAddressMr = newAddressMr, newAddressEn = newAddressEn, notes = notes,
     extraCheck1 = extraCheck1, extraCheck2 = extraCheck2, extraInfo1 = extraInfo1, extraInfo2 = extraInfo2,
     extraInfo3 = extraInfo3, extraInfo4 = extraInfo4, extraInfo5 = extraInfo5,
+    isImportant = isImportant, positionId = positionId, isInfluencer = isInfluencer,
+    influencerTypeId = influencerTypeId, inSelfHelpGroup = inSelfHelpGroup, selfHelpGroupName = selfHelpGroupName,
+    rationCard = rationCard,
     version = version, isSurveyed = isSurveyed, surveyedAt = surveyedAt, lat = lat, lng = lng,
     locationAccuracyM = locationAccuracyM, locationCapturedAt = locationCapturedAt, updatedAt = updatedAt,
 )
