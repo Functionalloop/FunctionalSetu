@@ -63,7 +63,7 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 
 ## APK publishing (6.3)
 
-Published: **0.1.0** (versionCode 1, required) on 13 Nov, `/download/jansetu-0.1.0.apk`, 34 MB, SHA-256 `1566ae7a…22806`. `/app/version` answers it without a token; the download through Caddy matched the hash.
+Published: **0.1.0** (versionCode 1, required) on 13 Nov, `/download/jansetu-0.1.0.apk`, 34 MB, SHA-256 `1566ae7a…22806`. `/app/version` answers it without a token; the download through Caddy matched the hash. Phone test 13 Nov: the Samsung on mobile data downloaded it from `apk_url`, installed it, logged in as demo.admin against the server, was approved with `approve_phone.py` and downloaded the roll.
 
 
 1. Build the **signed release** APK (`gradlew assembleRelease`; key and settings: `context/android.md`, Release build). Raise `versionCode` first.
