@@ -31,6 +31,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 | `data/FieldRepository.kt` | 7.4: make a Kutumb (`family_new`), put in / take out (`family`), rename, mark a house (`visit`); local rows + outbox items in one transaction |
 | `data/local/FieldDao.kt` | `families`, `family_members` (only voters in a Kutumb), `visits`; walk-list houses query; pull saving; dropping booths that leave the phone |
 | `ui/family/KutumbTab.kt` | voter screen tab "Kutumb Connect": name (rename), members (Remove), Add a member (search in the same part), New Kutumb / Add to a Kutumb. Read only for booth agents |
+| `ui/voter/HistoryTab.kt` | 7.6: voter screen tab "Information Updation" (4th tab; the tab row scrolls). Loads `GET /voters/{id}/history` 50 at a time (Show older); not stored on the phone, so offline it says it needs internet with Try again. Field names and values are worded on the phone (`fieldLabel`, `valueText`, `changeLines`; lat / lng = one Location line); names of ids come from the server's labels |
 | `ui/walklist/WalkListScreen.kt` | bottom tab "Walk list": pick a part (remembered in `sync_state`), houses by the roll's house number with the last visit; tap a house for its voters and Met / Not home / Come again / Shifted |
 | `data/NewVoterRepository.kt`, `data/local/NewVoterDao.kt` | 7.5 Eligible but Not Registered: save = local row + outbox item (`new_voter` / `new_voter_update`) in one transaction; list newest first, by Form 6 status |
 | `ui/newvoter/NewVoterScreens.kt` | "Eligible but Not Registered" list (Form 6 filter chips, Not sent / conflict labels) and form (route `newvoter/{id}`, `new` = add); from Home and More, survey roles only. The form checks what the server checks (name, part, mobile, date of birth d/M/yyyy not in the future) |
@@ -104,5 +105,5 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11.
 - Kutumb Connect: "Share on WhatsApp (pick up to 5)" comes with 7.12.
-- Client changes of 12 Nov still to come on the phone (`docs/change_log.md`): 7.11 (part notes), 7.12 (WhatsApp to at most 5 voters), new names (Information Updation, Matching Engine), Step 14 screens.
+- Client changes of 12 Nov still to come on the phone (`docs/change_log.md`): 7.11 (part notes), 7.12 (WhatsApp to at most 5 voters), new name Matching Engine, Step 14 screens.
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.

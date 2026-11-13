@@ -37,6 +37,9 @@ interface JansetuApi {
 
     @POST("sync/push") suspend fun push(@Body body: PushRequest): PushResponse
 
+    @GET("voters/{id}/history")
+    suspend fun history(@Path("id") voterId: String, @Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): HistoryPage
+
     @PATCH("families/{id}") suspend fun renameFamily(@Path("id") id: String, @Body body: FamilyPatch): SyncFamily
 }
 

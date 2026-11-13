@@ -2,6 +2,7 @@ package com.jansetu.app.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 // Shapes from docs/openapi.json. Only the fields the app uses; unknown fields are ignored,
@@ -250,6 +251,27 @@ data class NewVoterDto(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String? = null,
 )
+
+/** GET /voters/{id}/history (7.6, Information Updation). */
+@Serializable
+data class HistoryChange(
+    val old: JsonElement? = null,
+    val new: JsonElement? = null,
+    @SerialName("old_label") val oldLabel: String? = null,
+    @SerialName("new_label") val newLabel: String? = null,
+)
+
+@Serializable
+data class HistoryEntry(
+    val at: String,
+    val kind: String,
+    val action: String,
+    val by: UserSummary? = null,
+    val changes: Map<String, HistoryChange> = emptyMap(),
+)
+
+@Serializable
+data class HistoryPage(val items: List<HistoryEntry>, @SerialName("next_cursor") val nextCursor: String? = null)
 
 /** PATCH /families/{id}: rename a Kutumb (online only; there is no push type for it). */
 @Serializable data class FamilyPatch(val label: String)

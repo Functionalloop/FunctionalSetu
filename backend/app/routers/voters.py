@@ -11,9 +11,11 @@ from sqlalchemy import Connection, text
 
 from ..deps import SURVEY_ROLES, Db, Principal, ReadyUser, require_roles
 from ..errors import ApiError
+from ..history import voter_history
 from ..paging import decode_cursor, encode_cursor, invalid_cursor
 from ..schemas import (Gender, Survey, SurveyFields, SurveyIn, SurveyStatus, VoterDetail, VoterListItem,
                        VoterPage)
+from ..schemas_field import HistoryPage
 from ..scope import Scope, UserScope, require_area
 
 router = APIRouter(prefix="/voters", tags=["voters"])
@@ -175,6 +177,17 @@ def get_voter(voter_id: uuid.UUID, conn: Db, user: ReadyUser, scope: UserScope) 
         v.first_name_mr, v.middle_name_mr, v.last_name_mr, v.first_name_en, v.middle_name_en, v.last_name_en,
         v.age_as_of, v.address_mr, v.address_en, v.list_type, v.deletion_reason, v.is_repeated_in_roll""")
     return VoterDetail(**row, survey=read_survey(conn, voter_id))
+
+
+@router.get("/{voter_id}/history", response_model=HistoryPage,
+            summary="Information Updation: every change to the voter, newest first (survey, Kutumb, visits, "
+                    "voted marks, roll edits, slips), each with who, when and the fields changed. All roles.")
+def get_voter_history(voter_id: uuid.UUID, conn: Db, user: ReadyUser, scope: UserScope,
+                      limit: Annotated[int, Query(ge=1, le=200)] = 50,
+                      cursor: Annotated[str | None, Query(description="next_cursor from the previous page")] = None,
+                      ) -> HistoryPage:
+    voter_in_scope(conn, scope, voter_id)
+    return voter_history(conn, voter_id, limit, cursor)
 
 
 @router.put("/{voter_id}/survey", response_model=Survey,

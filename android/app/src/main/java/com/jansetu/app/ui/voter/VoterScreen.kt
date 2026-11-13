@@ -32,7 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -113,15 +113,17 @@ fun VoterScreen(session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, 
     ) { padding ->
         val v = voter ?: return@Scaffold
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
+            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) {
                 Tab(tab == 0, { tab = 0 }, text = { Text("Details") })
                 Tab(tab == 1, { tab = 1 }, text = { Text("Survey") })
                 Tab(tab == 2, { tab = 2 }, text = { Text("Kutumb Connect", maxLines = 1) })
+                Tab(tab == 3, { tab = 3 }, text = { Text("Information Updation", maxLines = 1) })
             }
             when (tab) {
                 0 -> DetailsTab(v, survey, areas)
                 1 -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
-                else -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen)
+                2 -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen)
+                else -> HistoryTab()
             }
         }
     }

@@ -147,11 +147,18 @@ class NewVoterPage(Page):
 
 # --- history (7.6) -----------------------------------------------------------------------
 class HistoryEntry(BaseModel):
-    at: datetime
-    kind: str = Field(description="survey, visit, voted, roll_edit, family, slip, new_voter_match")
-    action: str = Field(description="insert, update, delete, or the event name")
+    """One change (Information Updation, 7.6)."""
+    at: datetime = Field(description="When it was saved on the server; for a visit, the visit's own time")
+    kind: str = Field(description="survey, family (Kutumb membership), visit, voted, roll_edit, slip; "
+                                  "new_voter_match later (Matching Engine)")
+    action: str = Field(description="insert, update, delete; for a slip, the channel (pdf, print, whatsapp, sms)")
     by: UserSummary | None = Field(description="Null for system changes (roll import)")
-    changes: dict = Field(description="field -> {old, new}; empty when not a field change")
+    changes: dict = Field(description=(
+        "field -> {old, new} with the database column names (e.g. mobile_1, notes, caste_id, family_id, "
+        "is_voted, outcome). An update lists only the fields that changed; an insert or delete lists the "
+        "fields that have a value. Reference fields (caste_id, profession_id, color_tag_id, influencer_type_id, "
+        "karyakarta_id, family_id, ward_id, booth_id, ...) also carry old_label / new_label. "
+        "Empty for a slip, or when only bookkeeping changed."))
 
 
 class HistoryPage(Page):

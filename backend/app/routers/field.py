@@ -1,4 +1,4 @@
-"""Field work (plan step 7): walk list, part notes, visits, new voters, history, slips, birthdays.
+"""Field work (plan step 7): walk list, part notes, slips, birthdays.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -12,7 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response, status
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import BirthdayPage, HistoryPage, PartNote, PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage
+from ..schemas_field import BirthdayPage, PartNote, PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
@@ -41,14 +41,7 @@ def save_part_note(booth_id: uuid.UUID, body: PartNoteIn, conn: Db, user: Survey
     not_built("7.11")
 
 
-# --- history (7.6) ----------------------------------------------------------------------------
-@router.get("/voters/{voter_id}/history", response_model=HistoryPage,
-            summary="Every change to the voter, newest first: survey, visits, voted, roll edits. All roles.")
-def voter_history(voter_id: uuid.UUID, conn: Db, user: ReadyUser, limit: Limit = 50,
-                  cursor: Cursor = None) -> HistoryPage:
-    not_built("7.6")
-
-
+# History (7.6, Information Updation) is in voters.py.
 # --- slips (7.7, 12.2) ------------------------------------------------------------------------
 @router.post("/voters/{voter_id}/slip-events", status_code=status.HTTP_204_NO_CONTENT, response_class=Response,
              summary="Log that a slip was shared or printed. A repeat id is stored once. All roles.")

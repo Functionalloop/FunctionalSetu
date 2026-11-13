@@ -31,7 +31,7 @@ from app.routers.families import booth_families, get_voter_family, write_new_fam
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
-from app.routers.voters import list_voters, save_survey  # noqa: E402
+from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
 from app.schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, VisitIn  # noqa: E402
 from app.scope import load_scope  # noqa: E402
@@ -306,6 +306,16 @@ def main() -> None:
             report(n1 == n2 and saved.version == 2 and stale == 409 and nb.id in {x.id for x in listed.items}
                    and seen == {nb.id}, "new voter added twice stored once; stale edit 409; in the delta pull",
                    f"{ms:.0f} ms")
+
+            # Information Updation (7.6): the moved voter's two Kutumb changes and the visit, each with who
+            hist, ms = timed(lambda: get_voter_history(members[0], conn, surveyor, s_srv, 50, None))
+            kinds = [h.kind for h in hist.items]
+            report(kinds[:2] == ["family", "family"] and "visit" in kinds and all(h.by for h in hist.items[:2]),
+                   "history lists the Kutumb changes and the visit with who", f"{len(kinds)} entries, {ms:.0f} ms")
+            pushed = batch[0].entity_id
+            hist, ms = timed(lambda: get_voter_history(pushed, conn, admin, s_admin, 50, None))
+            report([h.kind for h in hist.items][:1] == ["survey"] and "notes" in hist.items[0].changes,
+                   "history shows a pushed survey with its fields", f"{ms:.0f} ms")
         finally:
             trans.rollback()
 

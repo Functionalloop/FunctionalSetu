@@ -1532,6 +1532,134 @@
         }
       }
     },
+    "/api/v1/voters/{voter_id}/history": {
+      "get": {
+        "tags": [
+          "voters"
+        ],
+        "summary": "Information Updation: every change to the voter, newest first (survey, Kutumb, visits, voted marks, roll edits, slips), each with who, when and the fields changed. All roles.",
+        "operationId": "get_voter_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voters/{voter_id}/survey": {
       "put": {
         "tags": [
@@ -3536,144 +3664,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PartNote"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voters/{voter_id}/history": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Every change to the voter, newest first: survey, visits, voted, roll edits. All roles.",
-        "operationId": "voter_history",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage"
                 }
               }
             }
@@ -15018,17 +15008,18 @@
           "at": {
             "type": "string",
             "format": "date-time",
-            "title": "At"
+            "title": "At",
+            "description": "When it was saved on the server; for a visit, the visit's own time"
           },
           "kind": {
             "type": "string",
             "title": "Kind",
-            "description": "survey, visit, voted, roll_edit, family, slip, new_voter_match"
+            "description": "survey, family (Kutumb membership), visit, voted, roll_edit, slip; new_voter_match later (Matching Engine)"
           },
           "action": {
             "type": "string",
             "title": "Action",
-            "description": "insert, update, delete, or the event name"
+            "description": "insert, update, delete; for a slip, the channel (pdf, print, whatsapp, sms)"
           },
           "by": {
             "anyOf": [
@@ -15045,7 +15036,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Changes",
-            "description": "field -> {old, new}; empty when not a field change"
+            "description": "field -> {old, new} with the database column names (e.g. mobile_1, notes, caste_id, family_id, is_voted, outcome). An update lists only the fields that changed; an insert or delete lists the fields that have a value. Reference fields (caste_id, profession_id, color_tag_id, influencer_type_id, karyakarta_id, family_id, ward_id, booth_id, ...) also carry old_label / new_label. Empty for a slip, or when only bookkeeping changed."
           }
         },
         "type": "object",
@@ -15056,7 +15047,8 @@
           "by",
           "changes"
         ],
-        "title": "HistoryEntry"
+        "title": "HistoryEntry",
+        "description": "One change (Information Updation, 7.6)."
       },
       "HistoryPage": {
         "properties": {
