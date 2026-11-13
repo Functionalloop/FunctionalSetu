@@ -63,7 +63,10 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 
 ## APK publishing (6.3)
 
-1. Build the **signed release** APK (`gradlew assembleRelease`; needs `android/keystore.properties` and the `.jks`, not made yet). Raise `versionCode` first.
+Published: **0.1.0** (versionCode 1, required) on 13 Nov, `/download/jansetu-0.1.0.apk`, 34 MB, SHA-256 `1566ae7a…22806`. `/app/version` answers it without a token; the download through Caddy matched the hash.
+
+
+1. Build the **signed release** APK (`gradlew assembleRelease`; key and settings: `context/android.md`, Release build). Raise `versionCode` first.
 2. Copy it into `deploy/apk/` with its version in the name (server: `scp app-release.apk deploy@50.6.44.108:/srv/jansetu/deploy/apk/jansetu-0.2.0.apk`), plus `output-metadata.json` from the same build folder, renamed entries matching.
 3. `docker compose -f deploy/docker-compose.yml run --rm ops python scripts/publish_apk.py deploy/apk/jansetu-0.2.0.apk [--version-code N --version-name X] [--required] [--notes-en ...]`
 4. Check `https://myjansetu.com/api/v1/app/version` and download `apk_url` on a phone.
