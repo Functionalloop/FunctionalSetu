@@ -1,7 +1,11 @@
 package com.jansetu.app.ui.search
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -32,17 +37,21 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.jansetu.app.data.OutboxRepository
 import com.jansetu.app.data.local.LocalDb
+import com.jansetu.app.data.sync.SyncScheduler
 import com.jansetu.app.data.local.VoterFilter
 import com.jansetu.app.data.local.VoterQuery
 import com.jansetu.app.data.local.VoterRow
@@ -61,13 +70,18 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val PAGE = 100
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class SearchViewModel @Inject constructor(local: LocalDb) : ViewModel() {
+class SearchViewModel @Inject constructor(
+    local: LocalDb,
+    private val outbox: OutboxRepository,
+    private val scheduler: SyncScheduler,
+) : ViewModel() {
     private val dao = local.db.voters()
     val db = local.db
 
@@ -87,10 +101,31 @@ class SearchViewModel @Inject constructor(local: LocalDb) : ViewModel() {
     fun setQuery(q: String) { limit.value = PAGE; filter.value = filter.value.copy(q = q) }
     fun setFilter(f: VoterFilter) { limit.value = PAGE; filter.value = f.copy(q = filter.value.q) }
     fun loadMore() { limit.value += PAGE }
+
+    // --- Select many (7.8) ---
+    /** Ticked voters; null = not selecting. */
+    var selected by mutableStateOf<Set<String>?>(null)
+        private set
+    val colorTags = db.lists().colorTags().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun startSelecting(id: String) { selected = setOf(id) }
+    fun toggle(id: String) { selected = selected?.let { if (id in it) it - id else it + id } }
+    fun selectShown() { selected = (selected ?: emptySet()) + rows.value.map { it.id } }
+    fun stopSelecting() { selected = null }
+
+    /** Sets the tag for every ticked voter; returns how many changed. */
+    suspend fun setTag(tagId: String?): Int {
+        val ids = selected ?: return 0
+        val changed = outbox.setColorTag(ids, tagId)
+        if (changed > 0) scheduler.syncNow()
+        selected = null
+        return changed
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()) {
+fun SearchScreen(onOpen: (String) -> Unit, canTag: Boolean, vm: SearchViewModel = hiltViewModel()) {
     val filter by vm.filter.collectAsStateWithLifecycle()
     val rows by vm.rows.collectAsStateWithLifecycle()
     val count by vm.count.collectAsStateWithLifecycle()
@@ -100,12 +135,30 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
     val nearEnd by remember { derivedStateOf { (list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= rows.size - 10 } }
     LaunchedEffect(nearEnd, rows.size, count) { if (nearEnd && rows.size < count && rows.isNotEmpty()) vm.loadMore() }
 
+    val selected = vm.selected
+    val tags by vm.colorTags.collectAsStateWithLifecycle()
+    var tagging by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    BackHandler(enabled = selected != null) { vm.stopSelecting() }
+    if (tagging && selected != null) ColorTagDialog(selected.size, tags, onDismiss = { tagging = false }, onPick = { t ->
+        tagging = false
+        scope.launch {
+            val n = vm.setTag(t?.id)
+            Toast.makeText(context, "Colour tag set for $n voters. Sent with the next sync.", Toast.LENGTH_LONG).show()
+        }
+    })
+
     if (showFilters) {
         FiltersScreen(vm.db, filter, onApply = { vm.setFilter(it); showFilters = false }, onClose = { showFilters = false })
         return
     }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (selected != null) SelectionBar(
+            selected.size, rows.size, canTag, onSelectShown = vm::selectShown, onTag = { tagging = true },
+            onClose = vm::stopSelecting,
+        )
+        else Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = filter.q, onValueChange = vm::setQuery, singleLine = true,
                 modifier = Modifier.weight(1f),
@@ -126,7 +179,17 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
         if (rows.isEmpty()) EmptyState(if (filter.q.isBlank() && filter.activeFilterCount == 0) "No voters on this phone yet." else "No voter matches.")
         LazyColumn(state = list, modifier = Modifier.fillMaxSize()) {
             items(rows, key = { it.id }) { r ->
-                VoterLine(r, Modifier.clickable { onOpen(r.id) })
+                val ticked = selected?.contains(r.id)
+                VoterLine(
+                    r,
+                    Modifier
+                        .background(if (ticked == true) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .combinedClickable(
+                            onClick = { if (selected != null) vm.toggle(r.id) else onOpen(r.id) },
+                            onLongClick = { if (selected == null) vm.startSelecting(r.id) else vm.toggle(r.id) },
+                        ),
+                    ticked = ticked,
+                )
                 HorizontalDivider()
             }
         }
@@ -134,8 +197,9 @@ fun SearchScreen(onOpen: (String) -> Unit, vm: SearchViewModel = hiltViewModel()
 }
 
 @Composable
-fun VoterLine(r: VoterRow, modifier: Modifier = Modifier) {
+fun VoterLine(r: VoterRow, modifier: Modifier = Modifier, ticked: Boolean? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (ticked != null) Checkbox(checked = ticked, onCheckedChange = null, modifier = Modifier.padding(end = 8.dp))
         Box(
             Modifier.size(12.dp).clip(CircleShape)
                 .background(r.colorHex?.let { parseHex(it) } ?: Color.Transparent),

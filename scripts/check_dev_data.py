@@ -14,6 +14,7 @@ import argparse
 import sys
 import time
 import uuid
+from datetime import date
 from collections.abc import Callable
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from app.config import get_settings  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
+from app.routers.birthdays import birthdays  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
@@ -326,6 +328,21 @@ def main() -> None:
             n = conn.execute(text("SELECT count(*) FROM app.slip_events WHERE client_mutation_id = :id"),
                              {"id": se.id}).scalar()
             report(n == 1, "slip shared twice is logged once", f"{ms:.0f} ms")
+
+            # Birthdays (7.8): a whole year as the admin, page by page, equals a direct count
+            seen, cursor, pages = 0, None, 0
+            _, ms = timed(lambda: birthdays(conn, admin, s_admin, date(2026, 3, 1), date(2027, 2, 28), None, 200, None))
+            while True:
+                page = birthdays(conn, admin, s_admin, date(2026, 3, 1), date(2027, 2, 28), None, 200, cursor)
+                seen += len(page.items)
+                pages += 1
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            direct = conn.execute(text("SELECT count(*) FROM app.voter_surveys s JOIN app.voters v ON v.id = s.voter_id "
+                                       "WHERE s.dob IS NOT NULL AND v.deleted_at IS NULL")).scalar()
+            report(seen == direct, "birthdays over a whole year = voters with a date of birth",
+                   f"{seen} in {pages} pages, first page {ms:.0f} ms")
         finally:
             trans.rollback()
 

@@ -1,4 +1,4 @@
-"""Field work (plan step 7): walk list, part notes, slips, birthdays.
+"""Field work (plan step 7): walk list, part notes, the server-drawn slip.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -6,13 +6,12 @@ Contract only (4.10): every route answers 501 until its task is built. See app/s
 from __future__ import annotations
 
 import uuid
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import BirthdayPage, PartNote, PartNoteIn, VisitOutcome, WalkListPage
+from ..schemas_field import PartNote, PartNoteIn, VisitOutcome, WalkListPage
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
@@ -54,9 +53,4 @@ def voter_slip(voter_id: uuid.UUID, conn: Db, user: ReadyUser,
     not_built("12.2")
 
 
-# --- birthdays (7.8) --------------------------------------------------------------------------
-@router.get("/birthdays", response_model=BirthdayPage,
-            summary="Voters in the user's area with a birthday between two dates (day and month). All roles.")
-def birthdays(conn: Db, user: ReadyUser, date_from: date, date_to: date | None = None,
-              booth_id: uuid.UUID | None = None, limit: Limit = 50, cursor: Cursor = None) -> BirthdayPage:
-    not_built("7.8")
+# GET /birthdays (7.8) is in birthdays.py.

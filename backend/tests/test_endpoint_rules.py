@@ -109,6 +109,8 @@ def call(world: World, ep: Endpoint, token: dict | None, target_id=None, params=
     headers = {"Authorization": raw_auth} if raw_auth else (bearer(token) if token else {})
     if params is None and ep.stub:
         params = QUERY_SAMPLES.get(ep.path)
+    if ep.query:
+        params = {**ep.query, **(params or {})}
     return world.client.request(ep.method, API_PREFIX + fill_path(ep, target_id), headers=headers, params=params,
                                 json=body(world, ep))
 
@@ -269,7 +271,7 @@ def test_list_holds_only_own_records(world, ep, role):
     while True:
         r = call(world, ep, world.tokens[role], params={"limit": 200, **({"cursor": cursor} if cursor else {})})
         assert r.status_code == 200, r.text
-        seen |= {uuid.UUID(i["id"]) for i in r.json()["items"]}
+        seen |= {uuid.UUID(i[ep.item_id]) for i in r.json()["items"]}
         cursor = r.json().get("next_cursor")
         if not cursor:
             break

@@ -16,6 +16,8 @@ Row fields:
   works        False: skip the "allowed role succeeds" check (covered in the endpoint's own tests)
   fresh_login  the call ends the session (logout): use a new login for the success check
   wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
+  query        query parameters sent with every call (required ones, e.g. date_from)
+  item_id      the key of a list item that holds the record's id (default "id")
   stub         contract only (4.10): an allowed role reaches it and gets 501 not_implemented (or 422 when
                the row has no sample body). Building it: drop `stub`, add `target` / `lists` and its own tests.
 """
@@ -50,6 +52,8 @@ class Endpoint:
     fresh_login: bool = False
     wipe_on_block: bool = False
     stub: bool = False
+    query: dict[str, Any] = field(default_factory=dict)
+    item_id: str = "id"
 
     @property
     def label(self) -> str:
@@ -102,6 +106,9 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
     # Information Updation (7.6); behaviour: test_history.py
     Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # birthdays (7.8); behaviour: test_birthdays.py
+    Endpoint("GET", "/birthdays", lists="voter_birthday", area_params=("booth_id",), item_id="voter_id",
+             query={"date_from": "2026-01-01", "date_to": "2026-12-31"}),
     # voter slips (7.7); behaviour: test_slips.py
     Endpoint("POST", "/voters/{voter_id}/slip-events", target="voter",
              body=lambda w: {"id": str(uuid.uuid4()), "channel": "whatsapp", "at": "2026-11-13T10:00:00Z"}),
@@ -115,7 +122,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
-    ("GET", "/birthdays", ALL, "ready"),
     # More menu (7.9)
     ("GET", "/terms/current", ALL, "public"),
     ("POST", "/terms/accept", ALL, "active"),
@@ -186,7 +192,6 @@ ENDPOINTS: list[Endpoint] = [
 PATH_SAMPLES = {"row_id": "1", "field_key": "extra_check_1", "kind": "birthday"}
 # Required query parameters of stub routes, so a call is well-formed.
 QUERY_SAMPLES = {"/families": {"booth_id": str(uuid.UUID(int=1))},
-                 "/birthdays": {"date_from": "2026-11-01"},
                  "/reports/worker-activity": {"date_from": "2026-11-01", "date_to": "2026-11-02"},
                  "/worker-locations": {"date_from": "2026-11-01", "date_to": "2026-11-02"}}
 
@@ -272,6 +277,15 @@ def _new_voter_state(world, new_voter_id: uuid.UUID):
                               (new_voter_id,)).fetchone()
 
 
+def _make_voter_birthday(world, where: str) -> uuid.UUID:
+    """A voter whose survey has a date of birth (birthdays come from the survey)."""
+    vid = _make_voter(world, where)
+    tenant = world.place(where)[0]
+    world.conn.execute("INSERT INTO app.voter_surveys (voter_id, tenant_id, dob) VALUES (%s, %s, '1980-06-15')",
+                       (vid, tenant))
+    return vid
+
+
 def _booth(world, where: str) -> uuid.UUID:
     return world.place(where)[3]
 
@@ -282,4 +296,5 @@ KINDS: dict[str, Kind] = {
     "family": Kind(_make_family, _family_state),
     "booth": Kind(_booth),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
+    "voter_birthday": Kind(_make_voter_birthday),
 }

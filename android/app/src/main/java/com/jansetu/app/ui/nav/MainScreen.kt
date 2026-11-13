@@ -33,6 +33,7 @@ import com.jansetu.app.data.Session
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PhonesScreen
 import com.jansetu.app.ui.home.HomeScreen
+import com.jansetu.app.ui.birthdays.BirthdaysScreen
 import com.jansetu.app.ui.home.MoreScreen
 import com.jansetu.app.ui.newvoter.NewVoterFormScreen
 import com.jansetu.app.ui.newvoter.NewVoterListScreen
@@ -95,12 +96,15 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") {
                 HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } },
-                    onSync = { nav.navigate("sync") }, onNewVoters = { nav.navigate("newvoters") })
+                    onSync = { nav.navigate("sync") }, onNewVoters = { nav.navigate("newvoters") },
+                    onBirthdays = { nav.navigate("birthdays") })
             }
-            composable("search") { SearchScreen(onOpen = nav::openVoter) }
+            composable("search") { SearchScreen(onOpen = nav::openVoter, canTag = session.canSurvey) }
+            composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
-            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") }) }
+            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
+                    onBirthdays = { nav.navigate("birthdays") }) }
             composable("newvoters") {
                 NewVoterListScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate("newvoter/$it") },
                     onAdd = { nav.navigate("newvoter/new") })

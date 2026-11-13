@@ -30,6 +30,7 @@ import com.jansetu.app.BuildConfig
 import com.jansetu.app.data.Session
 import com.jansetu.app.ui.newvoter.ENR_TITLE
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Cake
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PHONE_ADMIN_ROLES
@@ -45,7 +46,10 @@ class MoreViewModel @Inject constructor(private val repo: SessionRepository, loc
 
 /** Shell for the More menu; later steps add their items here (polling day, admin, reports). */
 @Composable
-fun MoreScreen(session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, vm: MoreViewModel = hiltViewModel()) {
+fun MoreScreen(
+    session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
+    vm: MoreViewModel = hiltViewModel(),
+) {
     val unsent by vm.unsent.collectAsStateWithLifecycle(0)
     var confirm by remember { mutableStateOf(false) }
 
@@ -54,6 +58,13 @@ fun MoreScreen(session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, 
             headlineContent = { Text(session.user.fullNameEn) },
             supportingContent = { Text("${session.user.username} · ${roleLabel(session.user.role)} · ${session.workspace.nameEn}") },
             leadingContent = { Icon(Icons.Default.Person, null) },
+        )
+        HorizontalDivider()
+        ListItem(
+            headlineContent = { Text("Birthdays") },
+            supportingContent = { Text("The next 7 days, from the date of birth in the survey") },
+            leadingContent = { Icon(Icons.Default.Cake, null) },
+            modifier = Modifier.clickable(onClick = onBirthdays),
         )
         HorizontalDivider()
         if (session.canSurvey) { // survey roles, as on the server (7.5)

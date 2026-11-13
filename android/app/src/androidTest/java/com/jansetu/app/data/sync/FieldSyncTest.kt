@@ -108,6 +108,8 @@ class FieldSyncTest {
                 "house_no":"${v.first { it.id == entity }.houseNo}","outcome":"${data.str("outcome")}",
                 "visited_at":"2026-11-13T10:00:00.000000Z","revisit_at":null,"note":null,"visited_by":"$user","lat":null,"lng":null}"""
             "slip_event" -> return """{"id":"$id","status":"applied","duplicate":false}"""
+            "survey" -> """"survey":{"voter_id":"$entity","color_tag_id":${data.str("color_tag_id")?.let { "\"$it\"" }},
+                "version":1,"is_surveyed":true,"updated_at":"2026-11-13T10:00:01Z"}"""
             else -> error("unexpected type")
         }
         return """{"id":"$id","status":"applied","duplicate":false,$stored}"""
@@ -273,5 +275,34 @@ class FieldSyncTest {
         val bmp = com.jansetu.app.ui.slip.drawSlip(content)
         assertEquals(1080, bmp.width)
         assertTrue(bmp.height in 500..2500)
+    }
+
+    @Test fun taggingFiftyVotersMakesFiftyItemsAndOnePush() = runBlocking {
+        val many = (100 until 150).map { FakeVoters.voter(it).copy(serialNo = it) }
+        mem.voters().savePulledVoters(many, emptyList())
+        val outbox = com.jansetu.app.data.OutboxRepository(local)
+        mem.voters().saveLocalSurvey(com.jansetu.app.data.local.SurveyEntity(voterId = many[0].id, notes = "keep me", version = 3))
+
+        assertEquals(50, outbox.setColorTag(many.map { it.id }, "tag-green"))
+        assertEquals(50, queued().size)
+        assertEquals(0, outbox.setColorTag(many.map { it.id }, "tag-green")) // already that tag: nothing new
+        val first = ApiJson.parseToJsonElement(queued().first { it.entityId == many[0].id }.data).jsonObject
+        assertEquals("keep me", first.str("notes")) // the whole survey goes up, so nothing is cleared
+        assertEquals(3, queued().first { it.entityId == many[0].id }.baseVersion)
+
+        val requests = server.requestCount
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals("one push request", 1, server.requestCount - requests)
+        assertEquals(50, pushed.count { it.str("type") == "survey" })
+        assertTrue(queued().isEmpty())
+        assertEquals("tag-green", mem.voters().survey(many[1].id)!!.colorTagId)
+    }
+
+    @Test fun birthdaysComeFromTheSurveyDateOfBirth() = runBlocking {
+        mem.voters().saveLocalSurvey(com.jansetu.app.data.local.SurveyEntity(voterId = v[0].id, dob = "1980-11-13"))
+        mem.voters().saveLocalSurvey(com.jansetu.app.data.local.SurveyEntity(voterId = v[1].id, dob = "1984-02-29"))
+        mem.voters().saveLocalSurvey(com.jansetu.app.data.local.SurveyEntity(voterId = v[2].id))
+        assertEquals(listOf(v[0].id), mem.voters().birthdays(listOf("11-13", "11-14")).map { it.id })
+        assertEquals(listOf(v[1].id), mem.voters().birthdays(listOf("02-28", "02-29")).map { it.id })
     }
 }
