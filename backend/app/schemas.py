@@ -410,6 +410,25 @@ class SyncArea(Area):
     sort_order: int
 
 
+class SyncFamily(BaseModel):
+    """A Kutumb in the sync pull (7.2). Its members come separately in `family_members`."""
+    id: uuid.UUID
+    ward_id: uuid.UUID
+    booth_id: uuid.UUID | None
+    house_no: str | None
+    label: str | None
+    source: str
+    updated_at: datetime
+    deleted_at: datetime | None = Field(description="Set when the Kutumb was deleted: delete it on the phone")
+
+
+class SyncFamilyMember(BaseModel):
+    """Which Kutumb a voter is in (7.2). family_id null = taken out of their Kutumb."""
+    voter_id: uuid.UUID
+    family_id: uuid.UUID | None
+    updated_at: datetime
+
+
 class SyncVoter(BaseModel):
     """Official roll fields of one voter (the survey comes separately in `surveys`)."""
     id: uuid.UUID
@@ -499,11 +518,16 @@ class SyncPage(BaseModel):
     area_ids: list[uuid.UUID] | None = Field(None, description="Page 1 only: ids of all the user's areas now")
     total_voters: int | None = Field(None, description="Page 1 only: voters this pull will send (progress bar)")
     total_surveys: int | None = Field(None, description="Page 1 only: surveys this pull will send")
+    total_families: int | None = Field(None, description="Page 1 only: Kutumbs this pull will send")
     voters: list[SyncVoter] = Field(default_factory=list)
     surveys: list[Survey] = Field(default_factory=list)
     gone_voter_ids: list[uuid.UUID] = Field(default_factory=list, description=(
         "Delta only: voters that changed and are now outside the user's area; delete them on the phone"))
-    families: list[dict] = Field(default_factory=list, description="Family rows (schema Family); from step 7.2")
+    families: list[SyncFamily] = Field(default_factory=list, description=(
+        "Kutumbs of the user's booths (first download: not deleted; delta: changed since `since`)"))
+    family_members: list[SyncFamilyMember] = Field(default_factory=list, description=(
+        "Kutumb membership of voters in the area (first download: voters in a Kutumb; delta: changed since "
+        "`since`, family_id null = taken out). Replace by voter_id"))
     visits: list[dict] = Field(default_factory=list, description="Visit rows (schema Visit); from step 7.3")
     new_voters: list[dict] = Field(default_factory=list, description="NewVoter rows; from step 7.5")
     turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
@@ -519,9 +543,10 @@ class PushType(StrEnum):
     new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
     family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
     without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
-    Only `survey` is built; the others come with plan steps 7 and 8. Until then an item of
-    those types is rejected with not_implemented and NOT recorded, so a retry after the server
-    update applies it."""
+    Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
+    the last change wins). The others come with plan steps 7 and 8. Until then an item of those
+    types is rejected with not_implemented and NOT recorded, so a retry after the server update
+    applies it."""
     survey = "survey"
     visit = "visit"
     voted = "voted"
@@ -543,11 +568,14 @@ class PushStatus(StrEnum):
 class PushItem(BaseModel):
     id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
     type: PushType
-    entity_id: uuid.UUID = Field(description="survey: the voter id")
-    base_version: int = Field(ge=0, description="survey: the version the phone last had; 0 = no survey yet")
+    entity_id: uuid.UUID = Field(description="survey, family: the voter id; family_new: the Kutumb's id")
+    base_version: int = Field(ge=0, description=(
+        "survey: the version the phone last had; 0 = no survey yet. family_new, family: 0"))
     changed_at: datetime | None = Field(None, description="When the change was made on the phone")
     data: dict = Field(description=(
         "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
+        "family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). "
+        "family: PUT /voters/{id}/family body (FamilyChange). "
         "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
 
 
@@ -567,6 +595,10 @@ class PushResult(BaseModel):
     error: PushError | None = Field(None, description="rejected only")
     survey: Survey | None = Field(None, description=(
         "applied: the saved copy (new version); conflict: the server copy"))
+    family: SyncFamily | None = Field(None, description="family_new, applied: the Kutumb as stored")
+    family_member: SyncFamilyMember | None = Field(None, description=(
+        "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the "
+        "voter was never in one)"))
     conflict_fields: list[str] = Field(default_factory=list, description="conflict: fields that differ")
 
 

@@ -187,7 +187,7 @@ def _c(*key) -> str:
     _c(["voters"], None, "10", "x1"),                  # bad since
     _c([], None, "10", None),                          # no phase left
     _c("voters", None, "10", None),                    # phases not a list
-    _c(["families"], None, "10", None),                # unknown phase
+    _c(["visits"], None, "10", None),                  # unknown phase
     _c(["gone"], None, "10", None),                    # gone only exists on a delta pull
     _c(["voters"], "not-a-uuid", "10", None),          # bad id
 ])

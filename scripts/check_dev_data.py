@@ -222,6 +222,7 @@ def main() -> None:
             members = list(conn.execute(text("SELECT id FROM app.voters WHERE booth_id = :b AND deleted_at IS NULL "
                                              "ORDER BY serial_no LIMIT 6"), {"b": booth}).scalars())
             fa, fb = uuid.uuid4(), uuid.uuid4()
+            w_fam = current_watermark(conn)
             write_new_family(conn, surveyor, s_srv, FamilyIn(id=fa, booth_id=booth, label="Check A"))
             write_new_family(conn, surveyor, s_srv, FamilyIn(id=fb, booth_id=booth, label="Check B"))
             versions = dict(conn.execute(text("SELECT voter_id, version FROM app.voter_surveys WHERE voter_id = ANY(:m)"),
@@ -240,6 +241,25 @@ def main() -> None:
                                         {"m": members}).all())
             report(after_v == versions, "Kutumb changes leave survey versions and rows alone",
                    f"{len(versions)} surveyed of {len(members)}")
+            fams, mems, cursor = set(), {}, None
+            while True:  # the surveyor's delta pull since just before the Kutumb writes
+                page = pull_page(conn, s_srv, w_fam, cursor, 1000)
+                fams |= {f.id for f in page.families}
+                mems.update({m.voter_id: m.family_id for m in page.family_members})
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            expect = {members[0]: fb, members[1]: None, **{v: fa for v in members[2:5]}}
+            report(fams == {fa, fb} and mems == expect, "delta pull brings the 2 Kutumbs and 5 member rows",
+                   f"{len(fams)} Kutumbs, {len(mems)} members")
+            first_fams, cursor = set(), None
+            while True:  # first download of the surveyor: the 2 Kutumbs of their part
+                page = pull_page(conn, s_srv, None, cursor, 1000)
+                first_fams |= {f.id for f in page.families}
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            report({fa, fb} <= first_fams, "first download has the part's Kutumbs", f"{len(first_fams)} Kutumbs")
         finally:
             trans.rollback()
 

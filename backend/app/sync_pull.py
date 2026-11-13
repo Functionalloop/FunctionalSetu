@@ -5,6 +5,9 @@ Then phases, each keyset-paged by id:
     voters    first download: every voter in the area (removed ones left out)
               delta: voters in the area with sync_xid >= since, removed ones included (deleted_at set)
     surveys   surveys of voters in the area (delta: sync_xid >= since)
+    families  Kutumbs whose booth is in the area (first: not deleted; delta: sync_xid >= since, deleted included)
+    members   family_members of voters in the area (first: in a Kutumb; delta: sync_xid >= since, also the
+              rows with family_id null = taken out)
     gone      delta only: ids of voters changed since W that are now outside the area
 W' is taken once, on page 1, and carried in the cursor with `since`, so every page of one pull
 returns the same W'. Later pages run in later transactions and see everything committed up to
@@ -22,19 +25,21 @@ from sqlalchemy import Connection, text
 
 from .paging import decode_cursor, encode_cursor, invalid_cursor
 from .routers.voters import SURVEY_COLUMNS
-from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, Survey, SyncArea, SyncLists, SyncPage,
-                      SyncVoter)
+from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, Survey, SyncArea, SyncFamily, SyncFamilyMember,
+                      SyncLists, SyncPage, SyncVoter)
 from .scope import Scope
 from .workspace_settings import load_workspace_settings
 
-FIRST_PHASES = ("voters", "surveys")
-DELTA_PHASES = ("voters", "surveys", "gone")
+FIRST_PHASES = ("voters", "surveys", "families", "members")
+DELTA_PHASES = ("voters", "surveys", "families", "members", "gone")
 WATERMARK_PATTERN = r"^[0-9]{1,20}$"
 _WATERMARK_RE = re.compile(WATERMARK_PATTERN)
 
 VOTER_COLS = ", ".join(f"v.{c}" for c in SyncVoter.model_fields)
 SURVEY_COLS = ", ".join(f"s.{c}" for c in SURVEY_COLUMNS)
 _AREA_COLS = ", ".join(f"g.{c}" for c in SyncArea.model_fields)
+FAMILY_COLS = ", ".join(f"f.{c}" for c in SyncFamily.model_fields)
+MEMBER_COLS = ", ".join(f"m.{c}" for c in SyncFamilyMember.model_fields)
 _NAMED = "id, name_mr, name_en, name_hi, sort_order, is_active"
 
 
@@ -83,24 +88,17 @@ def _first_page(conn: Connection, scope: Scope, since: str | None) -> SyncPage:
          ORDER BY nlevel(g.path), g.sort_order, g.number NULLS LAST, g.code
     """, {**gparams, "since": since})
 
-    vcond, vparams = scope.filter("v.geo_path")
-    vparams["since"] = since
-    voters_where = f"v.deleted_at IS NULL AND {vcond}" if since is None else f"{_changed('v', since)} AND {vcond}"
-    total_voters = conn.execute(text(f"SELECT count(*) FROM app.voters v WHERE {voters_where}"), vparams).scalar_one()
-    total_surveys = conn.execute(text(f"""
-        SELECT count(*) FROM app.voter_surveys s JOIN app.voters v ON v.tenant_id = s.tenant_id AND v.id = s.voter_id
-         WHERE v.deleted_at IS NULL AND {_changed('s', since)} AND {vcond}
-    """), vparams).scalar_one()
+    phases = FIRST_PHASES if since is None else DELTA_PHASES
+    todo = {}
+    for p in phases:
+        q = _phase(p, scope, since)
+        todo[p] = conn.execute(text(f"SELECT count(*) FROM {q.source} WHERE {q.where}"), q.params).scalar_one()
 
     settings_changed = since is None or bool(conn.execute(
         text(f"SELECT EXISTS (SELECT 1 FROM app.tenant_settings WHERE {_changed('', since)})"),
         {"since": since}).scalar())
-    phases = FIRST_PHASES if since is None else DELTA_PHASES
     # Only phases that have rows are visited (the cursor carries the list), so an idle delta pull
     # is a single request and a small one is page 1 plus one page per phase with rows.
-    gone = 0 if since is None else conn.execute(text(
-        f"SELECT count(*) FROM app.voters v WHERE {_changed('v', since)} AND NOT ({vcond})"), vparams).scalar_one()
-    todo = {"voters": total_voters, "surveys": total_surveys, "gone": gone}
     with_rows = [p for p in phases if todo[p] > 0]
     return SyncPage(
         watermark=watermark,
@@ -109,7 +107,40 @@ def _first_page(conn: Connection, scope: Scope, since: str | None) -> SyncPage:
         lists=load_lists(conn, since),
         areas=[SyncArea(**{k: v for k, v in a.items() if k != "changed"}) for a in areas if a["changed"]],
         area_ids=[a["id"] for a in areas],
-        total_voters=total_voters, total_surveys=total_surveys)
+        total_voters=todo["voters"], total_surveys=todo["surveys"], total_families=todo["families"])
+
+
+class _PhaseSql:
+    """FROM and WHERE of one phase, its sort key and the column the cursor keeps."""
+
+    def __init__(self, source: str, where: str, params: dict, key: str, select: str, id_field: str):
+        self.source, self.where, self.params, self.key, self.select, self.id_field = (
+            source, where, params, key, select, id_field)
+
+
+def _phase(phase: str, scope: Scope, since: str | None) -> _PhaseSql:
+    vcond, params = scope.filter("v.geo_path")
+    params["since"] = since
+    with_voter = "JOIN app.voters v ON v.tenant_id = {a}.tenant_id AND v.id = {a}.voter_id"
+    if phase == "voters":
+        where = f"v.deleted_at IS NULL AND {vcond}" if since is None else f"{_changed('v', since)} AND {vcond}"
+        return _PhaseSql("app.voters v", where, params, "v.id", VOTER_COLS, "id")
+    if phase == "surveys":
+        return _PhaseSql(f"app.voter_surveys s {with_voter.format(a='s')}",
+                         f"v.deleted_at IS NULL AND {_changed('s', since)} AND {vcond}", params,
+                         "s.voter_id", SURVEY_COLS, "voter_id")
+    if phase == "families":  # seen through its booth, like GET /booths/{id}/families
+        gcond, gparams = scope.filter("g.path")
+        where = f"f.deleted_at IS NULL AND {gcond}" if since is None else f"{_changed('f', since)} AND {gcond}"
+        return _PhaseSql("app.families f JOIN app.geo_units g ON g.tenant_id = f.tenant_id AND g.id = f.booth_id",
+                         where, {**gparams, "since": since}, "f.id", FAMILY_COLS, "id")
+    if phase == "members":
+        first = "m.family_id IS NOT NULL" if since is None else _changed("m", since)
+        return _PhaseSql(f"app.family_members m {with_voter.format(a='m')}",
+                         f"{first} AND v.deleted_at IS NULL AND {vcond}", params, "m.voter_id", MEMBER_COLS,
+                         "voter_id")
+    # gone: changed since W and now outside the area (ids only)
+    return _PhaseSql("app.voters v", f"{_changed('v', since)} AND NOT ({vcond})", params, "v.id", "v.id", "id")
 
 
 def _cursor(phases_left: list[str], after: str | None, watermark: str, since: str | None) -> str | None:
@@ -139,26 +170,15 @@ def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | N
     phases_left, after, watermark, since = _read_cursor(cursor)
     phase = phases_left[0]
 
-    cond, params = scope.filter("v.geo_path")
-    params.update(after=after, limit=limit + 1, since=since)
-    if phase == "voters":
-        key, select, source = "v.id", VOTER_COLS, "app.voters v"
-        where = f"v.deleted_at IS NULL AND {cond}" if since is None else f"{_changed('v', since)} AND {cond}"
-    elif phase == "surveys":
-        key, select = "s.voter_id", SURVEY_COLS
-        source = "app.voter_surveys s JOIN app.voters v ON v.tenant_id = s.tenant_id AND v.id = s.voter_id"
-        where = f"v.deleted_at IS NULL AND {_changed('s', since)} AND {cond}"
-    else:  # gone: changed since W and now outside the area (ids only)
-        key, select, source = "v.id", "v.id", "app.voters v"
-        where = f"{_changed('v', since)} AND NOT ({cond})"
-    after_sql = f"AND {key} > :after" if after is not None else ""
-    rows = _rows(conn, f"SELECT {select} FROM {source} WHERE {where} {after_sql} ORDER BY {key} LIMIT :limit",
-                 params)
+    q = _phase(phase, scope, since)
+    after_sql = f"AND {q.key} > :after" if after is not None else ""
+    rows = _rows(conn, f"SELECT {q.select} FROM {q.source} WHERE {q.where} {after_sql} ORDER BY {q.key} LIMIT :limit",
+                 {**q.params, "after": after, "limit": limit + 1})
 
     more = len(rows) > limit
     rows = rows[:limit]
     if more:
-        last = rows[-1]["voter_id" if phase == "surveys" else "id"]
+        last = rows[-1][q.id_field]
         next_cursor = _cursor(phases_left, str(last), watermark, since)
     else:
         next_cursor = _cursor(phases_left[1:], None, watermark, since)
@@ -168,6 +188,10 @@ def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | N
         page.voters = [SyncVoter(**r) for r in rows]
     elif phase == "surveys":
         page.surveys = [Survey(**r) for r in rows]
+    elif phase == "families":
+        page.families = [SyncFamily(**r) for r in rows]
+    elif phase == "members":
+        page.family_members = [SyncFamilyMember(**r) for r in rows]
     else:
         page.gone_voter_ids = [r["id"] for r in rows]
     return page

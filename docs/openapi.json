@@ -16514,13 +16514,13 @@
             "type": "string",
             "format": "uuid",
             "title": "Entity Id",
-            "description": "survey: the voter id"
+            "description": "survey, family: the voter id; family_new: the Kutumb's id"
           },
           "base_version": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Base Version",
-            "description": "survey: the version the phone last had; 0 = no survey yet"
+            "description": "survey: the version the phone last had; 0 = no survey yet. family_new, family: 0"
           },
           "changed_at": {
             "anyOf": [
@@ -16539,7 +16539,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Data",
-            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
+            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). family: PUT /voters/{id}/family body (FamilyChange). Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
           }
         },
         "type": "object",
@@ -16625,6 +16625,28 @@
             ],
             "description": "applied: the saved copy (new version); conflict: the server copy"
           },
+          "family": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncFamily"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "family_new, applied: the Kutumb as stored"
+          },
+          "family_member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncFamilyMember"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the voter was never in one)"
+          },
           "conflict_fields": {
             "items": {
               "type": "string"
@@ -16666,7 +16688,7 @@
           "slip_event"
         ],
         "title": "PushType",
-        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nOnly `survey` is built; the others come with plan steps 7 and 8. Until then an item of\nthose types is rejected with not_implemented and NOT recorded, so a retry after the server\nupdate applies it."
+        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
       },
       "RationCard": {
         "type": "string",
@@ -18154,6 +18176,123 @@
         ],
         "title": "SyncArea"
       },
+      "SyncFamily": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ward Id"
+          },
+          "booth_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booth Id"
+          },
+          "house_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House No"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Set when the Kutumb was deleted: delete it on the phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ward_id",
+          "booth_id",
+          "house_no",
+          "label",
+          "source",
+          "updated_at",
+          "deleted_at"
+        ],
+        "title": "SyncFamily",
+        "description": "A Kutumb in the sync pull (7.2). Its members come separately in `family_members`."
+      },
+      "SyncFamilyMember": {
+        "properties": {
+          "voter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Voter Id"
+          },
+          "family_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family Id"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voter_id",
+          "family_id",
+          "updated_at"
+        ],
+        "title": "SyncFamilyMember",
+        "description": "Which Kutumb a voter is in (7.2). family_id null = taken out of their Kutumb."
+      },
       "SyncLists": {
         "properties": {
           "castes": {
@@ -18296,6 +18435,18 @@
             "title": "Total Surveys",
             "description": "Page 1 only: surveys this pull will send"
           },
+          "total_families": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Families",
+            "description": "Page 1 only: Kutumbs this pull will send"
+          },
           "voters": {
             "items": {
               "$ref": "#/components/schemas/SyncVoter"
@@ -18321,12 +18472,19 @@
           },
           "families": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/SyncFamily"
             },
             "type": "array",
             "title": "Families",
-            "description": "Family rows (schema Family); from step 7.2"
+            "description": "Kutumbs of the user's booths (first download: not deleted; delta: changed since `since`)"
+          },
+          "family_members": {
+            "items": {
+              "$ref": "#/components/schemas/SyncFamilyMember"
+            },
+            "type": "array",
+            "title": "Family Members",
+            "description": "Kutumb membership of voters in the area (first download: voters in a Kutumb; delta: changed since `since`, family_id null = taken out). Replace by voter_id"
           },
           "visits": {
             "items": {
