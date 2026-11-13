@@ -21,7 +21,7 @@ The web portal (React + TypeScript + Vite, TanStack Query) is the teammate's par
 ## What the portal needs from the server (not built)
 
 - CORS: `CORS_ORIGINS` in `deploy/.env` (dev: `http://localhost:5173`); only the portal domain in production (12.7).
-- Caddy serves the portal build (9.9).
+- Caddy serves the portal build at the domain root (6.8, before the demo; was 9.9). Same origin as the API, so production needs no CORS entry.
 - Login: super admin / admin / supervisor log in without a phone (`device` left out).
 
 ## Screens and endpoints

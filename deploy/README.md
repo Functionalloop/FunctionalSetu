@@ -68,6 +68,7 @@ curl -s https://myjansetu.com/api/v1/health
 | Restore check of a dump | `scripts/restore.sh /var/backups/jansetu/<file>.dump` |
 | Backup log | `tail /var/log/jansetu/backup.log` |
 | Create a super admin | `docker compose -f deploy/docker-compose.yml run --rm ops python scripts/create_super_admin.py --username ... --name "..."` |
+| New temporary password for a super admin (ends their sessions, phones back to pending) | `docker compose -f deploy/docker-compose.yml run --rm ops python scripts/create_super_admin.py --username ... --reset` |
 | Publish an APK | see `context/deploy.md`, "APK publishing" |
 | Disk space | `df -h /` and `docker system df` |
 | Remove old images after updates | `docker image prune -f` |

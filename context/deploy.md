@@ -4,14 +4,14 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 
 ## Server (decided 13 Nov)
 
-- **Bluehost VPS**, replaces the Hostinger KVM 4 of the SRS: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, monthly ₹1,504. No India region. Logged in `docs/change_log.md` (13 Nov); the client still has to agree to data outside India and to 100 GB.
+- **Bluehost VPS**, replaces the Hostinger KVM 4 of the SRS: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, monthly ₹1,504. No India region. Logged in `docs/change_log.md` (13 Nov); the client was told on 13 Nov (data outside India, 100 GB).
 - Bluehost names the key "FunctionalServer"; on the laptop it is `~/.ssh/id_ed25519`.
 - Checked in the Bluehost panel 13 Nov: no snapshots or backups (switched off when ordering), no panel firewall (ufw on the server is the only one). Phone on mobile data: `/health` ok, no certificate warning.
 - So until 12.5 (office computer pulls the dumps) every backup lives only on this server: losing the VPS loses them too. Copy a dump to the laptop by hand after important data changes (`scp deploy@50.6.44.108:/var/backups/jansetu/<file>.dump jansetu-private/backups/`).
 - Set up 13 Nov with `deploy/server_setup.sh` and `deploy/make_env.sh` (see `deploy/README.md`): Docker 29.9 + compose v5.7 from Docker's apt repo, ufw (22, 80, 443 tcp, 443 udp), unattended security upgrades, Docker log limit 10 MB x 5, cron + logrotate (not in Bluehost's minimal image). Code in `/srv/jansetu` (copied with `git archive`, no git on the server), server `.env` there (mode 600, passwords generated on the server, never copied off). Server clock UTC.
 - Tested 13 Nov: HTTPS with a Let's Encrypt certificate for `myjansetu.com` and `www` (www → 301 to the main name, http → 308), `/health` ok, `/app/version` 404 (nothing published), 5432 closed from outside; backup + restore check on the server (47 tables); after `sudo reboot` all containers, ufw and the SSH lockdown came back by themselves.
-- Audit 13 Nov: `backup.sh` run with cron's bare environment (`env -i`, PATH `/usr/bin:/bin`) works; the first real cron run is 21:00 UTC on 13 Nov, check `/var/log/jansetu/backup.log` after it. A reboot is pending for a new kernel (`/var/run/reboot-required`): unattended upgrades install but never reboot (`Automatic-Reboot` is off), so reboot by hand at a quiet time, or switch it on in 12.7. `/api/v1/docs` and `/api/v1/openapi.json` are public until 12.7.
-- For 6.5: the dev database brings 4 users, 3 approved phones, 11 sessions and 3 rehearsal surveys (13 Nov). `restore.sh --live` replaces the whole database, so create or reset users after it, not before; `create_super_admin.py` refuses a user that exists (it needs a reset option).
+- Audit 13 Nov: `backup.sh` run with cron's bare environment (`env -i`, PATH `/usr/bin:/bin`) works; the first real cron run is 21:00 UTC on 13 Nov, check `/var/log/jansetu/backup.log` after it. Unattended upgrades install kernels but never reboot (`Automatic-Reboot` is off): when `/var/run/reboot-required` exists, `sudo systemctl reboot` at a quiet time (done 13 Nov, kernel 6.8.0-149; everything came back by itself), or switch automatic reboots on in 12.7. A reboot from the Bluehost panel did not take effect on 13 Nov; check `uptime` afterwards. `/api/v1/docs` and `/api/v1/openapi.json` are public until 12.7.
+- For 6.5: the dev database brings 4 users, 3 approved phones, 11 sessions and 3 rehearsal surveys (13 Nov). `restore.sh --live` replaces the whole database, so create or reset users after it, not before: `create_super_admin.py --username ... --reset` (new temporary password, sessions ended, phones pending) and `create_demo_users.py --reset`.
 - Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
 
 ## SSH (locked down 13 Nov)
@@ -31,7 +31,7 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 |---|---|
 | `db` | `postgres:16-bookworm`, volume `pgdata`, **no host port**. Memory from `PG_SHARED_BUFFERS` / `PG_EFFECTIVE_CACHE_SIZE` (server 4GB / 10GB, laptop 512MB / 2GB) |
 | `api` | image `jansetu-api` from `backend/Dockerfile`, uvicorn, `API_WORKERS` processes x `DB_POOL_SIZE` (x2 overflow) connections; port 8000 only inside the network. Gets only the app role password and the JWT secret |
-| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; `/download/<name>.apk` → `deploy/apk/`; anything else 404 until the portal (9.9). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
+| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; `/download/<name>.apk` → `deploy/apk/`; anything else 404 until the portal (6.8, before the demo). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
 | `ops` | same image, profile `ops`, for one-off scripts; the only container with the superuser and owner passwords |
 
 Commands (repo root; compose reads `deploy/.env`):

@@ -142,7 +142,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - 50 wards (one per part) are a guess; the client will send which parts belong to which Village Panchayat (task 14.1). AC 2 of Goa is Pernem (SC).
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
 - The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
-- The server is outside India and has 100 GB, not the SRS's India region and 200 GB (`docs/change_log.md`, 13 Nov). The client has not been told yet and should agree in writing.
+- The server is outside India and has 100 GB, not the SRS's India region and 200 GB (`docs/change_log.md`, 13 Nov). The client was told on 13 Nov; work does not wait for a written answer.
 
 Nothing outside the SRS and the client's changes of 12 Nov (`docs/change_log.md`) is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
 

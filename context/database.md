@@ -38,6 +38,7 @@ python scripts/migrate.py [--status]                      # apply pending migrat
 python db/seed/seed.py                                    # FAKE data, workspace "demo" (stops if it exists)
 python scripts/import_roll_parts.py --parts "DIR/S05A02P*.csv" [--dry-run] [--tenant-code naik] [--errors PATH]
 python scripts/create_super_admin.py --username X --name "Full Name"   # prints a one-time temp password
+python scripts/create_super_admin.py --username X --reset              # existing super admin: new temp password, sessions ended, phones pending
 python scripts/create_demo_users.py [--parts 1,2] [--reset | --remove]  # demo.* users; passwords -> jansetu-private/demo_users.txt
 python scripts/export_openapi.py                          # rewrites docs/openapi.json
 python scripts/check_dev_data.py                          # end-of-step check on the real roll (read-only / rolled back)
