@@ -17,6 +17,7 @@ abstract class VoterDao {
 
     @Query("DELETE FROM voters WHERE id IN (:ids)") protected abstract suspend fun deleteVoterRows(ids: List<String>)
     @Query("DELETE FROM surveys WHERE voter_id IN (:ids)") protected abstract suspend fun deleteSurveyRows(ids: List<String>)
+    @Query("DELETE FROM family_members WHERE voter_id IN (:ids)") protected abstract suspend fun deleteMemberRows(ids: List<String>)
     // FTS4 finds a row only by "rowid = ?"; "rowid IN (...)" would scan the whole index each time.
     @Query("DELETE FROM voter_fts WHERE rowid = :rowid") protected abstract suspend fun deleteFtsRow(rowid: Long)
     @Query("SELECT rowid FROM voters WHERE id IN (:ids)") protected abstract suspend fun rowids(ids: List<String>): List<Long>
@@ -80,7 +81,7 @@ abstract class VoterDao {
     @Transaction
     open suspend fun removeVoters(ids: List<String>) {
         ids.chunked(500).forEach {
-            deleteFts(it); deleteSurveyRows(it); deleteVoterRows(it)
+            deleteFts(it); deleteSurveyRows(it); deleteMemberRows(it); deleteVoterRows(it)
         }
     }
 

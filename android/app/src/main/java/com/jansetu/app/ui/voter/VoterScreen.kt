@@ -60,6 +60,7 @@ import com.jansetu.app.data.local.SurveyEntity
 import com.jansetu.app.data.local.VoterEntity
 import com.jansetu.app.data.sync.SyncScheduler
 import com.jansetu.app.ui.common.displayName
+import com.jansetu.app.ui.family.KutumbTab
 import com.jansetu.app.ui.common.genderLabel
 import com.jansetu.app.ui.common.istTime
 import com.jansetu.app.ui.common.nameEn
@@ -96,7 +97,7 @@ class VoterViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoterScreen(session: Session, onBack: () -> Unit, vm: VoterViewModel = hiltViewModel()) {
+fun VoterScreen(session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, vm: VoterViewModel = hiltViewModel()) {
     val voter by vm.voter.collectAsStateWithLifecycle()
     val survey by vm.survey.collectAsStateWithLifecycle()
     val areas by vm.areas.collectAsStateWithLifecycle()
@@ -115,10 +116,12 @@ fun VoterScreen(session: Session, onBack: () -> Unit, vm: VoterViewModel = hiltV
             TabRow(selectedTabIndex = tab) {
                 Tab(tab == 0, { tab = 0 }, text = { Text("Details") })
                 Tab(tab == 1, { tab = 1 }, text = { Text("Survey") })
+                Tab(tab == 2, { tab = 2 }, text = { Text("Kutumb Connect", maxLines = 1) })
             }
             when (tab) {
                 0 -> DetailsTab(v, survey, areas)
-                else -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
+                1 -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
+                else -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen)
             }
         }
     }

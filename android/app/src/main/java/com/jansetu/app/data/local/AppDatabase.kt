@@ -21,10 +21,14 @@ import javax.inject.Singleton
         AreaEntity::class, VoterEntity::class, SurveyEntity::class, VoterFts::class,
         ListEntryEntity::class, ColorTagEntity::class, CustomFieldLabelEntity::class,
         OutboxEntity::class, SyncStateEntity::class,
+        FamilyEntity::class, FamilyMemberEntity::class, VisitEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 2, to = 3, spec = Migration2To3::class)],
+    autoMigrations = [
+        AutoMigration(from = 2, to = 3, spec = Migration2To3::class),
+        AutoMigration(from = 3, to = 4, spec = Migration3To4::class),
+    ],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun voters(): VoterDao
@@ -32,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lists(): ListDao
     abstract fun outbox(): OutboxDao
     abstract fun syncState(): SyncStateDao
+    abstract fun field(): FieldDao
 
     companion object {
         const val NAME = "jansetu.db"
@@ -67,11 +72,23 @@ class Migration2To3 : AutoMigrationSpec {
 }
 
 /**
+ * Version 4 (7.4): Kutumbs, their members and visits. Room adds the three tables. Kutumbs and visits
+ * made before this version came in pull pages the phone did not store (old sync_xid), so a delta pull
+ * would never bring them: the watermark is dropped and the next pull is a full download. It keeps
+ * every local change (pending surveys are not overwritten, the outbox is untouched).
+ */
+class Migration3To4 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DELETE FROM sync_state WHERE key IN ('watermark', 'pull_cursor')")
+    }
+}
+
+/**
  * Opens the encrypted database on first use and can delete it (logout of a blocked phone, wipe).
  * Ask for [db] at the time of use instead of keeping a DAO: after [wipe] a new file is opened.
  */
 @Singleton
-class LocalDb @Inject constructor(
+open class LocalDb @Inject constructor(
     @ApplicationContext private val context: Context,
     private val key: DbKey,
 ) {
@@ -86,7 +103,8 @@ class LocalDb @Inject constructor(
     fun firstSyncDone(): Boolean = meta.getBoolean("first_sync_done", false)
     fun setFirstSyncDone(done: Boolean = true) { meta.edit().putBoolean("first_sync_done", done).commit() }
 
-    val db: AppDatabase
+    // Open so a test can hand in an in-memory database and never touch the app's own file.
+    open val db: AppDatabase
         get() = instance ?: synchronized(this) { instance ?: open().also { instance = it } }
 
     private fun open(): AppDatabase {
@@ -97,7 +115,7 @@ class LocalDb @Inject constructor(
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(passphrase))
             // Version 2 (12 Nov, client's survey fields): no phone held real data on version 1, so its
-            // file is dropped and downloaded again. From version 2 on, real migrations only (2 -> 3 above):
+            // file is dropped and downloaded again. From version 2 on, real migrations only (2 -> 3 -> 4 above):
             // a destructive one would delete unsent changes.
             .fallbackToDestructiveMigrationFrom(1)
             .addCallback(object : RoomDatabase.Callback() {

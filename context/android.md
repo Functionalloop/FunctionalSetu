@@ -9,8 +9,10 @@ cd android
 export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the PATH JDK 24 is too new for Gradle 8.10
 ./gradlew assembleDebug                      # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew testDebugUnitTest                  # JVM tests (API client against MockWebServer)
-./gradlew connectedDebugAndroidTest          # device tests (database, search speed, sync) on a running emulator/phone
+./gradlew connectedDebugAndroidTest          # device tests (database, search speed, sync) on the EMULATOR only
 ```
+
+- On the real phone run single classes (`adb shell am instrument -w -e class <class> com.jansetu.app.debug.test/androidx.test.runner.AndroidJUnitRunner`, `--user 0` on the Samsung), only `MigrationTest` and `FieldSyncTest`: the others (`LocalDbTest`, `FiltersTest`, `SearchSpeedTest`, `SyncRepositoryTest`) call `LocalDb.wipe()`, which deletes the debug app's database and Keystore key. New device tests use an in-memory database (`object : LocalDb(...) { override val db = mem }`, as `FieldSyncTest`).
 
 - `local.properties` (git-ignored): `sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk` (forward slashes: `	` in a properties file is a tab). Since 6.6 a real phone does not need `jansetu.debugApiUrl` there: the debug Login screen has **Server > Change** (type e.g. `192.168.1.7:8000`; `ServerSetting`, own prefs file, survives logout; `ServerAddressInterceptor` rewrites every call). The release build ignores it and always uses `jansetu.releaseApiUrl`.
 - Emulator reaches the laptop's API as `http://10.0.2.2:8000/api/v1/` (debug default). Run the API from `backend/` with the repo `.venv`: `../.venv/Scripts/python -m uvicorn app.main:app --port 8000`.
@@ -26,9 +28,13 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 | `data/SessionStore.kt` | tokens encrypted with a Keystore key; session (user, workspace, device status, first sync done) as JSON |
 | `data/SessionRepository.kt` | login, set password, device status, logout |
 | `data/OutboxRepository.kt` | survey save = local row + outbox item in one transaction |
+| `data/FieldRepository.kt` | 7.4: make a Kutumb (`family_new`), put in / take out (`family`), rename, mark a house (`visit`); local rows + outbox items in one transaction |
+| `data/local/FieldDao.kt` | `families`, `family_members` (only voters in a Kutumb), `visits`; walk-list houses query; pull saving; dropping booths that leave the phone |
+| `ui/family/KutumbTab.kt` | voter screen tab "Kutumb Connect": name (rename), members (Remove), Add a member (search in the same part), New Kutumb / Add to a Kutumb. Read only for booth agents |
+| `ui/walklist/WalkListScreen.kt` | bottom tab "Walk list": pick a part (remembered in `sync_state`), houses by the roll's house number with the last visit; tap a house for its voters and Met / Not home / Come again / Shifted |
 | `data/sync/` | `SyncRepository` (pull/push), `PullWorker` (first download), `SyncWorker` (every 15 min + Sync now), `WipeHandler` |
 | `ui/admin/PhonesScreen.kt` | More > Phones (admin, super admin; 6.8): `GET /devices` by status, approve, block with reason; Waiting list refreshes every 10 s; no Block on your own phone. Needs internet |
-| `ui/nav/AppRoot.kt` | screen chosen from the session: Login → Set password → Waiting for approval → First download → main (Home, Search, Sync, More) |
+| `ui/nav/AppRoot.kt` | screen chosen from the session: Login → Set password → Waiting for approval → First download → main (Home, Search, Walk list, Sync, More) |
 
 ## Decisions
 
@@ -45,6 +51,10 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 - 12 Nov (5.16), 13 Nov (7.13): survey fields of the client's changes on the phone: influencer + searchable type (the client's 11), self help group + name, ration card (AAY / PHH / NPHH); Influencer filter. No Important voter field or position (removed in 7.13). A detail is kept only with its yes (`SurveyForm.applyTo`, and again in `surveyPushData`). Influencer types are `list_entries` kind `influencer_type`. The white tag is inactive on the server, so the phone no longer offers it.
 - 12 Nov: local database version 2 with `fallbackToDestructiveMigrationFrom(1)` (no phone held real data on 1). From version 2 on, write real Room migrations: a destructive one would delete unsent changes.
 - 13 Nov (7.13): version 3 = `AutoMigration(2, 3, Migration2To3)` in `AppDatabase.kt`: `@DeleteColumn` drops `surveys.is_important` / `position_id` (Room rebuilds the table, rows and pending flags kept); `onPostMigrate` deletes `list_entries` of kind `position` and takes the two keys out of every survey outbox item's JSON (the server now refuses them, and a refused item is dropped). Test: `MigrationTest` (`room-testing`, schemas folder added as androidTest assets); passed on the Samsung M35 (13 Nov).
+- 13 Nov (7.4): version 4 = `AutoMigration(3, 4, Migration3To4)`: tables `families`, `family_members`, `visits`, index `voters(booth_id, house_no)`. `onPostMigrate` deletes `watermark` and `pull_cursor`: Kutumbs and visits made before the update came in pull pages the old app did not store, so a delta pull would never bring them; the next sync is a full download (local changes kept). Expect the first sync after the 7.4 update to take as long as the first download.
+- 13 Nov (7.4): Kutumb sync on the phone. A Kutumb is queued (`family_new`, data `{id, booth_id, label}`) before the memberships that name it; `FieldRepository.nextSeq` keeps the order when items share a millisecond. A second membership change of a voter before it is sent deletes the first item and queues a new one at the end (replacing in place could put it before a newer Kutumb). A pulled Kutumb or membership never overwrites one changed on the phone and not sent yet. Refused `family_new` / `visit`: the Kutumb (with its members) or the visit is taken off the phone and the item shows on the Sync screen. A refused `family` item leaves the phone's membership as it is (corrected only when the server's row changes).
+- 13 Nov (7.4): rename: a Kutumb not sent yet is renamed in its queued item; otherwise `PATCH /families/{id}` online only ("needs internet"), as there is no push type for a rename.
+- 13 Nov (7.4): a house mark is a visit on the house's first voter in roll order (the server copies booth and house from the voter). Voters without a house number cannot be marked (their "house" would mix strangers).
 - Pitfall: the first build after raising the database version writes `schemas/.../N.json` after the test assets are packed, so `MigrationTest` fails with "Cannot find the schema file"; build the androidTest APK once more.
 - Every survey field the phone knows must go into `surveyPushData`: the server replaces the whole survey, so a field left out is cleared on the server.
 - 11 Nov: location: plain `LocationManager`, read once at survey save (8 s, else last fix under 5 min); no Play services.
@@ -89,5 +99,6 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 
 
 - Android 8 check: skipped for now (12 Nov), moved to task 12.11.
-- Client changes of 12 Nov still to come on the phone (`docs/change_log.md`): 7.4 (Kutumb Connect by hand, no head; store the pull's `families` / `family_members` and push `family_new` / `family`, see `context/sync.md`), 7.11 (part notes), 7.12 (WhatsApp to at most 5 voters), new names (Information Updation, Eligible but Not Registered, Matching Engine), Step 14 screens.
+- Kutumb Connect: "Share on WhatsApp (pick up to 5)" comes with 7.12.
+- Client changes of 12 Nov still to come on the phone (`docs/change_log.md`): 7.11 (part notes), 7.12 (WhatsApp to at most 5 voters), new names (Information Updation, Eligible but Not Registered, Matching Engine), Step 14 screens.
 - Release minify (R8) is off; turn on with keep rules before the final APK if size matters.

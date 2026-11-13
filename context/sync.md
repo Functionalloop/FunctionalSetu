@@ -63,7 +63,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ## Not built yet / open
 
-- Phone side of Kutumb sync: store `families` and `family_members` (Room tables) in 7.4; drop Kutumbs of booths that leave `area_ids` with their voters. The current app (0.1.0) ignores both lists.
+- Phone side (7.4, local database version 4): `families`, `family_members` and `visits` are stored in Room; Kutumbs and visits of booths that leave `area_ids` are dropped with their voters. App 0.1.0 ignores the three lists; the update to version 4 starts a full download so nothing made earlier is missed. Details: `context/android.md`.
 
 - `devices.last_pull_watermark` is not written: `devices` has an audit trigger, so a write per pull = an audit row per phone per sync. Decide when the admin needs "last synced" (maybe from `auth_sessions.last_seen_at`).
 - Nothing records that a blocked phone finished wiping (plan gap table: phone reports it on `/devices/me`; not decided).

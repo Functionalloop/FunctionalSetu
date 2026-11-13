@@ -3,6 +3,8 @@ package com.jansetu.app.data.sync
 import com.jansetu.app.data.local.AreaEntity
 import com.jansetu.app.data.local.ColorTagEntity
 import com.jansetu.app.data.local.CustomFieldLabelEntity
+import com.jansetu.app.data.local.FamilyEntity
+import com.jansetu.app.data.local.VisitEntity
 import com.jansetu.app.data.local.ListEntryEntity
 import com.jansetu.app.data.local.SurveyEntity
 import com.jansetu.app.data.local.VoterEntity
@@ -10,6 +12,8 @@ import com.jansetu.app.data.remote.ColorTagDto
 import com.jansetu.app.data.remote.CustomFieldLabelDto
 import com.jansetu.app.data.remote.NamedListEntry
 import com.jansetu.app.data.remote.SurveyDto
+import com.jansetu.app.data.remote.SyncFamily
+import com.jansetu.app.data.remote.VisitDto
 import com.jansetu.app.data.remote.SyncArea
 import com.jansetu.app.data.remote.SyncVoter
 
@@ -37,6 +41,11 @@ fun SurveyDto.toEntity() = SurveyEntity(
     version = version, isSurveyed = isSurveyed, surveyedAt = surveyedAt, lat = lat, lng = lng,
     locationAccuracyM = locationAccuracyM, locationCapturedAt = locationCapturedAt, updatedAt = updatedAt,
 )
+
+/** Null for a Kutumb without a booth (none are made that way since 7.1). */
+fun SyncFamily.toEntity() = boothId?.let { FamilyEntity(id, wardId, it, label, updatedAt, pending = false) }
+
+fun VisitDto.toEntity() = VisitEntity(id, voterId, boothId, houseNo, outcome, visitedAt, revisitAt, note, visitedBy, pending = false)
 
 fun NamedListEntry.toEntity(kind: String) = ListEntryEntity(id, kind, nameMr, nameEn, sortOrder, isActive)
 

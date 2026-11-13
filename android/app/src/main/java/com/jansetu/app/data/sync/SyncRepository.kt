@@ -9,11 +9,13 @@ import com.jansetu.app.data.remote.ApiResult
 import com.jansetu.app.data.remote.JansetuApi
 import com.jansetu.app.data.remote.PushItem
 import com.jansetu.app.data.remote.PushRequest
+import com.jansetu.app.data.remote.PushResult
 import com.jansetu.app.data.remote.SurveyDto
 import com.jansetu.app.data.remote.SyncPage
 import com.jansetu.app.data.remote.apiCall
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -144,12 +146,17 @@ class SyncRepository @Inject constructor(
             areas.upsert(page.areas.map { it.toEntity() })
             areas.deleteOthers(keep)
             db.voters().removeVoters(db.voters().votersOutside(keep))
+            db.field().dropOutside(keep)
         } ?: areas.upsert(page.areas.map { it.toEntity() })
         page.totalVoters?.let { state.put(SyncStateEntity(SyncKeys.PULL_TOTAL, it.toString())) }
 
         val (gone, live) = page.voters.partition { it.deletedAt != null }
         db.voters().savePulledVoters(live.map { it.toEntity() }, gone.map { it.id } + page.goneVoterIds)
         db.voters().savePulledSurveys(page.surveys.map { it.toEntity() })
+        val (goneFamilies, liveFamilies) = page.families.partition { it.deletedAt != null }
+        db.field().savePulledFamilies(liveFamilies.mapNotNull { it.toEntity() }, goneFamilies.map { it.id })
+        db.field().savePulledMembers(page.familyMembers.map { it.voterId to it.familyId })
+        db.field().savePulledVisits(page.visits.map { it.toEntity() })
 
         if (page.nextCursor != null) {
             state.put(SyncStateEntity(SyncKeys.PULL_CURSOR, page.nextCursor))
@@ -190,7 +197,7 @@ class SyncRepository @Inject constructor(
                 for (result in response.results) {
                     val item = byId[result.id] ?: continue
                     when (result.status) {
-                        "applied" -> applied(item, result.survey)
+                        "applied" -> applied(item, result)
                         "conflict" -> {
                             outbox.mark(item.id, OutboxEntity.STATUS_CONFLICT, "conflict",
                                 "Someone else changed this survey first.",
@@ -204,7 +211,7 @@ class SyncRepository @Inject constructor(
                             if (result.error?.code == "not_implemented") continue // server update needed; keep it queued
                             outbox.mark(item.id, OutboxEntity.STATUS_REJECTED, result.error?.code,
                                 result.error?.message ?: "Refused by the server.", null, null)
-                            db.voters().survey(item.entityId)?.let { db.voters().upsertSurvey(it.copy(pending = stillQueued(item))) }
+                            rejected(item)
                         }
                     }
                 }
@@ -218,10 +225,35 @@ class SyncRepository @Inject constructor(
     private suspend fun stillQueued(item: OutboxEntity) =
         db.outbox().queuedFor(item.entityId, item.type) > 0
 
-    private suspend fun applied(item: OutboxEntity, saved: SurveyDto?) {
+    /** The phone's copy no longer waits: the server took it (Kutumb and visit as stored there). */
+    private suspend fun applied(item: OutboxEntity, result: PushResult) {
+        db.outbox().delete(item.id)
+        when (item.type) {
+            OutboxEntity.TYPE_SURVEY -> result.survey?.let { appliedSurvey(item, it) }
+            OutboxEntity.TYPE_FAMILY_NEW -> result.family?.toEntity()?.let { db.field().upsertFamilies(listOf(it)) }
+            OutboxEntity.TYPE_VISIT -> result.visit?.let { db.field().upsertVisits(listOf(it.toEntity())) }
+            // TYPE_FAMILY: the phone already shows the membership; nothing comes back to keep.
+        }
+    }
+
+    /**
+     * The server refused the item; it stays on the Sync screen. What the phone shows must not claim
+     * otherwise: a refused Kutumb or visit is taken off the phone (the server never had it).
+     */
+    private suspend fun rejected(item: OutboxEntity) {
+        when (item.type) {
+            OutboxEntity.TYPE_SURVEY ->
+                db.voters().survey(item.entityId)?.let { db.voters().upsertSurvey(it.copy(pending = stillQueued(item))) }
+            OutboxEntity.TYPE_FAMILY_NEW -> db.field().deleteFamilies(listOf(item.entityId))
+            OutboxEntity.TYPE_VISIT -> visitId(item)?.let { db.field().deleteVisit(it) }
+        }
+    }
+
+    private fun visitId(item: OutboxEntity): String? =
+        runCatching { ApiJson.parseToJsonElement(item.data).jsonObject["id"]?.jsonPrimitive?.content }.getOrNull()
+
+    private suspend fun appliedSurvey(item: OutboxEntity, saved: SurveyDto) {
         val outbox = db.outbox()
-        outbox.delete(item.id)
-        if (item.type != OutboxEntity.TYPE_SURVEY || saved == null) return
         val more = outbox.queuedFor(item.entityId, item.type) > 0
         if (more) {
             // A later edit is waiting: it now builds on the version the server just gave.

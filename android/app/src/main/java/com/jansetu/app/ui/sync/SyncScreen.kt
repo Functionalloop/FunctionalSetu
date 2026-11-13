@@ -27,6 +27,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.local.OutboxEntity
+import com.jansetu.app.data.remote.ApiJson
 import com.jansetu.app.data.sync.SyncKeys
 import com.jansetu.app.data.sync.SyncRepository
 import com.jansetu.app.data.sync.SyncScheduler
@@ -39,6 +40,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 
 data class SyncInfo(
@@ -49,7 +52,23 @@ data class SyncInfo(
     val waiting: Boolean = false,
 )
 
-data class Problem(val item: OutboxEntity, val voterName: String)
+/** [title]: what the change was about (a voter's survey, a Kutumb, a visit). */
+data class Problem(val item: OutboxEntity, val title: String) {
+    /** Every type but a new Kutumb is about one voter, whose screen opens on a tap. */
+    val voterId: String? get() = item.entityId.takeIf { item.type != OutboxEntity.TYPE_FAMILY_NEW }
+}
+
+private fun title(item: OutboxEntity, names: Map<String, String>): String {
+    val name = names[item.entityId] ?: "Voter"
+    return when (item.type) {
+        OutboxEntity.TYPE_FAMILY_NEW -> "New Kutumb " + (runCatching {
+            ApiJson.parseToJsonElement(item.data).jsonObject["label"]?.jsonPrimitive?.content
+        }.getOrNull() ?: "")
+        OutboxEntity.TYPE_FAMILY -> "Kutumb Connect: $name"
+        OutboxEntity.TYPE_VISIT -> "Visit: $name"
+        else -> name
+    }
+}
 
 @HiltViewModel
 class SyncViewModel @Inject constructor(
@@ -70,7 +89,7 @@ class SyncViewModel @Inject constructor(
 
     val problems = db.outbox().problems().map { items ->
         val names = db.voters().voters(items.map { it.entityId }).associate { it.id to it.displayName() }
-        items.map { Problem(it, names[it.entityId] ?: "Voter") }
+        items.map { Problem(it, title(it, names)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun syncNow() = scheduler.syncNow()
@@ -116,10 +135,10 @@ private fun ProblemCard(p: Problem, onOpen: (String) -> Unit, vm: SyncViewModel)
     val conflict = p.item.status == OutboxEntity.STATUS_CONFLICT
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        modifier = Modifier.fillMaxWidth().clickable { onOpen(p.item.entityId) },
+        modifier = Modifier.fillMaxWidth().clickable(enabled = p.voterId != null) { p.voterId?.let(onOpen) },
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(p.voterName, style = MaterialTheme.typography.titleMedium)
+            Text(p.title, style = MaterialTheme.typography.titleMedium)
             Text(
                 if (conflict) "Survey changed by someone else first" +
                     (p.item.conflictFields?.takeIf { it.isNotBlank() }?.let { " (${it.replace(",", ", ")})" } ?: "") +

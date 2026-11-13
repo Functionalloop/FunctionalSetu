@@ -197,6 +197,40 @@ data class SyncLists(
     @SerialName("influencer_types") val influencerTypes: List<NamedListEntry> = emptyList(),
 )
 
+/** A Kutumb as the pull sends it (SyncFamily) and as the push result returns it. */
+@Serializable
+data class SyncFamily(
+    val id: String,
+    @SerialName("ward_id") val wardId: String? = null,
+    @SerialName("booth_id") val boothId: String? = null,
+    val label: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+)
+
+/** A voter's Kutumb; familyId null = taken out. */
+@Serializable
+data class SyncFamilyMember(
+    @SerialName("voter_id") val voterId: String,
+    @SerialName("family_id") val familyId: String? = null,
+)
+
+@Serializable
+data class VisitDto(
+    val id: String,
+    @SerialName("voter_id") val voterId: String? = null,
+    @SerialName("booth_id") val boothId: String,
+    @SerialName("house_no") val houseNo: String? = null,
+    val outcome: String,
+    @SerialName("visited_at") val visitedAt: String,
+    @SerialName("revisit_at") val revisitAt: String? = null,
+    val note: String? = null,
+    @SerialName("visited_by") val visitedBy: String,
+)
+
+/** PATCH /families/{id}: rename a Kutumb (online only; there is no push type for it). */
+@Serializable data class FamilyPatch(val label: String)
+
 @Serializable
 data class SyncPage(
     /** Text, never a number: xid8 is 64-bit. */
@@ -212,6 +246,9 @@ data class SyncPage(
     val voters: List<SyncVoter> = emptyList(),
     val surveys: List<SurveyDto> = emptyList(),
     @SerialName("gone_voter_ids") val goneVoterIds: List<String> = emptyList(),
+    val families: List<SyncFamily> = emptyList(),
+    @SerialName("family_members") val familyMembers: List<SyncFamilyMember> = emptyList(),
+    val visits: List<VisitDto> = emptyList(),
 )
 
 @Serializable
@@ -236,6 +273,8 @@ data class PushResult(
     val error: PushError? = null,
     val survey: SurveyDto? = null,
     @SerialName("conflict_fields") val conflictFields: List<String> = emptyList(),
+    val family: SyncFamily? = null,
+    val visit: VisitDto? = null,
 )
 
 @Serializable data class PushResponse(val results: List<PushResult>)

@@ -2,6 +2,7 @@ package com.jansetu.app.ui.nav
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
@@ -36,6 +37,7 @@ import com.jansetu.app.ui.home.MoreScreen
 import com.jansetu.app.ui.search.SearchScreen
 import com.jansetu.app.ui.sync.SyncScreen
 import com.jansetu.app.ui.voter.VoterScreen
+import com.jansetu.app.ui.walklist.WalkListScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -44,6 +46,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 private val TABS = listOf(
     Tab("home", "Home", Icons.Default.Home),
     Tab("search", "Search", Icons.Default.Search),
+    Tab("walk", "Walk list", Icons.AutoMirrored.Filled.DirectionsWalk),
     Tab("sync", "Sync", Icons.Default.Sync),
     Tab("more", "More", Icons.Default.Menu),
 )
@@ -89,11 +92,12 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") { HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } }, onSync = { nav.navigate("sync") }) }
             composable("search") { SearchScreen(onOpen = nav::openVoter) }
+            composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
             composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }) }
             composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
-                VoterScreen(session, onBack = { nav.popBackStack() })
+                VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter)
             }
         }
     }

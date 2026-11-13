@@ -28,6 +28,8 @@ data class AreaEntity(
     indices = [
         Index("ward_id"), Index("booth_id"), Index("serial_no"),
         Index(value = ["part_no", "booth_no", "serial_no"]),
+        // Walk list (7.4): the houses of one booth.
+        Index(value = ["booth_id", "house_no"]),
     ],
 )
 data class VoterEntity(
@@ -166,6 +168,12 @@ data class OutboxEntity(
         const val STATUS_CONFLICT = "conflict"
         const val STATUS_REJECTED = "rejected"
         const val TYPE_SURVEY = "survey"
+        /** A new Kutumb; entity_id = the Kutumb's id. Always sent before the `family` items that use it. */
+        const val TYPE_FAMILY_NEW = "family_new"
+        /** A voter put in a Kutumb or taken out; entity_id = the voter. */
+        const val TYPE_FAMILY = "family"
+        /** A visit; entity_id = the voter, data.id = the visit's id. */
+        const val TYPE_VISIT = "visit"
     }
 }
 
@@ -174,4 +182,44 @@ data class OutboxEntity(
 data class SyncStateEntity(
     @PrimaryKey val key: String,
     val value: String?,
+)
+
+/**
+ * A Kutumb (7.4): made by hand by a surveyor, a name and its members, in one booth.
+ * [pending] = made or renamed on this phone and not confirmed by the server yet.
+ */
+@Entity(tableName = "families", indices = [Index("booth_id")])
+data class FamilyEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "ward_id") val wardId: String?,
+    @ColumnInfo(name = "booth_id") val boothId: String,
+    val label: String?,
+    @ColumnInfo(name = "updated_at") val updatedAt: String?,
+    val pending: Boolean = false,
+)
+
+/** A voter's Kutumb. Only voters in a Kutumb have a row; taking a voter out deletes it. */
+@Entity(tableName = "family_members", indices = [Index("family_id")])
+data class FamilyMemberEntity(
+    @PrimaryKey @ColumnInfo(name = "voter_id") val voterId: String,
+    @ColumnInfo(name = "family_id") val familyId: String,
+)
+
+/**
+ * A door-to-door visit (7.3 on the server). booth_id and house_no are the voter's, so the walk
+ * list finds the last visit of a house. outcome: met, not_home, revisit, shifted.
+ */
+@Entity(tableName = "visits", indices = [Index(value = ["booth_id", "house_no"]), Index("voter_id")])
+data class VisitEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "voter_id") val voterId: String?,
+    @ColumnInfo(name = "booth_id") val boothId: String,
+    @ColumnInfo(name = "house_no") val houseNo: String?,
+    val outcome: String,
+    @ColumnInfo(name = "visited_at") val visitedAt: String,
+    @ColumnInfo(name = "revisit_at") val revisitAt: String? = null,
+    val note: String? = null,
+    @ColumnInfo(name = "visited_by") val visitedBy: String,
+    /** Made on this phone, not sent yet. */
+    val pending: Boolean = false,
 )

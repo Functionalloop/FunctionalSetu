@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 
 /**
  * 7.13: a phone on database version 2 keeps its unsent surveys after the update to version 3.
+ * 7.4: version 3 to 4 adds the Kutumb and visit tables and asks for a full download.
  * Runs on a plain (unencrypted) file: the migration is the same SQL with or without SQLCipher.
  */
 @RunWith(AndroidJUnit4::class)
@@ -24,7 +25,7 @@ class MigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java,
-        listOf(Migration2To3()), FrameworkSQLiteOpenHelperFactory(),
+        listOf(Migration2To3(), Migration3To4()), FrameworkSQLiteOpenHelperFactory(),
     )
 
     @Test fun version2To3KeepsUnsentSurveysAndCleansTheirOutboxItems() {
@@ -80,6 +81,35 @@ class MigrationTest {
             assertEquals(1, c.count)
             c.moveToFirst()
             assertEquals("influencer_type", c.getString(0))
+        }
+        db.close()
+    }
+
+    @Test fun version3To4AddsKutumbTablesAndAsksForAFullDownload() {
+        val file = "migration-test-4.db"
+        helper.createDatabase(file, 3).apply {
+            execSQL("INSERT INTO sync_state (key, value) VALUES ('watermark', '123'), ('pull_cursor', 'x'), ('settings', '{}')")
+            execSQL(
+                """INSERT INTO outbox (id, type, entity_id, base_version, changed_at, data, status, attempts, seq)
+                   VALUES ('o1', 'survey', 'v1', 3, '2026-11-13T10:00:00Z', '{"notes":"unsent"}', 'queued', 0, 1)""",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(file, 4, true, *emptyArray())
+
+        db.query("SELECT key FROM sync_state").use { c ->
+            assertEquals("only the watermark and cursor go", 1, c.count)
+            c.moveToFirst()
+            assertEquals("settings", c.getString(0))
+        }
+        db.query("SELECT status FROM outbox WHERE id = 'o1'").use { c ->
+            assertEquals(1, c.count)
+            c.moveToFirst()
+            assertEquals("queued", c.getString(0))
+        }
+        listOf("families", "family_members", "visits").forEach { t ->
+            db.query("SELECT count(*) FROM $t").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
         }
         db.close()
     }
