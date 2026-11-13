@@ -114,9 +114,9 @@ Portal (teammate): Kutumb Connect view (hand-made, no head), Eligible but Not Re
 
 Goal: mark who has voted, one by one or many, offline.
 
-- [ ] **8.1 Turnout API:** `POST /turnout/marks` (by voter or by booth + serials), `DELETE /turnout/marks/{voter_id}`, `GET /turnout/summary`; marks in pull and push. Allowed for booth agent, supervisor, admin and super admin; not for a surveyor. Files: `app/routers/turnout.py`, `tests/test_turnout.py`. Test: marking the same voter from two phones leaves one mark; a booth agent cannot mark another booth; a surveyor gets 403. (27 Nov)
-- [ ] **8.2 Screens: Polling day, Mark voted.** For a surveyor the tab only says polling day is not part of their role. Files: `A/ui/polling/`. Test: marks made offline upload on reconnect; the unsent count is shown. (28 Nov)
-- [ ] **8.3 Screen: Mark many voted** (typed serials and ranges, or ticked from the booth list). Files: `A/ui/polling/BulkVotedScreen.kt`. Test: "12, 15, 18-25" marks 10 voters and skips one already marked. (28 Nov)
+- [x] **8.1 Turnout API:** `POST /turnout/marks` (by voter or by booth + serials), `DELETE /turnout/marks/{voter_id}`, `GET /turnout/summary`; marks in pull and push. Allowed for booth agent, supervisor, admin and super admin; not for a surveyor. Files: `app/routers/turnout.py`, `tests/test_turnout.py`. Test: marking the same voter from two phones leaves one mark; a booth agent cannot mark another booth; a surveyor gets 403. (27 Nov)
+- [x] **8.2 Screens: Polling day, Mark voted.** For a surveyor the tab only says polling day is not part of their role. Files: `A/ui/polling/`. Test: marks made offline upload on reconnect; the unsent count is shown. (28 Nov)
+- [x] **8.3 Screen: Mark many voted** (typed serials and ranges, or ticked from the booth list). Files: `A/ui/polling/BulkVotedScreen.kt`. Test: "12, 15, 18-25" marks 10 voters and skips one already marked. (28 Nov)
 
 Portal (teammate): turnout by booth.
 

@@ -27,6 +27,8 @@ data class Session(
 ) {
     val isBoothAgent: Boolean get() = user.role == "booth_agent"
     val canSurvey: Boolean get() = user.role != "booth_agent"
+    /** Polling day (8.2): booth agent, supervisor, admin, super admin; not a surveyor (as on the server). */
+    val canPoll: Boolean get() = user.role != "surveyor"
 }
 
 /** Tokens encrypted with a Keystore key; the session (no secrets) as plain JSON in private prefs. */

@@ -25,7 +25,7 @@ class MigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java,
-        listOf(Migration2To3(), Migration3To4(), Migration4To5(), Migration5To6()), FrameworkSQLiteOpenHelperFactory(),
+        listOf(Migration2To3(), Migration3To4(), Migration4To5(), Migration5To6(), Migration6To7()), FrameworkSQLiteOpenHelperFactory(),
     )
 
     @Test fun version2To3KeepsUnsentSurveysAndCleansTheirOutboxItems() {
@@ -147,6 +147,27 @@ class MigrationTest {
             assertEquals("walk_list_booth", c.getString(0))
         }
         db.query("SELECT count(*) FROM part_notes").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        db.close()
+    }
+
+    @Test fun version6To7AddsTurnoutAndAsksForAFullDownload() {
+        val file = "migration-test-7.db"
+        helper.createDatabase(file, 6).apply {
+            execSQL("INSERT INTO sync_state (key, value) VALUES ('watermark', '123'), ('pull_cursor', 'x'), ('walk_list_booth', 'b1')")
+            execSQL("""INSERT INTO outbox (id, type, entity_id, base_version, changed_at, data, status, attempts, seq)
+                       VALUES ('o1', 'survey', 'v1', 0, '2026-11-14T10:00:00Z', '{"notes":"kept"}', 'queued', 0, 1)""")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(file, 7, true, *emptyArray())
+
+        db.query("SELECT key FROM sync_state").use { c ->
+            assertEquals("only the watermark and cursor go", 1, c.count)
+            c.moveToFirst()
+            assertEquals("walk_list_booth", c.getString(0))
+        }
+        db.query("SELECT count(*) FROM outbox").use { c -> c.moveToFirst(); assertEquals("unsent work kept", 1, c.getInt(0)) }
+        db.query("SELECT count(*) FROM turnout").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
         db.close()
     }
 }

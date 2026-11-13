@@ -12,6 +12,8 @@ Then phases, each keyset-paged by id:
     new_voters Eligible but Not Registered whose part (or Village Panchayat, with no part) is in the area;
               survey roles only (a booth agent gets none). First: not deleted; delta: sync_xid >= since
     part_notes the shared note of each part in the area (7.11; first: all; delta: sync_xid >= since); all roles
+    turnout   voted marks of voters in the area (8.1); polling-day roles only (a surveyor gets none).
+              First: voted ones; delta: sync_xid >= since, undone ones included (is_voted false)
     gone      delta only: ids of voters changed since W that are now outside the area
 W' is taken once, on page 1, and carried in the cursor with `since`, so every page of one pull
 returns the same W'. Later pages run in later transactions and see everything committed up to
@@ -28,15 +30,16 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from .paging import decode_cursor, encode_cursor, invalid_cursor
+from .routers.turnout import MARK_COLS
 from .routers.voters import SURVEY_COLUMNS
 from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, NewVoter, Survey, SyncArea, SyncFamily,
-                      SyncFamilyMember, SyncLists, SyncPage, SyncVoter, Visit)
+                      SyncFamilyMember, SyncLists, SyncPage, SyncVoter, TurnoutMark, Visit)
 from .schemas_field import PartNote
 from .scope import Scope
 from .workspace_settings import load_workspace_settings
 
-FIRST_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes")
-DELTA_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes", "gone")
+FIRST_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes", "turnout")
+DELTA_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes", "turnout", "gone")
 WATERMARK_PATTERN = r"^[0-9]{1,20}$"
 _WATERMARK_RE = re.compile(WATERMARK_PATTERN)
 
@@ -87,7 +90,8 @@ def load_lists(conn: Connection, since: str | None = None) -> SyncLists:
     )
 
 
-def _first_page(conn: Connection, scope: Scope, since: str | None, survey_role: bool) -> SyncPage:
+def _first_page(conn: Connection, scope: Scope, since: str | None, survey_role: bool,
+                polling_role: bool) -> SyncPage:
     watermark = current_watermark(conn)
     gcond, gparams = scope.filter("g.path")
     areas = _rows(conn, f"""
@@ -99,7 +103,7 @@ def _first_page(conn: Connection, scope: Scope, since: str | None, survey_role: 
     phases = FIRST_PHASES if since is None else DELTA_PHASES
     todo = {}
     for p in phases:
-        q = _phase(p, scope, since, survey_role)
+        q = _phase(p, scope, since, survey_role, polling_role)
         todo[p] = conn.execute(text(f"SELECT count(*) FROM {q.source} WHERE {q.where}"), q.params).scalar_one()
 
     settings_changed = since is None or bool(conn.execute(
@@ -126,7 +130,7 @@ class _PhaseSql:
             source, where, params, key, select, id_field)
 
 
-def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool) -> _PhaseSql:
+def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool, polling_role: bool) -> _PhaseSql:
     vcond, params = scope.filter("v.geo_path")
     params["since"] = since
     with_voter = "JOIN app.voters v ON v.tenant_id = {a}.tenant_id AND v.id = {a}.voter_id"
@@ -159,6 +163,12 @@ def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool) -> _P
         return _PhaseSql("app.part_notes p JOIN app.geo_units g ON g.tenant_id = p.tenant_id AND g.id = p.booth_id",
                          f"{_changed('p', since)} AND {gcond}", {**gparams, "since": since}, "p.booth_id",
                          PART_NOTE_COLS, "booth_id")
+    if phase == "turnout":  # through the voter; polling-day roles only
+        role = "" if polling_role else "FALSE AND "
+        first = "t.is_voted" if since is None else _changed("t", since)
+        return _PhaseSql(f"app.voter_turnout t {with_voter.format(a='t')}",
+                         f"{role}{first} AND v.deleted_at IS NULL AND {vcond}", params, "t.voter_id", MARK_COLS,
+                         "voter_id")
     if phase == "members":
         first = "m.family_id IS NOT NULL" if since is None else _changed("m", since)
         return _PhaseSql(f"app.family_members m {with_voter.format(a='m')}",
@@ -189,15 +199,15 @@ def _read_cursor(cursor: str) -> tuple[list[str], uuid.UUID | None, str, str | N
 
 
 def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | None, limit: int,
-              survey_role: bool = True) -> SyncPage:
+              survey_role: bool = True, polling_role: bool = True) -> SyncPage:
     """One page of a first download (since=None) or of a delta pull. survey_role: False for a booth agent
-    (no Eligible but Not Registered records)."""
+    (no Eligible but Not Registered records); polling_role: False for a surveyor (no voted marks)."""
     if cursor is None:
-        return _first_page(conn, scope, since, survey_role)
+        return _first_page(conn, scope, since, survey_role, polling_role)
     phases_left, after, watermark, since = _read_cursor(cursor)
     phase = phases_left[0]
 
-    q = _phase(phase, scope, since, survey_role)
+    q = _phase(phase, scope, since, survey_role, polling_role)
     after_sql = f"AND {q.key} > :after" if after is not None else ""
     rows = _rows(conn, f"SELECT {q.select} FROM {q.source} WHERE {q.where} {after_sql} ORDER BY {q.key} LIMIT :limit",
                  {**q.params, "after": after, "limit": limit + 1})
@@ -225,6 +235,8 @@ def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | N
         page.new_voters = [NewVoter(**r) for r in rows]
     elif phase == "part_notes":
         page.part_notes = [PartNote(**r) for r in rows]
+    elif phase == "turnout":
+        page.turnout = [TurnoutMark(**r) for r in rows]
     else:
         page.gone_voter_ids = [r["id"] for r in rows]
     return page

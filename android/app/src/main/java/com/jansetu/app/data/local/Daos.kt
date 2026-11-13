@@ -139,6 +139,15 @@ interface OutboxDao {
     @Query("SELECT * FROM outbox WHERE id = :id") suspend fun item(id: String): OutboxEntity?
     @Query("SELECT * FROM outbox WHERE status != 'queued' ORDER BY seq DESC") fun problems(): Flow<List<OutboxEntity>>
     @Query("SELECT count(*) FROM outbox WHERE status = 'queued'") fun queuedCount(): Flow<Int>
+    @Query("SELECT count(*) FROM outbox WHERE status = 'queued' AND type IN (:types)")
+    fun queuedCountOf(types: List<String>): Flow<Int>
+    /** Polling day (8.2): queued voted / unvoted items that name this voter (ids in data are quoted UUIDs). */
+    @Query("""SELECT count(*) FROM outbox WHERE status = 'queued' AND
+              ((type = 'unvoted' AND entity_id = :voterId) OR (type = 'voted' AND data LIKE '%"' || :voterId || '"%'))""")
+    suspend fun turnoutQueuedFor(voterId: String): Int
+    @Query("""SELECT * FROM outbox WHERE status = 'queued' AND attempts = 0 AND type = 'voted'
+              AND data LIKE '%"' || :voterId || '"%' ORDER BY seq""")
+    suspend fun unsentMarksOf(voterId: String): List<OutboxEntity>
     @Query("SELECT count(*) FROM outbox WHERE status = 'queued' AND entity_id = :entityId AND type = :type")
     suspend fun queuedFor(entityId: String, type: String): Int
     @Query("DELETE FROM outbox WHERE id = :id") suspend fun delete(id: String)

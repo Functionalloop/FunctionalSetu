@@ -186,9 +186,11 @@ def test_pushed_survey_comes_back_in_the_next_pull(client, ws):
     assert [(s["voter_id"], s["notes"], s["version"]) for s in surveys] == [(str(ws.v[0]), "from the phone", 1)]
 
 
-@pytest.mark.parametrize("ptype", ["voted"])
-def test_types_not_built_are_rejected_and_not_recorded(client, ws, owner_conn, ptype):
-    it = {**item(ws.v[0]), "type": ptype}
+def test_types_not_built_are_rejected_and_not_recorded(client, ws, owner_conn, monkeypatch):
+    """Every type is built since 8.1; a type the server does not know yet is simulated by hiding one."""
+    from app import sync_push
+    monkeypatch.delitem(sync_push.ENTITY, "voted")
+    it = {**item(ws.v[0]), "type": "voted"}
     for _ in range(2):  # a retry gets the same answer, never a stored "duplicate"
         [r] = push(client, ws.surveyor, it)
         assert r["status"] == "rejected" and r["error"]["code"] == "not_implemented" and r["duplicate"] is False

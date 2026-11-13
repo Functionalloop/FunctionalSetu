@@ -182,6 +182,11 @@ data class OutboxEntity(
         const val TYPE_NEW_VOTER_UPDATE = "new_voter_update"
         /** A slip shared (7.7); entity_id = the voter, data = {id, channel, at}. Nothing kept locally. */
         const val TYPE_SLIP_EVENT = "slip_event"
+        /** Voters marked voted (8.2); entity_id = this mark's own id, data = {voter_ids, source, marked_at}. */
+        const val TYPE_VOTED = "voted"
+        /** A voted mark undone (8.2); entity_id = the voter, data = {}. */
+        const val TYPE_UNVOTED = "unvoted"
+        val TURNOUT_TYPES = listOf(TYPE_VOTED, TYPE_UNVOTED)
     }
 }
 

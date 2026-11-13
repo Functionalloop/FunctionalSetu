@@ -85,8 +85,9 @@ def create_app() -> FastAPI:
     app.include_router(app_version.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(misc.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(part_notes.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(turnout.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
-    for planned in (field, turnout, admin, rolls, reports):
+    for planned in (field, admin, rolls, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 

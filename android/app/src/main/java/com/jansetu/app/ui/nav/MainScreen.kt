@@ -6,7 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -42,6 +42,7 @@ import com.jansetu.app.ui.home.MoreScreen
 import com.jansetu.app.ui.more.AnnouncementsScreen
 import com.jansetu.app.ui.more.ChangePasswordScreen
 import com.jansetu.app.ui.more.HelpScreen
+import com.jansetu.app.ui.more.MorePage
 import com.jansetu.app.ui.more.TermsScreen
 import com.jansetu.app.ui.newvoter.NewVoterFormScreen
 import com.jansetu.app.ui.newvoter.NewVoterListScreen
@@ -51,6 +52,13 @@ import com.jansetu.app.ui.share.SHARE_ROUTE
 import com.jansetu.app.ui.share.ShareWhatsAppScreen
 import com.jansetu.app.ui.share.shareRoute
 import com.jansetu.app.ui.sync.SyncScreen
+import com.jansetu.app.ui.polling.BULK_VOTED_ROUTE
+import com.jansetu.app.ui.polling.BulkVotedScreen
+import com.jansetu.app.ui.polling.MARK_VOTED_ROUTE
+import com.jansetu.app.ui.polling.bulkVotedRoute
+import com.jansetu.app.ui.polling.MarkVotedScreen
+import com.jansetu.app.ui.polling.PollingDayScreen
+import com.jansetu.app.ui.polling.markVotedRoute
 import com.jansetu.app.ui.voter.VoterScreen
 import com.jansetu.app.ui.walklist.WalkListScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,7 +70,7 @@ private val TABS = listOf(
     Tab("home", "Home", Icons.Default.Home),
     Tab("search", "Search", Icons.Default.Search),
     Tab("walk", "Walk list", Icons.AutoMirrored.Filled.DirectionsWalk),
-    Tab("sync", "Sync", Icons.Default.Sync),
+    Tab("polling", "Polling day", Icons.Default.HowToVote), // approved flow (13 Nov); Sync is under More
     Tab("more", "More", Icons.Default.Menu),
 )
 
@@ -98,7 +106,7 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                             }
                         },
                         icon = {
-                            if (tab.route == "sync" && problems.isNotEmpty()) {
+                            if (tab.route == "more" && problems.isNotEmpty()) { // refused items and conflicts (More > Sync)
                                 BadgedBox(badge = { Badge { Text("${problems.size}") } }) { Icon(tab.icon, null) }
                             } else Icon(tab.icon, null)
                         },
@@ -119,9 +127,19 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             }
             composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
-            composable("sync") { SyncScreen(onOpen = nav::openVoter) }
+            composable("sync") { MorePage("Sync", onBack = { nav.popBackStack() }) { SyncScreen(onOpen = nav::openVoter) } }
+            composable("polling") {
+                PollingDayScreen(session, onMarkVoted = { nav.navigate(markVotedRoute(it)) },
+                    onMarkMany = { nav.navigate(bulkVotedRoute(it)) })
+            }
+            composable(BULK_VOTED_ROUTE, arguments = listOf(navArgument("boothId") { type = NavType.StringType })) {
+                BulkVotedScreen(session, onBack = { nav.popBackStack() })
+            }
+            composable(MARK_VOTED_ROUTE, arguments = listOf(navArgument("boothId") { type = NavType.StringType })) {
+                MarkVotedScreen(session, onBack = { nav.popBackStack() })
+            }
             composable("more") {
-                MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
+                MoreScreen(session, problems = problems.size, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
                     onBirthdays = { nav.navigate("birthdays") }, onOpen = { nav.navigate(it) })
             }
             composable("announcements") { AnnouncementsScreen(onBack = { nav.popBackStack() }) }

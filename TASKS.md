@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 49 / 99 done (49%)** `██████████░░░░░░░░░░`
+**Overall: 52 / 99 done (53%)** `███████████░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -12,7 +12,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 6 – Server | 8 / 8 | `██████████` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 13 / 13 | `██████████` |
-| Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
+| Step 8 – Polling day | 3 / 3 | `██████████` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
@@ -86,11 +86,11 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **7.11** Part notes · due 27 Nov · done 2026-11-13 · `de723fb`
 - [x] **7.12** Share on WhatsApp, at most 5 voters · due 27 Nov · done 2026-11-14 · `7e460af`
 
-## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
+## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 3/3
 
-- [ ] **8.1** Turnout API · due 27 Nov
-- [ ] **8.2** Screens: Polling day, Mark voted · due 28 Nov
-- [ ] **8.3** Screen: Mark many voted · due 28 Nov
+- [x] **8.1** Turnout API · due 27 Nov · done 2026-11-14 · `4123de2`
+- [x] **8.2** Screens: Polling day, Mark voted · due 28 Nov · done 2026-11-14 · `7f934ac`
+- [x] **8.3** Screen: Mark many voted · due 28 Nov · done 2026-11-14 · `040fe91`
 
 ## Step 9 – Admin · 28–29 Nov · branch `step9-admin` — 0/9
 
