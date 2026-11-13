@@ -63,7 +63,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **6.5** Data on the server · due 21 Nov
 - [ ] **6.6** Laptop fallback · due 22 Nov
 - [ ] **6.7** Release keystore and first published APK · due 23 Nov
-- [x] **6.8** Phones screen in the app · due 13 Nov · done 2026-11-13
+- [x] **6.8** Phones screen in the app · due 13 Nov · done 2026-11-13 · `c171e7c`
 
 ## Demo · 24–25 Nov — 0/2
 
