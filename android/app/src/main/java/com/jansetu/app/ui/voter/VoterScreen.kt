@@ -97,7 +97,10 @@ class VoterViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoterScreen(session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, vm: VoterViewModel = hiltViewModel()) {
+fun VoterScreen(
+    session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, onSlip: (String) -> Unit,
+    vm: VoterViewModel = hiltViewModel(),
+) {
     val voter by vm.voter.collectAsStateWithLifecycle()
     val survey by vm.survey.collectAsStateWithLifecycle()
     val areas by vm.areas.collectAsStateWithLifecycle()
@@ -120,7 +123,7 @@ fun VoterScreen(session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, 
                 Tab(tab == 3, { tab = 3 }, text = { Text("Information Updation", maxLines = 1) })
             }
             when (tab) {
-                0 -> DetailsTab(v, survey, areas)
+                0 -> DetailsTab(v, survey, areas, onSlip = { onSlip(v.id) })
                 1 -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
                 2 -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen)
                 else -> HistoryTab()
@@ -130,7 +133,7 @@ fun VoterScreen(session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, 
 }
 
 @Composable
-private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, AreaEntity>) {
+private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, AreaEntity>, onSlip: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         v.nameEn()?.let { Text(it, style = MaterialTheme.typography.headlineSmall) }
@@ -163,6 +166,7 @@ private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, Area
             }
         }
         if (s?.mobile1 == null) Text("No mobile number yet. Add it in the Survey tab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = onSlip, modifier = Modifier.fillMaxWidth()) { Text("Voter slip") }
         s?.updatedAt?.let { Text("Survey updated ${istTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

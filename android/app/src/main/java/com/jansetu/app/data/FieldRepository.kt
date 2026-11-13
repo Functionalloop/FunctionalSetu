@@ -110,6 +110,13 @@ class FieldRepository @Inject constructor(private val local: LocalDb, private va
         }
     }
 
+    /** Logs that the voter's slip was shared (channel: whatsapp, sms, print, pdf); sent with the next sync. */
+    suspend fun logSlip(voterId: String, channel: String) {
+        val now = Instant.now().toString()
+        val data = buildJsonObject { put("id", UUID.randomUUID().toString()); put("channel", channel); put("at", now) }
+        queue(OutboxEntity.TYPE_SLIP_EVENT, voterId, data.toString(), now)
+    }
+
     private suspend fun queue(type: String, entityId: String, data: String, now: String) {
         db.outbox().insert(
             OutboxEntity(

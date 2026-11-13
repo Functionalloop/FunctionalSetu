@@ -11,6 +11,7 @@ Per item, inside a SAVEPOINT:
      visit (7.3): POST /voters/{id}/visits; a visit id sent again is stored once.
      new_voter / new_voter_update (7.5): POST / PATCH /new-voters; an update with a stale version is a
      conflict like the survey's (sync_conflicts rows, entity_type new_voter).
+     slip_event (7.7): POST /voters/{id}/slip-events, all roles; an event id sent again is stored once.
   4. Record the result in sync_mutations (INSERT ... ON CONFLICT DO NOTHING). If another request
      recorded the same id first (a retry racing the original), undo this item's savepoint and
      return that stored result instead, so the change is applied exactly once.
@@ -29,17 +30,18 @@ from .deps import SURVEY_ROLES, Principal, check_roles
 from .errors import ApiError
 from .routers.families import write_new_family, write_voter_family
 from .routers.new_voters import new_voter_in_scope, read_new_voter, write_new_voter, write_new_voter_update
+from .routers.slips import write_slip_event
 from .routers.visits import read_visit, write_visit
 from .routers.voters import check_survey_references, read_survey, voter_in_scope, write_survey
 from .schemas import (NewVoter, NewVoterFields, PushError, PushItem, PushResult, PushStatus, Survey, SurveyFields,
                       SurveyIn, SyncFamily, SyncFamilyMember)
-from .schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, VisitIn
+from .schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, SlipEventIn, VisitIn
 from .scope import Scope
 from .sync_pull import FAMILY_COLS, MEMBER_COLS
 
 # PushType -> sync_mutations entity_type (and sync_conflicts for surveys)
 ENTITY = {"survey": "voter_survey", "family_new": "family", "family": "family_member", "visit": "visit",
-          "new_voter": "new_voter", "new_voter_update": "new_voter"}
+          "new_voter": "new_voter", "new_voter_update": "new_voter", "slip_event": "slip_event"}
 
 
 class _Rejected(Exception):
@@ -82,6 +84,8 @@ def _attach(conn: Connection, item: PushItem, result: PushResult) -> None:
         result.visit = read_visit(conn, visit_id) if isinstance(visit_id, str) else None
     elif item.type.value in ("new_voter", "new_voter_update"):
         result.new_voter = read_new_voter(conn, item.entity_id)
+    elif item.type.value == "slip_event":
+        pass  # nothing comes back: the phone keeps no copy of slip events
     else:
         result.family_member = _member_row(conn, item.entity_id)
 
@@ -136,7 +140,7 @@ def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> Pus
 
 
 def _operation(item: PushItem) -> str:
-    if item.type.value in ("family_new", "visit", "new_voter"):
+    if item.type.value in ("family_new", "visit", "new_voter", "slip_event"):
         return "insert"
     if item.type.value == "new_voter_update":
         return "update"
@@ -272,8 +276,17 @@ def _differing_new_voter(body: NewVoterPatch, server: NewVoter) -> dict[str, tup
     return {f: (client[f], current[f]) for f in NewVoterFields.model_fields if client[f] != current[f]}
 
 
+def _apply_slip_event(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
+    body = _parse(SlipEventIn, **item.data)  # all roles: booth agents share slips too
+    try:
+        write_slip_event(conn, user, scope, item.entity_id, body)
+    except ApiError as e:
+        raise _Rejected(e.code, e.message) from None
+    return PushResult(id=item.id, status=PushStatus.applied, duplicate=False)
+
+
 APPLY = {"survey": _apply_survey, "family_new": _apply_family_new, "family": _apply_family, "visit": _apply_visit,
-         "new_voter": _apply_new_voter, "new_voter_update": _apply_new_voter_update}
+         "new_voter": _apply_new_voter, "new_voter_update": _apply_new_voter_update, "slip_event": _apply_slip_event}
 
 
 def _differing_fields(body: SurveyIn, server: Survey | None) -> dict[str, tuple[Any, Any]]:

@@ -628,7 +628,8 @@ class PushType(StrEnum):
     Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
     the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`
     (7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the
-    version the phone last had; stale: conflict with the server copy). The others come with plan steps 7 and 8. Until then an item of those
+    version the phone last had; stale: conflict with the server copy) and `slip_event` (7.7; base_version 0;
+    data.id = the event's id, stored once; all roles). The others come with plan steps 7 and 8. Until then an item of those
     types is rejected with not_implemented and NOT recorded, so a retry after the server update
     applies it."""
     survey = "survey"
@@ -653,11 +654,11 @@ class PushItem(BaseModel):
     id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
     type: PushType
     entity_id: uuid.UUID = Field(description=(
-        "survey, family, visit: the voter id; family_new: the Kutumb's id; new_voter, new_voter_update: "
+        "survey, family, visit, slip_event: the voter id; family_new: the Kutumb's id; new_voter, new_voter_update: "
         "the new voter's id"))
     base_version: int = Field(ge=0, description=(
         "survey: the version the phone last had; 0 = no survey yet. new_voter_update: the version the phone "
-        "last had (1 or more). family_new, family, visit, new_voter: 0"))
+        "last had (1 or more). family_new, family, visit, new_voter, slip_event: 0"))
     changed_at: datetime | None = Field(None, description="When the change was made on the phone")
     data: dict = Field(description=(
         "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
@@ -665,6 +666,7 @@ class PushItem(BaseModel):
         "family: PUT /voters/{id}/family body (FamilyChange). visit: POST /voters/{id}/visits body (VisitIn). "
         "new_voter: POST /new-voters body (NewVoterIn; `id` may be left out, it is entity_id). "
         "new_voter_update: PATCH /new-voters/{id} body (NewVoterPatch) without `version`. "
+        "slip_event: POST /voters/{id}/slip-events body (SlipEventIn). "
         "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
 
 

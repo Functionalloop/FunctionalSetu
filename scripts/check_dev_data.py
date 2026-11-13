@@ -30,17 +30,19 @@ from app.errors import ApiError  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
+from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
-from app.schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, VisitIn  # noqa: E402
+from app.schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, SlipEventIn, VisitIn  # noqa: E402
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
 from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
-LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "sync_mutations",
+LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
+                   "sync_mutations",
                    "sync_conflicts",
                    "devices", "users", "audit_log")
 failures: list[str] = []
@@ -316,6 +318,14 @@ def main() -> None:
             hist, ms = timed(lambda: get_voter_history(pushed, conn, admin, s_admin, 50, None))
             report([h.kind for h in hist.items][:1] == ["survey"] and "notes" in hist.items[0].changes,
                    "history shows a pushed survey with its fields", f"{ms:.0f} ms")
+
+            # Voter slip (7.7): a share sent twice (REST and push) is logged once
+            se = SlipEventIn(id=uuid.uuid4(), channel="whatsapp", at="2026-11-13T10:00:00Z")
+            _, ms = timed(lambda: write_slip_event(conn, surveyor, s_srv, members[2], se))
+            write_slip_event(conn, surveyor, s_srv, members[2], se)
+            n = conn.execute(text("SELECT count(*) FROM app.slip_events WHERE client_mutation_id = :id"),
+                             {"id": se.id}).scalar()
+            report(n == 1, "slip shared twice is logged once", f"{ms:.0f} ms")
         finally:
             trans.rollback()
 

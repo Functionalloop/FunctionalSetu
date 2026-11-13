@@ -44,6 +44,10 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 - `new_voter_update`: `entity_id` = the record's id, `data` = `PATCH /new-voters/{id}` body without `version`, `base_version` = the version the phone last had (1 or more; 0 is rejected). Stale: `conflict` with `new_voter` = the server copy and `conflict_fields`; one `sync_conflicts` row per field (`entity_type` `new_voter`). Stale but equal to the server: `applied`. Result `new_voter` = the saved copy.
 - Push the `new_voter` before its `new_voter_update` items (an update of a record the server does not have is `rejected` `not_found`).
 
+### Slip events (7.7)
+
+- `slip_event`: `entity_id` = the voter, `data` = `POST /voters/{id}/slip-events` body (`{id, channel, at}`), `base_version` 0, **all roles** (booth agents too). The event id makes it safe to resend under a new outbox id. Result: no record (`applied` only). `at` later than the server clock is stored as now.
+
 ### Visit items (7.3)
 
 - `visit`: `entity_id` = the voter, `data` = `POST /voters/{id}/visits` body with the visit's own `id`. The visit id makes it safe to resend under a new outbox id. Result `visit` = the stored visit. A walk-list house mark is a visit on any voter of that house.
@@ -71,6 +75,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 ## Not built yet / open
 
 - Phone side (7.4, local database version 4): `families`, `family_members` and `visits` are stored in Room; Kutumbs and visits of booths that leave `area_ids` are dropped with their voters. App 0.1.0 ignores the three lists; the update to version 4 starts a full download so nothing made earlier is missed. Details: `context/android.md`.
+- Phone side (7.7): `slip_event` items need no table on the phone; two shares of one voter's slip are two items (two events).
 - Phone side (7.5, local database version 5): `new_voters` stored in Room (survey roles); `new_voter` before `new_voter_update` in outbox order; the update to version 5 starts a full download.
 
 - `devices.last_pull_watermark` is not written: `devices` has an audit trigger, so a write per pull = an audit row per phone per sync. Decide when the admin needs "last synced" (maybe from `auth_sessions.last_seen_at`).

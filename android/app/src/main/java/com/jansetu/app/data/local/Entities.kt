@@ -178,6 +178,8 @@ data class OutboxEntity(
         const val TYPE_NEW_VOTER = "new_voter"
         /** An edit of one; entity_id = its id, base_version = the version the phone last had. */
         const val TYPE_NEW_VOTER_UPDATE = "new_voter_update"
+        /** A slip shared (7.7); entity_id = the voter, data = {id, channel, at}. Nothing kept locally. */
+        const val TYPE_SLIP_EVENT = "slip_event"
     }
 }
 

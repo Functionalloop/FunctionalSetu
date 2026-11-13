@@ -36,6 +36,7 @@ import com.jansetu.app.ui.home.HomeScreen
 import com.jansetu.app.ui.home.MoreScreen
 import com.jansetu.app.ui.newvoter.NewVoterFormScreen
 import com.jansetu.app.ui.newvoter.NewVoterListScreen
+import com.jansetu.app.ui.slip.SlipScreen
 import com.jansetu.app.ui.search.SearchScreen
 import com.jansetu.app.ui.sync.SyncScreen
 import com.jansetu.app.ui.voter.VoterScreen
@@ -109,7 +110,11 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             }
             composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
-                VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter)
+                VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter,
+                    onSlip = { nav.navigate("slip/$it") })
+            }
+            composable("slip/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                SlipScreen(onBack = { nav.popBackStack() })
             }
         }
     }

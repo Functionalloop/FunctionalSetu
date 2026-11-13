@@ -102,6 +102,9 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
     # Information Updation (7.6); behaviour: test_history.py
     Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # voter slips (7.7); behaviour: test_slips.py
+    Endpoint("POST", "/voters/{voter_id}/slip-events", target="voter",
+             body=lambda w: {"id": str(uuid.uuid4()), "channel": "whatsapp", "at": "2026-11-13T10:00:00Z"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # sync conflicts (7.10; who resolves: gap-table proposal)
@@ -111,7 +114,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/families", ALL, "ready"),
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
-    ("POST", "/voters/{voter_id}/slip-events", ALL, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     ("GET", "/birthdays", ALL, "ready"),
     # More menu (7.9)

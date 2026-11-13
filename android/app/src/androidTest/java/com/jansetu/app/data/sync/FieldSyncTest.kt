@@ -107,6 +107,7 @@ class FieldSyncTest {
             "visit" -> """"visit":{"id":"${data.str("id")}","voter_id":"$entity","family_id":null,"booth_id":"${FakeVoters.booth}",
                 "house_no":"${v.first { it.id == entity }.houseNo}","outcome":"${data.str("outcome")}",
                 "visited_at":"2026-11-13T10:00:00.000000Z","revisit_at":null,"note":null,"visited_by":"$user","lat":null,"lng":null}"""
+            "slip_event" -> return """{"id":"$id","status":"applied","duplicate":false}"""
             else -> error("unexpected type")
         }
         return """{"id":"$id","status":"applied","duplicate":false,$stored}"""
@@ -249,5 +250,28 @@ class FieldSyncTest {
         val problems = mem.outbox().problems().first()
         assertEquals(setOf("family_new", "family", "visit"), problems.map { it.type }.toSet())
         assertTrue(problems.all { it.status == OutboxEntity.STATUS_REJECTED })
+    }
+
+    @Test fun slipSharedOfflineLeavesOneOutboxItemThatGoesUp() = runBlocking {
+        field.logSlip(v[0].id, "whatsapp")
+        val item = queued().single()
+        assertEquals(OutboxEntity.TYPE_SLIP_EVENT, item.type)
+        assertEquals(v[0].id, item.entityId)
+        val data = ApiJson.parseToJsonElement(item.data).jsonObject
+        assertEquals("whatsapp", data.str("channel"))
+        assertTrue(data.str("id")!!.length == 36 && data.str("at") != null)
+
+        field.logSlip(v[0].id, "whatsapp") // shared again: a second event, not a replacement
+        assertEquals(2, queued().size)
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals(listOf("slip_event", "slip_event"), pushed.map { it.str("type") })
+        assertTrue(queued().isEmpty())
+    }
+
+    @Test fun slipIsDrawn() {
+        val content = com.jansetu.app.ui.slip.slipContent(v[0], null, com.jansetu.app.ui.slip.SlipSettings(pollingDate = "2027-02-14"))
+        val bmp = com.jansetu.app.ui.slip.drawSlip(content)
+        assertEquals(1080, bmp.width)
+        assertTrue(bmp.height in 500..2500)
     }
 }

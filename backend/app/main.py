@@ -9,7 +9,7 @@ from fastapi.routing import APIRoute
 from . import __version__, errors
 from .config import get_settings
 from .routers import (admin, app_version, auth, devices, families, field, geo, health, me, misc, new_voters, reports,
-                      rolls, sync, turnout, visits, voters)
+                      rolls, slips, sync, turnout, visits, voters)
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -79,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(families.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(visits.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(new_voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(slips.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(app_version.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented

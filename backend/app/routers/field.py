@@ -9,10 +9,10 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Response
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import BirthdayPage, PartNote, PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage
+from ..schemas_field import BirthdayPage, PartNote, PartNoteIn, VisitOutcome, WalkListPage
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
@@ -43,12 +43,7 @@ def save_part_note(booth_id: uuid.UUID, body: PartNoteIn, conn: Db, user: Survey
 
 # History (7.6, Information Updation) is in voters.py.
 # --- slips (7.7, 12.2) ------------------------------------------------------------------------
-@router.post("/voters/{voter_id}/slip-events", status_code=status.HTTP_204_NO_CONTENT, response_class=Response,
-             summary="Log that a slip was shared or printed. A repeat id is stored once. All roles.")
-def add_slip_event(voter_id: uuid.UUID, body: SlipEventIn, conn: Db, user: ReadyUser) -> None:
-    not_built("7.7")
-
-
+# POST /voters/{id}/slip-events (7.7) is in slips.py.
 @router.get("/voters/{voter_id}/slip", response_class=Response,
             responses={200: {"content": {"image/png": {}, "application/pdf": {}},
                              "description": "The slip as a PNG image or a PDF"}},

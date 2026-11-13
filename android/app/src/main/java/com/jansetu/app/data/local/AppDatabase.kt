@@ -144,6 +144,7 @@ open class LocalDb @Inject constructor(
         instance?.close()
         instance = null
         context.deleteDatabase(AppDatabase.NAME)
+        com.jansetu.app.ui.slip.deleteSlipFiles(context) // the last slip image shows a voter's name
         meta.edit().clear().commit()
         key.forget()
     }

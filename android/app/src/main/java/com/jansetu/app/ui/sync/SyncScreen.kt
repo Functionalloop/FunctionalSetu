@@ -69,6 +69,7 @@ private fun title(item: OutboxEntity, names: Map<String, String>): String {
         }.getOrNull() ?: "")
         OutboxEntity.TYPE_FAMILY -> "Kutumb Connect: $name"
         OutboxEntity.TYPE_VISIT -> "Visit: $name"
+        OutboxEntity.TYPE_SLIP_EVENT -> "Voter slip shared: $name"
         else -> name
     }
 }

@@ -44,6 +44,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Voter slip images (cache/slips) handed to WhatsApp or the share sheet. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- WorkManager is set up by JansetuApp (Hilt workers), not by its default initializer. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
