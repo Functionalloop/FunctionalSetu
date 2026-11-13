@@ -17,6 +17,7 @@ import com.jansetu.app.data.remote.SurveyDto
 import com.jansetu.app.data.remote.SyncPage
 import com.jansetu.app.data.remote.apiCall
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
@@ -164,6 +165,9 @@ class SyncRepository @Inject constructor(
         db.field().savePulledVisits(page.visits.map { it.toEntity() })
         db.newVoters().savePulled(page.newVoters.map { it.toEntity() })
         db.partNotes().savePulled(page.partNotes.map { it.toEntity() })
+        db.turnout().savePulled(page.turnout.map { it.toEntity() })
+        // Marks of voters that left the phone (area dropped, voter removed or gone) go with them.
+        if (page.areaIds != null || gone.isNotEmpty() || page.goneVoterIds.isNotEmpty()) db.turnout().dropOrphans()
 
         if (page.nextCursor != null) {
             state.put(SyncStateEntity(SyncKeys.PULL_CURSOR, page.nextCursor))
@@ -186,7 +190,7 @@ class SyncRepository @Inject constructor(
         while (true) {
             val queued = outbox.queued(batchSize * 2)
             if (queued.isEmpty()) return SyncOutcome.Done
-            val batch = queued.distinctBy { it.type to it.entityId }.take(batchSize)
+            val batch = batchOf(queued, batchSize)
             outbox.countAttempt(batch.map { it.id })
 
             val request = PushRequest(batch.map {
@@ -221,6 +225,24 @@ class SyncRepository @Inject constructor(
         }
     }
 
+    /**
+     * At most one item per record per batch (a later edit of the same survey waits for the earlier one's new
+     * version). Polling day items must also keep their order across voters' undo and mark again: at a second
+     * `unvoted` of one voter the batch ends, so nothing queued after it overtakes it.
+     */
+    private fun batchOf(queued: List<OutboxEntity>, size: Int): List<OutboxEntity> {
+        val batch = mutableListOf<OutboxEntity>()
+        val seen = HashSet<Pair<String, String>>()
+        for (item in queued) {
+            if (!seen.add(item.type to item.entityId)) {
+                if (item.type in OutboxEntity.TURNOUT_TYPES) break else continue
+            }
+            batch += item
+            if (batch.size == size) break
+        }
+        return batch
+    }
+
     private suspend fun stillQueued(item: OutboxEntity) =
         db.outbox().queuedFor(item.entityId, item.type) > 0
 
@@ -233,6 +255,7 @@ class SyncRepository @Inject constructor(
             OutboxEntity.TYPE_VISIT -> result.visit?.let { db.field().upsertVisits(listOf(it.toEntity())) }
             OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE -> result.newVoter?.let { appliedNewVoter(item, it) }
             OutboxEntity.TYPE_PART_NOTE -> result.partNote?.let { appliedPartNote(item, it) }
+            OutboxEntity.TYPE_VOTED, OutboxEntity.TYPE_UNVOTED -> appliedTurnout(item, result)
             // TYPE_FAMILY: the phone already shows the membership; nothing comes back to keep.
         }
     }
@@ -254,6 +277,43 @@ class SyncRepository @Inject constructor(
             OutboxEntity.TYPE_PART_NOTE -> db.partNotes().get(item.entityId)?.let {
                 db.partNotes().upsert(listOf(it.copy(pending = stillQueued(item))))
             }
+            OutboxEntity.TYPE_VOTED, OutboxEntity.TYPE_UNVOTED -> rejectedTurnout(item)
+        }
+    }
+
+    /** Voters a polling day item names: the mark's voter_ids, or the undone voter. */
+    private fun turnoutVoters(item: OutboxEntity): List<String> =
+        if (item.type == OutboxEntity.TYPE_UNVOTED) listOf(item.entityId)
+        else runCatching {
+            ApiJson.parseToJsonElement(item.data).jsonObject["voter_ids"]!!.jsonArray.map { it.jsonPrimitive.content }
+        }.getOrDefault(emptyList())
+
+    /**
+     * The server's marks of the item's voters replace the phone's, unless a later change of that voter is
+     * still queued. A voter the server has no mark for (never marked there) has none on the phone either.
+     */
+    private suspend fun appliedTurnout(item: OutboxEntity, result: PushResult) {
+        val dao = db.turnout()
+        val server = result.turnout.associateBy { it.voterId }
+        for (voter in turnoutVoters(item)) {
+            if (db.outbox().turnoutQueuedFor(voter) > 0) continue
+            val mark = server[voter]
+            if (mark != null) dao.upsert(listOf(mark.toEntity()))
+            else if (dao.get(voter)?.pending == true) dao.delete(listOf(voter))
+        }
+    }
+
+    /**
+     * Refused (e.g. the part left this user): a refused mark was never on the server, so it is taken off the
+     * phone; a refused undo leaves the server's mark, so the voter shows as voted again.
+     */
+    private suspend fun rejectedTurnout(item: OutboxEntity) {
+        val dao = db.turnout()
+        for (voter in turnoutVoters(item)) {
+            if (db.outbox().turnoutQueuedFor(voter) > 0) continue
+            val row = dao.get(voter) ?: continue
+            if (item.type == OutboxEntity.TYPE_VOTED) { if (row.pending) dao.delete(listOf(voter)) }
+            else dao.upsert(listOf(row.copy(isVoted = true, pending = false)))
         }
     }
 

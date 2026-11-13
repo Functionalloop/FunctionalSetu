@@ -15,6 +15,8 @@ import com.jansetu.app.data.remote.NamedListEntry
 import com.jansetu.app.data.remote.NewVoterDto
 import com.jansetu.app.data.remote.PartNoteDto
 import com.jansetu.app.data.local.PartNoteEntity
+import com.jansetu.app.data.local.TurnoutEntity
+import com.jansetu.app.data.remote.TurnoutMarkDto
 import com.jansetu.app.data.remote.SurveyDto
 import com.jansetu.app.data.remote.SyncFamily
 import com.jansetu.app.data.remote.VisitDto
@@ -65,3 +67,5 @@ fun ColorTagDto.toEntity() = ColorTagEntity(id, code, hex, labelMr, labelEn, isD
 fun CustomFieldLabelDto.toEntity() = CustomFieldLabelEntity(fieldKey, labelMr, labelEn, isEnabled)
 
 fun PartNoteDto.toEntity() = PartNoteEntity(boothId, note, version, updatedAt, updatedBy)
+
+fun TurnoutMarkDto.toEntity() = TurnoutEntity(voterId, isVoted, markedBy, markedAt, source, pending = false)

@@ -85,6 +85,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 ## Not built yet / open
 
 - Phone side (7.4, local database version 4): `families`, `family_members` and `visits` are stored in Room; Kutumbs and visits of booths that leave `area_ids` are dropped with their voters. App 0.1.0 ignores the three lists; the update to version 4 starts a full download so nothing made earlier is missed. Details: `context/android.md`.
+- Phone side (8.2, local database version 7): `turnout` stored in Room (polling roles get rows); a pulled mark never overwrites a pending one; the update to version 7 starts a full download. See `context/android.md`.
 - Phone side (7.11, local database version 6): `part_notes` stored in Room; a pulled note never overwrites one pending or in conflict; the update to version 6 starts a full download.
 - Phone side (7.7): `slip_event` items need no table on the phone; two shares of one voter's slip are two items (two events).
 - Phone side (7.5, local database version 5): `new_voters` stored in Room (survey roles); `new_voter` before `new_voter_update` in outbox order; the update to version 5 starts a full download.

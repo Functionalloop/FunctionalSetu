@@ -22,15 +22,16 @@ import javax.inject.Singleton
         ListEntryEntity::class, ColorTagEntity::class, CustomFieldLabelEntity::class,
         OutboxEntity::class, SyncStateEntity::class,
         FamilyEntity::class, FamilyMemberEntity::class, VisitEntity::class, NewVoterEntity::class,
-        PartNoteEntity::class,
+        PartNoteEntity::class, TurnoutEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3, spec = Migration2To3::class),
         AutoMigration(from = 3, to = 4, spec = Migration3To4::class),
         AutoMigration(from = 4, to = 5, spec = Migration4To5::class),
         AutoMigration(from = 5, to = 6, spec = Migration5To6::class),
+        AutoMigration(from = 6, to = 7, spec = Migration6To7::class),
     ],
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun field(): FieldDao
     abstract fun newVoters(): NewVoterDao
     abstract fun partNotes(): PartNoteDao
+    abstract fun turnout(): TurnoutDao
 
     companion object {
         const val NAME = "jansetu.db"
@@ -109,6 +111,16 @@ class Migration5To6 : AutoMigrationSpec {
 }
 
 /**
+ * Version 7 (8.2): voted marks (`turnout`). Same reason as 3 -> 4 for a full download: marks made before
+ * the update came in pull pages this phone did not store.
+ */
+class Migration6To7 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DELETE FROM sync_state WHERE key IN ('watermark', 'pull_cursor')")
+    }
+}
+
+/**
  * Opens the encrypted database on first use and can delete it (logout of a blocked phone, wipe).
  * Ask for [db] at the time of use instead of keeping a DAO: after [wipe] a new file is opened.
  */
@@ -140,7 +152,7 @@ open class LocalDb @Inject constructor(
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(passphrase))
             // Version 2 (12 Nov, client's survey fields): no phone held real data on version 1, so its
-            // file is dropped and downloaded again. From version 2 on, real migrations only (2 -> 3 -> 4 -> 5 above):
+            // file is dropped and downloaded again. From version 2 on, real migrations only (2 -> 3 -> ... -> 7 above):
             // a destructive one would delete unsent changes.
             .fallbackToDestructiveMigrationFrom(1)
             .addCallback(object : RoomDatabase.Callback() {

@@ -296,6 +296,18 @@ data class SyncPage(
     val visits: List<VisitDto> = emptyList(),
     @SerialName("new_voters") val newVoters: List<NewVoterDto> = emptyList(),
     @SerialName("part_notes") val partNotes: List<PartNoteDto> = emptyList(),
+    /** 8.1: voted marks; polling-day roles only (a surveyor gets none). Replace by voter_id. */
+    val turnout: List<TurnoutMarkDto> = emptyList(),
+)
+
+/** A voter's voted mark (8.1); is_voted false = undone. */
+@Serializable
+data class TurnoutMarkDto(
+    @SerialName("voter_id") val voterId: String,
+    @SerialName("is_voted") val isVoted: Boolean,
+    @SerialName("marked_by") val markedBy: String,
+    @SerialName("marked_at") val markedAt: String,
+    val source: String,
 )
 
 /** 7.11: a part's shared note; version 0 = none yet. */
@@ -334,6 +346,8 @@ data class PushResult(
     val visit: VisitDto? = null,
     @SerialName("new_voter") val newVoter: NewVoterDto? = null,
     @SerialName("part_note") val partNote: PartNoteDto? = null,
+    /** voted / unvoted: the marks of the item's voters as the server holds them now. */
+    val turnout: List<TurnoutMarkDto> = emptyList(),
 )
 
 @Serializable data class PushResponse(val results: List<PushResult>)

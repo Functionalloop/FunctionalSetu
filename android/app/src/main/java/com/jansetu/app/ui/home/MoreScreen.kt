@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
@@ -52,8 +53,8 @@ class MoreViewModel @Inject constructor(private val repo: SessionRepository, loc
 /** Shell for the More menu; later steps add their items here (polling day, admin, reports). */
 @Composable
 fun MoreScreen(
-    session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
-    /** Opens a More page by route: announcements, terms, help, password (7.9). */
+    session: Session, problems: Int, onPhones: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
+    /** Opens a More page by route: sync (8.2: off the bottom bar), announcements, terms, help, password (7.9). */
     onOpen: (String) -> Unit,
     vm: MoreViewModel = hiltViewModel(),
 ) {
@@ -67,6 +68,15 @@ fun MoreScreen(
             leadingContent = { Icon(Icons.Default.Person, null) },
         )
         HorizontalDivider()
+        MoreItem(
+            "Sync",
+            when {
+                problems > 0 -> "$problems item(s) need your attention"
+                unsent > 0 -> "$unsent change(s) not sent yet"
+                else -> "Send and receive changes"
+            },
+            Icons.Default.Sync,
+        ) { onOpen("sync") }
         ListItem(
             headlineContent = { Text("Birthdays") },
             supportingContent = { Text("The next 7 days, from the date of birth in the survey") },

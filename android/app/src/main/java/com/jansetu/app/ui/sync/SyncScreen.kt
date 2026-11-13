@@ -228,7 +228,6 @@ fun SyncScreen(onOpen: (String) -> Unit, vm: SyncViewModel = hiltViewModel()) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Sync", style = MaterialTheme.typography.headlineSmall)
                 Text("Last sync: " + (istTime(info.lastSync) ?: "not yet"))
                 Text(
                     if (info.unsent == 0) "All changes have been sent." else "${info.unsent} change(s) not sent yet.",
