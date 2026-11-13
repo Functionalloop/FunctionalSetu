@@ -60,6 +60,12 @@ class Endpoint:
         return f"{self.method} {self.path}"
 
 
+def _part_note_body(world) -> dict[str, Any]:
+    """A save on top of the current version of workspace A's booth 1 note (each role saves in turn)."""
+    row = world.conn.execute("SELECT version FROM app.part_notes WHERE booth_id = %s", (world.a.booths[0],)).fetchone()
+    return {"note": "Rule check", "version": row[0] if row else 0}
+
+
 def _new_voter_body(world) -> dict[str, Any]:
     """A record in workspace A's booth 1 (inside every test user's area)."""
     return {"full_name_en": "Rule Check", "ward_id": str(world.a.ward), "booth_id": str(world.a.booths[0])}
@@ -106,6 +112,9 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
     # Information Updation (7.6); behaviour: test_history.py
     Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # part notes (7.11); behaviour: test_part_notes.py. The target is the place's booth.
+    Endpoint("GET", "/booths/{booth_id}/note", target="part_note"),
+    Endpoint("PUT", "/booths/{booth_id}/note", roles=SURVEY_ROLES, target="part_note", body=_part_note_body),
     # conflict review (7.10); behaviour: test_conflicts.py. The rows here are survey1's (own for a surveyor).
     Endpoint("GET", "/sync/conflicts", roles=SURVEY_ROLES, lists="conflict"),
     Endpoint("POST", "/sync/conflicts/{conflict_id}/resolve", roles=SURVEY_ROLES, target="conflict",
@@ -126,8 +135,6 @@ ENDPOINTS: list[Endpoint] = [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
     ("GET", "/families", ALL, "ready"),
-    ("GET", "/booths/{booth_id}/note", ALL, "ready"),
-    ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
     # polling day (8.1): not surveyors
@@ -288,6 +295,15 @@ def _make_voter_birthday(world, where: str) -> uuid.UUID:
     return vid
 
 
+def _make_part_note(world, where: str) -> uuid.UUID:
+    """The place's booth (a part note is reached by its booth id)."""
+    return world.place(where)[3]
+
+
+def _part_note_state(world, booth_id: uuid.UUID):
+    return world.conn.execute("SELECT note, version FROM app.part_notes WHERE booth_id = %s", (booth_id,)).fetchone()
+
+
 def _make_conflict(world, where: str) -> uuid.UUID:
     """An open survey conflict on a voter of that place, from a push by the workspace's surveyor."""
     vid = _make_voter(world, where)
@@ -337,4 +353,5 @@ KINDS: dict[str, Kind] = {
     "voter_birthday": Kind(_make_voter_birthday),
     "announcement": Kind(_make_announcement, _announcement_state),
     "conflict": Kind(_make_conflict, _conflict_state),
+    "part_note": Kind(_make_part_note, _part_note_state),
 }

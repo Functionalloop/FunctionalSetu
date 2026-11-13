@@ -51,6 +51,7 @@ import com.jansetu.app.data.sync.SyncRepository
 import com.jansetu.app.data.sync.SyncScheduler
 import com.jansetu.app.data.sync.conflictValue
 import com.jansetu.app.ui.common.EmptyState
+import com.jansetu.app.ui.search.areaLabel
 import com.jansetu.app.ui.common.ErrorText
 import com.jansetu.app.ui.common.displayName
 import com.jansetu.app.ui.common.istTime
@@ -83,7 +84,9 @@ data class Problem(val item: OutboxEntity, val title: String) {
 /** A conflict from another worker's phone, for a supervisor or above (7.10). */
 data class AreaConflict(val c: Conflict, val title: String, val phone: String, val server: String)
 
-private val NOT_A_VOTER = setOf(OutboxEntity.TYPE_FAMILY_NEW, OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE)
+private val NOT_A_VOTER = setOf(
+    OutboxEntity.TYPE_FAMILY_NEW, OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE, OutboxEntity.TYPE_PART_NOTE,
+)
 
 /** Roles that review the conflicts of other workers in their area (the server checks again). */
 private val REVIEW_ROLES = setOf("supervisor", "admin", "super_admin")
@@ -98,6 +101,7 @@ private fun title(item: OutboxEntity, names: Map<String, String>): String {
         OutboxEntity.TYPE_FAMILY -> "Kutumb Connect: $name"
         OutboxEntity.TYPE_VISIT -> "Visit: $name"
         OutboxEntity.TYPE_SLIP_EVENT -> "Voter slip shared: $name"
+        OutboxEntity.TYPE_PART_NOTE -> "Part note: " + (names[item.entityId] ?: "")
         else -> name
     }
 }
@@ -127,7 +131,9 @@ class SyncViewModel @Inject constructor(
         val names = db.voters().voters(items.map { it.entityId }).associate { it.id to it.displayName() } +
             items.filter { it.type in NOT_A_VOTER }.mapNotNull { i ->
                 db.newVoters().get(i.entityId)?.let { i.entityId to (it.fullNameEn ?: it.fullNameMr ?: "") }
-            }
+            } +
+            db.areas().areas(items.filter { it.type == OutboxEntity.TYPE_PART_NOTE }.map { it.entityId })
+                .associate { it.id to areaLabel(it) }
         items.map { Problem(it, title(it, names)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -270,12 +276,17 @@ private fun ProblemCard(p: Problem, onOpen: (String) -> Unit, vm: SyncViewModel)
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(p.title, style = MaterialTheme.typography.titleMedium)
             Text(
-                if (conflict) (if (p.item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE) "Record" else "Survey") +
+                if (conflict) (when (p.item.type) {
+                    OutboxEntity.TYPE_NEW_VOTER_UPDATE -> "Record"
+                    OutboxEntity.TYPE_PART_NOTE -> "Note"
+                    else -> "Survey"
+                }) +
                     " changed by someone else first" +
                     (p.item.conflictFields?.takeIf { it.isNotBlank() }?.let { f ->
                         " (" + f.split(",").joinToString(", ") { fieldLabel(it.trim()) } + ")"
                     } ?: "") +
-                    ". Choose which copy stays (needs internet)."
+                    (if (p.item.type == OutboxEntity.TYPE_PART_NOTE) ". Choose which copy stays."
+                    else ". Choose which copy stays (needs internet).")
                 else "Not accepted by the server: ${p.item.errorMessage}",
                 style = MaterialTheme.typography.bodyMedium,
             )

@@ -579,6 +579,15 @@ class SyncLists(BaseModel):
     influencer_types: list[NamedListEntry]
 
 
+class PartNote(BaseModel):
+    """The one shared note of a roll part (its booth)."""
+    booth_id: uuid.UUID
+    note: str
+    version: int = Field(description="0 = no note yet")
+    updated_at: datetime | None
+    updated_by: uuid.UUID | None
+
+
 class SyncPage(BaseModel):
     """One page of a sync pull. If `wipe` is true, delete all local data and log out; nothing else
     in the page applies. Otherwise save every row it holds (insert or replace by id; a voter with
@@ -612,6 +621,9 @@ class SyncPage(BaseModel):
     new_voters: list[NewVoter] = Field(default_factory=list, description=(
         "Eligible but Not Registered in the user's area (7.5; by part, or Village Panchayat when no part; "
         "first download: all; delta: changed since `since`). Replace by id"))
+    part_notes: list[PartNote] = Field(default_factory=list, description=(
+        "7.11: the shared notes of the user's parts (first download: all; delta: changed since `since`). "
+        "Replace by booth_id"))
     turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
 
 
@@ -628,8 +640,9 @@ class PushType(StrEnum):
     Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
     the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`
     (7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the
-    version the phone last had; stale: conflict with the server copy) and `slip_event` (7.7; base_version 0;
-    data.id = the event's id, stored once; all roles). The others come with plan steps 7 and 8. Until then an item of those
+    version the phone last had; stale: conflict with the server copy), `slip_event` (7.7; base_version 0;
+    data.id = the event's id, stored once; all roles) and `part_note` (7.11; base_version = the note's
+    version, 0 for none; stale and different: conflict with the server copy, no sync_conflicts row). The others come with plan steps 7 and 8. Until then an item of those
     types is rejected with not_implemented and NOT recorded, so a retry after the server update
     applies it."""
     survey = "survey"
@@ -693,6 +706,8 @@ class PushResult(BaseModel):
     family_member: SyncFamilyMember | None = Field(None, description=(
         "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the "
         "voter was never in one)"))
+    part_note: PartNote | None = Field(None, description=(
+        "part_note: applied: the saved note (new version); conflict: the server copy"))
     conflict_fields: list[str] = Field(default_factory=list, description="conflict: fields that differ")
 
 

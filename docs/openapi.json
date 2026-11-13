@@ -4571,16 +4571,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       },
@@ -4680,16 +4670,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -16542,6 +16522,17 @@
             ],
             "description": "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the voter was never in one)"
           },
+          "part_note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartNote"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "part_note: applied: the saved note (new version); conflict: the server copy"
+          },
           "conflict_fields": {
             "items": {
               "type": "string"
@@ -16583,7 +16574,7 @@
           "slip_event"
         ],
         "title": "PushType",
-        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`\n(7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the\nversion the phone last had; stale: conflict with the server copy) and `slip_event` (7.7; base_version 0;\ndata.id = the event's id, stored once; all roles). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
+        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`\n(7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the\nversion the phone last had; stale: conflict with the server copy), `slip_event` (7.7; base_version 0;\ndata.id = the event's id, stored once; all roles) and `part_note` (7.11; base_version = the note's\nversion, 0 for none; stale and different: conflict with the server copy, no sync_conflicts row). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
       },
       "RationCard": {
         "type": "string",
@@ -18396,6 +18387,14 @@
             "type": "array",
             "title": "New Voters",
             "description": "Eligible but Not Registered in the user's area (7.5; by part, or Village Panchayat when no part; first download: all; delta: changed since `since`). Replace by id"
+          },
+          "part_notes": {
+            "items": {
+              "$ref": "#/components/schemas/PartNote"
+            },
+            "type": "array",
+            "title": "Part Notes",
+            "description": "7.11: the shared notes of the user's parts (first download: all; delta: changed since `since`). Replace by booth_id"
           },
           "turnout": {
             "items": {

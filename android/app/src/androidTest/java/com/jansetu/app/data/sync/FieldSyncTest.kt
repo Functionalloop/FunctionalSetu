@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jansetu.app.data.FieldRepository
+import com.jansetu.app.data.PartNoteRepository
 import com.jansetu.app.data.local.AppDatabase
 import com.jansetu.app.data.local.DbKey
 import com.jansetu.app.data.local.FakeVoters
@@ -108,6 +109,8 @@ class FieldSyncTest {
                 "house_no":"${v.first { it.id == entity }.houseNo}","outcome":"${data.str("outcome")}",
                 "visited_at":"2026-11-13T10:00:00.000000Z","revisit_at":null,"note":null,"visited_by":"$user","lat":null,"lng":null}"""
             "slip_event" -> return """{"id":"$id","status":"applied","duplicate":false}"""
+            "part_note" -> """"part_note":{"booth_id":"$entity","note":"${data.str("note")}",
+                "version":${item.str("base_version")!!.toInt() + 1},"updated_at":"2026-11-13T10:00:01Z","updated_by":"$user"}"""
             "survey" -> """"survey":{"voter_id":"$entity","color_tag_id":${data.str("color_tag_id")?.let { "\"$it\"" }},
                 "version":1,"is_surveyed":true,"updated_at":"2026-11-13T10:00:01Z"}"""
             else -> error("unexpected type")
@@ -116,6 +119,70 @@ class FieldSyncTest {
     }
 
     private suspend fun queued() = mem.outbox().queued(100)
+
+    // --- part notes (7.11) ---
+    @Test fun partNoteSavedOfflineIsOneItemAndTheServerVersionComesBack() = runBlocking {
+        val notes = PartNoteRepository(local)
+        notes.save(FakeVoters.booth, "Dogs in lane 3", user)
+        notes.save(FakeVoters.booth, "  Dogs in lane 3; temple on Sunday ", user) // edited before it was sent
+        val items = queued()
+        assertEquals(1, items.size)
+        assertEquals(OutboxEntity.TYPE_PART_NOTE to 0, items[0].type to items[0].baseVersion)
+        assertTrue(mem.partNotes().get(FakeVoters.booth)!!.pending)
+
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals("Dogs in lane 3; temple on Sunday", pushed.single()["data"]!!.jsonObject.str("note"))
+        val saved = mem.partNotes().get(FakeVoters.booth)!!
+        assertEquals(1, saved.version)
+        assertFalse(saved.pending)
+
+        notes.save(FakeVoters.booth, "Next text", user) // the next edit builds on version 1
+        assertEquals(1, queued().single().baseVersion)
+    }
+
+    @Test fun pulledPartNoteIsStoredButNeverOverwritesOneChangedHere() = runBlocking {
+        val other = "00000000-0000-0000-0000-0000000000b2"
+        PartNoteRepository(local).save(FakeVoters.booth, "Mine, not sent", user)
+        pullBody = """{"watermark":"7","part_notes":[
+            {"booth_id":"${FakeVoters.booth}","note":"Server text","version":3},
+            {"booth_id":"$other","note":"Another part","version":1}]}"""
+        assertEquals(SyncOutcome.Done, sync.pull())
+        assertEquals("Mine, not sent", mem.partNotes().get(FakeVoters.booth)!!.note)
+        assertEquals("Another part", mem.partNotes().get(other)!!.note) // what a second phone gets from its sync
+    }
+
+    @Test fun stalePartNoteIsAConflictNotALostNote() = runBlocking {
+        val notes = PartNoteRepository(local)
+        notes.save(FakeVoters.booth, "Phone text", user)
+        answer = { item -> """{"id":"${item.str("id")}","status":"conflict","duplicate":false,"conflict_fields":["note"],
+            "part_note":{"booth_id":"${FakeVoters.booth}","note":"Supervisor text","version":4}}""" }
+        assertEquals(SyncOutcome.Done, sync.push())
+        val mine = mem.partNotes().get(FakeVoters.booth)!!
+        assertEquals("Phone text", mine.note) // kept on the phone
+        assertTrue(mine.conflict)
+        val problem = mem.outbox().problems().first().single()
+        assertEquals(OutboxEntity.STATUS_CONFLICT, problem.status)
+
+        // Keep mine: decided on the phone (notes have no server conflict rows), sent on top of version 4
+        assertEquals(com.jansetu.app.data.remote.ApiResult.Ok(true), sync.resolve(problem, user, keepMine = true))
+        assertEquals(4, queued().single().baseVersion)
+        assertFalse(mem.partNotes().get(FakeVoters.booth)!!.conflict)
+        answer = ::applied
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals(5 to "Phone text", mem.partNotes().get(FakeVoters.booth)!!.let { it.version to it.note })
+    }
+
+    @Test fun keepServersPartNoteShowsTheServerText() = runBlocking {
+        PartNoteRepository(local).save(FakeVoters.booth, "Phone text", user)
+        answer = { item -> """{"id":"${item.str("id")}","status":"conflict","duplicate":false,"conflict_fields":["note"],
+            "part_note":{"booth_id":"${FakeVoters.booth}","note":"Supervisor text","version":4}}""" }
+        sync.push()
+        sync.resolve(mem.outbox().problems().first().single(), user, keepMine = false)
+        val now = mem.partNotes().get(FakeVoters.booth)!!
+        assertEquals("Supervisor text" to 4, now.note to now.version)
+        assertFalse(now.conflict || now.pending)
+        assertTrue(queued().isEmpty())
+    }
 
     @Test fun kutumbMadeOfflineShowsAtOnceAndGoesUpBeforeItsMembers() = runBlocking {
         val k = field.newKutumb(FakeVoters.booth, FakeVoters.ward, "  Naik  ", listOf(v[0].id))

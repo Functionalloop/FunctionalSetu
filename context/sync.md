@@ -46,6 +46,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ### Slip events (7.7)
 
+- `part_note` (7.11): `entity_id` = the booth, `data` = `{note}`, `base_version` = the note's version (0 = none yet), survey roles. Stale and different: `conflict` with `part_note` = the server copy and `conflict_fields` `["note"]`, **no `sync_conflicts` row** (that table takes surveys, new voters and Kutumbs only), so the phone decides it alone (keep mine = send again on the server's version). Stale but the same text: `applied`. Pull: phase `part_notes` (all roles, notes of the booths in the area; first: all; delta: changed), `SyncPage.part_notes`, replace by `booth_id`.
 - `slip_event`: `entity_id` = the voter, `data` = `POST /voters/{id}/slip-events` body (`{id, channel, at}`), `base_version` 0, **all roles** (booth agents too). The event id makes it safe to resend under a new outbox id. Result: no record (`applied` only). `at` later than the server clock is stored as now.
 
 ### Visit items (7.3)
@@ -75,6 +76,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 ## Not built yet / open
 
 - Phone side (7.4, local database version 4): `families`, `family_members` and `visits` are stored in Room; Kutumbs and visits of booths that leave `area_ids` are dropped with their voters. App 0.1.0 ignores the three lists; the update to version 4 starts a full download so nothing made earlier is missed. Details: `context/android.md`.
+- Phone side (7.11, local database version 6): `part_notes` stored in Room; a pulled note never overwrites one pending or in conflict; the update to version 6 starts a full download.
 - Phone side (7.7): `slip_event` items need no table on the phone; two shares of one voter's slip are two items (two events).
 - Phone side (7.5, local database version 5): `new_voters` stored in Room (survey roles); `new_voter` before `new_voter_update` in outbox order; the update to version 5 starts a full download.
 

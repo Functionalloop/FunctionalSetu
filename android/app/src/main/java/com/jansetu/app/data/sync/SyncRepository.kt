@@ -9,6 +9,7 @@ import com.jansetu.app.data.remote.ApiResult
 import com.jansetu.app.data.remote.ConflictResolution
 import com.jansetu.app.data.remote.JansetuApi
 import com.jansetu.app.data.remote.NewVoterDto
+import com.jansetu.app.data.remote.PartNoteDto
 import com.jansetu.app.data.remote.PushItem
 import com.jansetu.app.data.remote.PushRequest
 import com.jansetu.app.data.remote.PushResult
@@ -150,6 +151,7 @@ class SyncRepository @Inject constructor(
             db.voters().removeVoters(db.voters().votersOutside(keep))
             db.field().dropOutside(keep)
             db.newVoters().dropOutside(keep)
+            db.partNotes().dropOutside(keep)
         } ?: areas.upsert(page.areas.map { it.toEntity() })
         page.totalVoters?.let { state.put(SyncStateEntity(SyncKeys.PULL_TOTAL, it.toString())) }
 
@@ -161,6 +163,7 @@ class SyncRepository @Inject constructor(
         db.field().savePulledMembers(page.familyMembers.map { it.voterId to it.familyId })
         db.field().savePulledVisits(page.visits.map { it.toEntity() })
         db.newVoters().savePulled(page.newVoters.map { it.toEntity() })
+        db.partNotes().savePulled(page.partNotes.map { it.toEntity() })
 
         if (page.nextCursor != null) {
             state.put(SyncStateEntity(SyncKeys.PULL_CURSOR, page.nextCursor))
@@ -229,6 +232,7 @@ class SyncRepository @Inject constructor(
             OutboxEntity.TYPE_FAMILY_NEW -> result.family?.toEntity()?.let { db.field().upsertFamilies(listOf(it)) }
             OutboxEntity.TYPE_VISIT -> result.visit?.let { db.field().upsertVisits(listOf(it.toEntity())) }
             OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE -> result.newVoter?.let { appliedNewVoter(item, it) }
+            OutboxEntity.TYPE_PART_NOTE -> result.partNote?.let { appliedPartNote(item, it) }
             // TYPE_FAMILY: the phone already shows the membership; nothing comes back to keep.
         }
     }
@@ -247,12 +251,21 @@ class SyncRepository @Inject constructor(
             OutboxEntity.TYPE_NEW_VOTER_UPDATE -> db.newVoters().get(item.entityId)?.let {
                 db.newVoters().upsert(listOf(it.copy(pending = updatesQueued(item.entityId))))
             }
+            OutboxEntity.TYPE_PART_NOTE -> db.partNotes().get(item.entityId)?.let {
+                db.partNotes().upsert(listOf(it.copy(pending = stillQueued(item))))
+            }
         }
     }
 
     /** Someone else saved first: the phone's copy is kept and shown next to the server's (Sync screen). */
     private suspend fun conflicted(item: OutboxEntity, result: PushResult) {
         val fields = result.conflictFields.joinToString(",")
+        if (item.type == OutboxEntity.TYPE_PART_NOTE) {
+            db.outbox().mark(item.id, OutboxEntity.STATUS_CONFLICT, "conflict", "Someone else changed this part's note first.",
+                fields, result.partNote?.let { ApiJson.encodeToString(PartNoteDto.serializer(), it) })
+            db.partNotes().get(item.entityId)?.let { db.partNotes().upsert(listOf(it.copy(pending = false, conflict = true))) }
+            return
+        }
         if (item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE) {
             db.outbox().mark(item.id, OutboxEntity.STATUS_CONFLICT, "conflict", "Someone else changed this record first.",
                 fields, result.newVoter?.let { ApiJson.encodeToString(NewVoterDto.serializer(), it) })
@@ -262,6 +275,17 @@ class SyncRepository @Inject constructor(
         db.outbox().mark(item.id, OutboxEntity.STATUS_CONFLICT, "conflict", "Someone else changed this survey first.",
             fields, result.survey?.let { ApiJson.encodeToString(SurveyDto.serializer(), it) })
         db.voters().survey(item.entityId)?.let { db.voters().upsertSurvey(it.copy(pending = false, conflict = true)) }
+    }
+
+    /** Like a survey: a later edit waiting in the outbox is rebased on the version the server gave. */
+    private suspend fun appliedPartNote(item: OutboxEntity, saved: PartNoteDto) {
+        val dao = db.partNotes()
+        if (stillQueued(item)) {
+            db.outbox().rebase(item.entityId, OutboxEntity.TYPE_PART_NOTE, saved.version)
+            dao.get(item.entityId)?.let { dao.upsert(listOf(it.copy(version = saved.version))) }
+        } else {
+            dao.upsert(listOf(saved.toEntity()))
+        }
     }
 
     private suspend fun updatesQueued(id: String) = db.outbox().queuedFor(id, OutboxEntity.TYPE_NEW_VOTER_UPDATE) > 0
@@ -295,6 +319,12 @@ class SyncRepository @Inject constructor(
     /** Conflict, "use the server's copy": drop the phone's change. */
     suspend fun discardMine(item: OutboxEntity) = db.withTransaction {
         db.outbox().delete(item.id)
+        if (item.type == OutboxEntity.TYPE_PART_NOTE) {
+            val server = item.serverCopy?.let { ApiJson.decodeFromString(PartNoteDto.serializer(), it) }
+            if (server != null) db.partNotes().upsert(listOf(server.toEntity()))
+            else db.partNotes().get(item.entityId)?.let { db.partNotes().upsert(listOf(it.copy(conflict = false))) }
+            return@withTransaction
+        }
         if (item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE) {
             val server = item.serverCopy?.let { ApiJson.decodeFromString(NewVoterDto.serializer(), it) }
             if (server != null) db.newVoters().upsert(listOf(server.toEntity()))
@@ -313,6 +343,10 @@ class SyncRepository @Inject constructor(
      * Ok(false) = nothing was open any more (decided by a supervisor): the server's copy is used.
      */
     suspend fun resolve(item: OutboxEntity, userId: String, keepMine: Boolean): ApiResult<Boolean> {
+        if (item.type == OutboxEntity.TYPE_PART_NOTE) { // no server rows for notes (7.11): decided here, works offline
+            if (keepMine) keepMine(item) else discardMine(item)
+            return ApiResult.Ok(keepMine)
+        }
         val open = when (val page = apiCall { api.conflicts(entityId = item.entityId, limit = 200) }) {
             is ApiResult.Ok -> page.value.items.filter { it.clientUser.id == userId }
             is ApiResult.Err -> return page
@@ -343,9 +377,13 @@ class SyncRepository @Inject constructor(
      *  The Sync screen decides on the server since 7.10 ([resolve]). */
     suspend fun keepMine(item: OutboxEntity) = db.withTransaction {
         val isNewVoter = item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE
+        val isNote = item.type == OutboxEntity.TYPE_PART_NOTE
         val serverVersion = item.serverCopy?.let {
-            if (isNewVoter) ApiJson.decodeFromString(NewVoterDto.serializer(), it).version
-            else ApiJson.decodeFromString(SurveyDto.serializer(), it).version
+            when {
+                isNewVoter -> ApiJson.decodeFromString(NewVoterDto.serializer(), it).version
+                isNote -> ApiJson.decodeFromString(PartNoteDto.serializer(), it).version
+                else -> ApiJson.decodeFromString(SurveyDto.serializer(), it).version
+            }
         } ?: if (isNewVoter) item.baseVersion else 0
         db.outbox().delete(item.id)
         db.outbox().insert(item.copy(
@@ -353,7 +391,9 @@ class SyncRepository @Inject constructor(
             status = OutboxEntity.STATUS_QUEUED, attempts = 0, errorCode = null, errorMessage = null,
             conflictFields = null, serverCopy = null, seq = System.currentTimeMillis(),
         ))
-        if (isNewVoter) db.newVoters().get(item.entityId)?.let {
+        if (isNote) db.partNotes().get(item.entityId)?.let {
+            db.partNotes().upsert(listOf(it.copy(conflict = false, pending = true, version = serverVersion)))
+        } else if (isNewVoter) db.newVoters().get(item.entityId)?.let {
             db.newVoters().upsert(listOf(it.copy(conflict = false, pending = true, version = serverVersion)))
         } else db.voters().survey(item.entityId)?.let {
             db.voters().upsertSurvey(it.copy(conflict = false, pending = true, version = serverVersion))

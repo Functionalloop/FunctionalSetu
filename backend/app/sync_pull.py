@@ -11,6 +11,7 @@ Then phases, each keyset-paged by id:
               rows with family_id null = taken out)
     new_voters Eligible but Not Registered whose part (or Village Panchayat, with no part) is in the area;
               survey roles only (a booth agent gets none). First: not deleted; delta: sync_xid >= since
+    part_notes the shared note of each part in the area (7.11; first: all; delta: sync_xid >= since); all roles
     gone      delta only: ids of voters changed since W that are now outside the area
 W' is taken once, on page 1, and carried in the cursor with `since`, so every page of one pull
 returns the same W'. Later pages run in later transactions and see everything committed up to
@@ -30,11 +31,12 @@ from .paging import decode_cursor, encode_cursor, invalid_cursor
 from .routers.voters import SURVEY_COLUMNS
 from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, NewVoter, Survey, SyncArea, SyncFamily,
                       SyncFamilyMember, SyncLists, SyncPage, SyncVoter, Visit)
+from .schemas_field import PartNote
 from .scope import Scope
 from .workspace_settings import load_workspace_settings
 
-FIRST_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters")
-DELTA_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "gone")
+FIRST_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes")
+DELTA_PHASES = ("voters", "surveys", "families", "members", "visits", "new_voters", "part_notes", "gone")
 WATERMARK_PATTERN = r"^[0-9]{1,20}$"
 _WATERMARK_RE = re.compile(WATERMARK_PATTERN)
 
@@ -45,6 +47,7 @@ FAMILY_COLS = ", ".join(f"f.{c}" for c in SyncFamily.model_fields)
 MEMBER_COLS = ", ".join(f"m.{c}" for c in SyncFamilyMember.model_fields)
 VISIT_COLS = ", ".join(f"t.{c}" for c in Visit.model_fields)
 NEW_VOTER_COLS = ", ".join(f"n.{c}" for c in NewVoter.model_fields)
+PART_NOTE_COLS = ", ".join(f"p.{c}" for c in PartNote.model_fields)
 _NAMED = "id, name_mr, name_en, name_hi, sort_order, is_active"
 
 
@@ -151,6 +154,11 @@ def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool) -> _P
                          "AND g.id = coalesce(n.booth_id, n.ward_id)",
                          f"{role}n.deleted_at IS NULL AND {_changed('n', since)} AND {gcond}",
                          {**gparams, "since": since}, "n.id", NEW_VOTER_COLS, "id")
+    if phase == "part_notes":  # through its booth; booth agents read them too
+        gcond, gparams = scope.filter("g.path")
+        return _PhaseSql("app.part_notes p JOIN app.geo_units g ON g.tenant_id = p.tenant_id AND g.id = p.booth_id",
+                         f"{_changed('p', since)} AND {gcond}", {**gparams, "since": since}, "p.booth_id",
+                         PART_NOTE_COLS, "booth_id")
     if phase == "members":
         first = "m.family_id IS NOT NULL" if since is None else _changed("m", since)
         return _PhaseSql(f"app.family_members m {with_voter.format(a='m')}",
@@ -215,6 +223,8 @@ def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | N
         page.visits = [Visit(**r) for r in rows]
     elif phase == "new_voters":
         page.new_voters = [NewVoter(**r) for r in rows]
+    elif phase == "part_notes":
+        page.part_notes = [PartNote(**r) for r in rows]
     else:
         page.gone_voter_ids = [r["id"] for r in rows]
     return page

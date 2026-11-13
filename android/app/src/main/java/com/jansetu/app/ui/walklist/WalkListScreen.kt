@@ -43,6 +43,7 @@ import com.jansetu.app.data.local.SyncStateEntity
 import com.jansetu.app.data.local.VoterRow
 import com.jansetu.app.data.sync.SyncScheduler
 import com.jansetu.app.ui.common.EmptyState
+import com.jansetu.app.ui.partnote.PartNoteCard
 import com.jansetu.app.ui.common.istTime
 import com.jansetu.app.ui.search.AreaPicker
 import com.jansetu.app.ui.search.VoterLine
@@ -123,6 +124,7 @@ fun WalkListScreen(session: Session, onOpen: (String) -> Unit, vm: WalkListViewM
                 Text("${h.size} houses · ${votersText(h.sumOf { it.voters })} · $visited visited",
                     style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            booth?.let { PartNoteCard(it.id, canEdit = session.canSurvey) }
         }
         val b = booth
         when {

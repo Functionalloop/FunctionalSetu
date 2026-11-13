@@ -295,6 +295,17 @@ data class SyncPage(
     @SerialName("family_members") val familyMembers: List<SyncFamilyMember> = emptyList(),
     val visits: List<VisitDto> = emptyList(),
     @SerialName("new_voters") val newVoters: List<NewVoterDto> = emptyList(),
+    @SerialName("part_notes") val partNotes: List<PartNoteDto> = emptyList(),
+)
+
+/** 7.11: a part's shared note; version 0 = none yet. */
+@Serializable
+data class PartNoteDto(
+    @SerialName("booth_id") val boothId: String,
+    val note: String,
+    val version: Int,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("updated_by") val updatedBy: String? = null,
 )
 
 @Serializable
@@ -322,6 +333,7 @@ data class PushResult(
     val family: SyncFamily? = null,
     val visit: VisitDto? = null,
     @SerialName("new_voter") val newVoter: NewVoterDto? = null,
+    @SerialName("part_note") val partNote: PartNoteDto? = null,
 )
 
 @Serializable data class PushResponse(val results: List<PushResult>)

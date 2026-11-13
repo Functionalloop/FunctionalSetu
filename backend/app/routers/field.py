@@ -1,4 +1,4 @@
-"""Field work (plan step 7): walk list, part notes, the server-drawn slip.
+"""Field work (plan step 7): walk list, the server-drawn slip.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -11,8 +11,8 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import PartNote, PartNoteIn, VisitOutcome, WalkListPage
-from ..stubs import Cursor, Limit, Surveyor, not_built
+from ..schemas_field import VisitOutcome, WalkListPage
+from ..stubs import Cursor, Limit, not_built
 
 router = APIRouter(tags=["field work"])
 
@@ -27,19 +27,7 @@ def walk_list(conn: Db, user: ReadyUser, booth_id: uuid.UUID,
     not_built("7.2")
 
 
-# --- part notes (7.11) ------------------------------------------------------------------------
-@router.get("/booths/{booth_id}/note", response_model=PartNote,
-            summary="The shared note of a part (its booth); version 0 and empty text if none yet. All roles.")
-def get_part_note(booth_id: uuid.UUID, conn: Db, user: ReadyUser) -> PartNote:
-    not_built("7.11")
-
-
-@router.put("/booths/{booth_id}/note", response_model=PartNote,
-            summary="Save the part's shared note. Stale version: 409 with the server copy. Survey roles.")
-def save_part_note(booth_id: uuid.UUID, body: PartNoteIn, conn: Db, user: Surveyor) -> PartNote:
-    not_built("7.11")
-
-
+# Part notes (7.11) are in part_notes.py.
 # History (7.6, Information Updation) is in voters.py.
 # --- slips (7.7, 12.2) ------------------------------------------------------------------------
 # POST /voters/{id}/slip-events (7.7) is in slips.py.

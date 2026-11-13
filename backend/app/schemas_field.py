@@ -14,7 +14,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from .schemas import (MOBILE_PATTERN, Form6Status, Gender, Location, NewVoter, NewVoterFields,  # noqa: F401
-                      UserSummary, Visit, VisitOutcome)  # (re-exported)
+                      PartNote, UserSummary, Visit, VisitOutcome)  # (re-exported)
 
 
 class Page(BaseModel):
@@ -75,15 +75,6 @@ class FamilyPatch(BaseModel):
 
 class FamilyPage(Page):
     items: list[Family]
-
-
-class PartNote(BaseModel):
-    """The one shared note of a roll part (its booth)."""
-    booth_id: uuid.UUID
-    note: str
-    version: int = Field(description="0 = no note yet")
-    updated_at: datetime | None
-    updated_by: uuid.UUID | None
 
 
 class PartNoteIn(BaseModel):

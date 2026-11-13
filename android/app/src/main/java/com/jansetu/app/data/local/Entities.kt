@@ -168,6 +168,8 @@ data class OutboxEntity(
         const val STATUS_CONFLICT = "conflict"
         const val STATUS_REJECTED = "rejected"
         const val TYPE_SURVEY = "survey"
+        /** A part's shared note (7.11); entity_id = the booth, base_version = the note's version (0 = none). */
+        const val TYPE_PART_NOTE = "part_note"
         /** A new Kutumb; entity_id = the Kutumb's id. Always sent before the `family` items that use it. */
         const val TYPE_FAMILY_NEW = "family_new"
         /** A voter put in a Kutumb or taken out; entity_id = the voter. */

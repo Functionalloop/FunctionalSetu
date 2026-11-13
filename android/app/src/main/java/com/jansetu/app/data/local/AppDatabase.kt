@@ -22,13 +22,15 @@ import javax.inject.Singleton
         ListEntryEntity::class, ColorTagEntity::class, CustomFieldLabelEntity::class,
         OutboxEntity::class, SyncStateEntity::class,
         FamilyEntity::class, FamilyMemberEntity::class, VisitEntity::class, NewVoterEntity::class,
+        PartNoteEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3, spec = Migration2To3::class),
         AutoMigration(from = 3, to = 4, spec = Migration3To4::class),
         AutoMigration(from = 4, to = 5, spec = Migration4To5::class),
+        AutoMigration(from = 5, to = 6, spec = Migration5To6::class),
     ],
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,6 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncState(): SyncStateDao
     abstract fun field(): FieldDao
     abstract fun newVoters(): NewVoterDao
+    abstract fun partNotes(): PartNoteDao
 
     companion object {
         const val NAME = "jansetu.db"
@@ -90,6 +93,16 @@ class Migration3To4 : AutoMigrationSpec {
  * records made before the update came in pull pages this phone did not store.
  */
 class Migration4To5 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DELETE FROM sync_state WHERE key IN ('watermark', 'pull_cursor')")
+    }
+}
+
+/**
+ * Version 6 (7.11): part notes (`part_notes`). Same reason as 3 -> 4 for a full download: notes saved
+ * before the update came in pull pages this phone did not store.
+ */
+class Migration5To6 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL("DELETE FROM sync_state WHERE key IN ('watermark', 'pull_cursor')")
     }

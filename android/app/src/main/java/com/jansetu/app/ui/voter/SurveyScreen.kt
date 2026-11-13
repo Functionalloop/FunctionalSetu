@@ -1,5 +1,6 @@
 package com.jansetu.app.ui.voter
 
+import com.jansetu.app.ui.partnote.PartNoteCard
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -152,6 +153,7 @@ fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, 
     val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { save() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PartNoteCard(voter.boothId, canEdit = !readOnly) // the voter's part (7.11)
         if (readOnly) Text("Booth agents can see the survey but not change it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (stored?.conflict == true) Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
             Text("Someone else changed this survey at the same time. See the Sync screen.", Modifier.padding(12.dp))

@@ -30,18 +30,20 @@ from .deps import SURVEY_ROLES, Principal, check_roles
 from .errors import ApiError
 from .routers.families import write_new_family, write_voter_family
 from .routers.new_voters import new_voter_in_scope, read_new_voter, write_new_voter, write_new_voter_update
+from .routers.part_notes import read_part_note, write_part_note
 from .routers.slips import write_slip_event
 from .routers.visits import read_visit, write_visit
 from .routers.voters import check_survey_references, read_survey, voter_in_scope, write_survey
 from .schemas import (NewVoter, NewVoterFields, PushError, PushItem, PushResult, PushStatus, Survey, SurveyFields,
                       SurveyIn, SyncFamily, SyncFamilyMember)
-from .schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, SlipEventIn, VisitIn
+from .schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, SlipEventIn, VisitIn
 from .scope import Scope
 from .sync_pull import FAMILY_COLS, MEMBER_COLS
 
 # PushType -> sync_mutations entity_type (and sync_conflicts for surveys)
 ENTITY = {"survey": "voter_survey", "family_new": "family", "family": "family_member", "visit": "visit",
-          "new_voter": "new_voter", "new_voter_update": "new_voter", "slip_event": "slip_event"}
+          "new_voter": "new_voter", "new_voter_update": "new_voter", "slip_event": "slip_event",
+          "part_note": "part_note"}
 
 
 class _Rejected(Exception):
@@ -86,6 +88,8 @@ def _attach(conn: Connection, item: PushItem, result: PushResult) -> None:
         result.new_voter = read_new_voter(conn, item.entity_id)
     elif item.type.value == "slip_event":
         pass  # nothing comes back: the phone keeps no copy of slip events
+    elif item.type.value == "part_note":
+        result.part_note = read_part_note(conn, item.entity_id)
     else:
         result.family_member = _member_row(conn, item.entity_id)
 
@@ -285,8 +289,25 @@ def _apply_slip_event(conn: Connection, user: Principal, scope: Scope, item: Pus
     return PushResult(id=item.id, status=PushStatus.applied, duplicate=False)
 
 
+def _apply_part_note(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
+    _check_role(user)  # booth agents read notes only
+    body = _parse(PartNoteIn, **{k: v for k, v in item.data.items() if k != "version"}, version=item.base_version)
+    try:
+        saved = write_part_note(conn, user, scope, item.entity_id, body)
+    except ApiError as e:
+        raise _Rejected(e.code, e.message) from None
+    if saved is not None:
+        return PushResult(id=item.id, status=PushStatus.applied, duplicate=False, part_note=saved)
+    server = read_part_note(conn, item.entity_id)
+    if server.note == body.note:  # the server already holds exactly this
+        return PushResult(id=item.id, status=PushStatus.applied, duplicate=False, part_note=server)
+    return PushResult(id=item.id, status=PushStatus.conflict, duplicate=False, part_note=server,
+                      conflict_fields=["note"])
+
+
 APPLY = {"survey": _apply_survey, "family_new": _apply_family_new, "family": _apply_family, "visit": _apply_visit,
-         "new_voter": _apply_new_voter, "new_voter_update": _apply_new_voter_update, "slip_event": _apply_slip_event}
+         "new_voter": _apply_new_voter, "new_voter_update": _apply_new_voter_update, "slip_event": _apply_slip_event,
+         "part_note": _apply_part_note}
 
 
 def _differing_fields(body: SurveyIn, server: Survey | None) -> dict[str, tuple[Any, Any]]:

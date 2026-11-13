@@ -34,12 +34,13 @@ from app.routers.families import booth_families, get_voter_family, write_new_fam
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.misc import list_announcements, mark_read, report_problem  # noqa: E402
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
+from app.routers.part_notes import write_part_note  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
 from app.schemas_field import ConflictStatus  # noqa: E402
-from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, ProblemReportIn,  # noqa: E402
+from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, ProblemReportIn,  # noqa: E402
                                SlipEventIn, VisitIn)
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
@@ -48,7 +49,7 @@ from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
-                   "announcements", "announcement_reads", "problem_reports",
+                   "announcements", "announcement_reads", "problem_reports", "part_notes",
                    "sync_mutations",
                    "sync_conflicts",
                    "devices", "users", "audit_log")
@@ -383,6 +384,21 @@ def main() -> None:
             report(res[0].status.value == "conflict" and len(mine) == 1 and not other and tuple(row) == (3, "check phone")
                    and twice == 409, "conflict listed, kept from the phone once; not shown to another surveyor",
                    f"list {ms:.0f} ms")
+
+            # Part notes (7.11): saved in the surveyor's part, a stale save refused, in the delta pull
+            w_note = current_watermark(conn)
+            old = conn.execute(text("SELECT version FROM app.part_notes WHERE booth_id = :b"), {"b": booth}).scalar() or 0
+            saved, ms = timed(lambda: write_part_note(conn, surveyor, s_srv, booth, PartNoteIn(note="Check note", version=old)))
+            stale = write_part_note(conn, surveyor, s_srv, booth, PartNoteIn(note="Check stale", version=old))
+            seen, cursor = [], None
+            while True:
+                page = pull_page(conn, s_srv, w_note, cursor, 1000)
+                seen += [n.booth_id for n in page.part_notes]
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            report(saved is not None and saved.version == old + 1 and stale is None and seen == [booth],
+                   "part note saved, stale save refused, in the delta pull", f"{ms:.0f} ms")
         finally:
             trans.rollback()
 
