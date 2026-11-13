@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
@@ -226,6 +226,12 @@ class ListType(StrEnum):
     draft = "draft"
 
 
+class RationCard(StrEnum):
+    aay = "AAY"    # Antyodaya Anna Yojana
+    phh = "PHH"    # priority household
+    nphh = "NPHH"  # non-priority household
+
+
 class SurveyFields(BaseModel):
     """The part of a survey a worker edits. PUT replaces all of it: a field left out is cleared."""
     mobile_1: str | None = Field(None, pattern=MOBILE_PATTERN, examples=["9876543210"])
@@ -247,6 +253,14 @@ class SurveyFields(BaseModel):
     extra_info_3: str | None = Field(None, max_length=500)
     extra_info_4: str | None = Field(None, max_length=500)
     extra_info_5: str | None = Field(None, max_length=500)
+    # Client changes of 12 Nov (SRS 1.1)
+    is_important: bool = Field(False, description="Important voter")
+    position_id: uuid.UUID | None = Field(None, description="From the positions list; only with is_important")
+    is_influencer: bool = False
+    influencer_type_id: uuid.UUID | None = Field(None, description="From the influencer types list; only with is_influencer")
+    in_self_help_group: bool = Field(False, description="Member of a self help group")
+    self_help_group_name: str | None = Field(None, max_length=200, description="Only with in_self_help_group")
+    ration_card: RationCard | None = None
 
 
 class Location(BaseModel):
@@ -268,6 +282,12 @@ class SurveyIn(SurveyFields):
             raise ValueError("new_address_* needs has_new_address = true")
         if self.dob and not (date(1900, 1, 1) <= self.dob <= date.today()):
             raise ValueError("dob must be between 1900-01-01 and today")
+        if self.position_id and not self.is_important:
+            raise ValueError("position_id needs is_important = true")
+        if self.influencer_type_id and not self.is_influencer:
+            raise ValueError("influencer_type_id needs is_influencer = true")
+        if self.self_help_group_name and not self.in_self_help_group:
+            raise ValueError("self_help_group_name needs in_self_help_group = true")
         return self
 
 
@@ -314,6 +334,8 @@ class WorkspaceSettings(BaseModel):
     election_name_en: str | None
     election_type: str | None
     polling_date: date | None
+    polling_start_time: time | None = Field(description="Polling hours, local (Indian) time; shown on voter slips")
+    polling_end_time: time | None
     code_of_conduct_mode: bool
     candidate_name_mr: str | None
     candidate_name_en: str | None
@@ -410,7 +432,7 @@ class SyncVoter(BaseModel):
 
 
 class NamedListEntry(BaseModel):
-    """A caste or a profession."""
+    """An entry of a simple list: caste, profession, position or influencer type."""
     id: uuid.UUID
     name_mr: str
     name_en: str | None
@@ -444,6 +466,8 @@ class SyncLists(BaseModel):
     professions: list[NamedListEntry]
     color_tags: list[ColorTag]
     custom_field_labels: list[CustomFieldLabel]
+    positions: list[NamedListEntry] = Field(description="Positions of important voters")
+    influencer_types: list[NamedListEntry]
 
 
 class SyncPage(BaseModel):
@@ -482,8 +506,9 @@ class PushType(StrEnum):
     """`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);
     visit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);
     new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
-    family = FamilyChange (voter); slip_event = SlipEventIn (voter); name_fix = NameFixIn (voter).
-    Only `survey` is built; the others come with plan steps 7, 8 and 10. Until then an item of
+    family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
+    without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
+    Only `survey` is built; the others come with plan steps 7 and 8. Until then an item of
     those types is rejected with not_implemented and NOT recorded, so a retry after the server
     update applies it."""
     survey = "survey"
@@ -493,8 +518,9 @@ class PushType(StrEnum):
     new_voter = "new_voter"
     new_voter_update = "new_voter_update"
     family = "family"
+    family_new = "family_new"
+    part_note = "part_note"
     slip_event = "slip_event"
-    name_fix = "name_fix"
 
 
 class PushStatus(StrEnum):

@@ -1,0 +1,7 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Placeholder mark (a bridge arch) until the client sends a logo. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M30,70 L30,64 Q54,30 78,64 L78,70 L72,70 L72,66 Q54,42 36,66 L36,70 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M26,72 L82,72 L82,77 L26,77 Z" />
+</vector>

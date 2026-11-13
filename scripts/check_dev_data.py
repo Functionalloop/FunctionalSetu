@@ -129,7 +129,7 @@ def main() -> None:
 
         seen, cursor, worst, pages = set(), None, 0.0, 0
         args_ = dict(q=None, ward_id=None, booth_id=None, age_min=None, age_max=None, gender=None, color_tag_id=None,
-                     survey_status=None, caste_id=None, profession_id=None, has_mobile=None, limit=200)
+                     survey_status=None, caste_id=None, profession_id=None, has_mobile=None, important=None, limit=200)
         while True:
             page, ms = timed(lambda: list_voters(conn, admin, s_admin, **args_, cursor=cursor))
             seen |= {v.id for v in page.items}
@@ -140,7 +140,8 @@ def main() -> None:
         report(worst < SLOW_PAGE_MS, f"voter list pages under {SLOW_PAGE_MS} ms")
         word = conn.execute(text("SELECT lower(last_name_en) FROM app.voters WHERE last_name_en IS NOT NULL "
                                  "GROUP BY 1 ORDER BY count(*) DESC LIMIT 1")).scalar() or "a"
-        for label, kw in (("common surname", {"q": word}), ("number", {"q": "5"}), ("gender + age", {"gender": "F", "age_min": 18, "age_max": 25})):
+        for label, kw in (("common surname", {"q": word}), ("number", {"q": "5"}), ("gender + age", {"gender": "F", "age_min": 18, "age_max": 25}),
+                          ("important voters", {"important": True})):
             res, ms = timed(lambda: list_voters(conn, admin, s_admin, **{**args_, **kw}, cursor=None))
             report(ms < SLOW_PAGE_MS, f"search: {label}", f"{len(res.items)} rows on page 1, {ms:.0f} ms")
 
@@ -151,6 +152,11 @@ def main() -> None:
                "admin first download is exact", f"{len(voters)} voters, {pages} pages, slowest {worst:.0f} ms, "
                                                 f"{size / 1e6:.1f} MB JSON")
         report(len(marks) == 1, "one watermark per download")
+        lists = first.lists
+        report(bool(lists and lists.positions and lists.influencer_types)
+               and "white" not in [t.code for t in lists.color_tags if t.is_active],
+               "pull carries positions and influencer types, no active white tag",
+               f"{len(lists.positions) if lists else 0} positions, {len(lists.influencer_types) if lists else 0} types")
         cond, params = s_srv.filter("v.geo_path")
         expect = conn.execute(text(f"SELECT count(*) FROM app.voters v WHERE v.deleted_at IS NULL AND {cond}"), params).scalar()
         _, sv, _, pages, worst, size, _ = full_pull(conn, s_srv)

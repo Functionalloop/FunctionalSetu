@@ -31,7 +31,7 @@ class Family(BaseModel):
     ward_id: uuid.UUID
     booth_id: uuid.UUID | None
     house_no: str | None
-    label: str | None = Field(description="Shown name of the household, e.g. 'Patil house'")
+    label: str | None = Field(description="Family name, typed by the surveyor (families are made by hand, client 12 Nov)")
     head_voter_id: uuid.UUID | None
     source: FamilySource
     member_ids: list[uuid.UUID] = Field(description="Voters in this family")
@@ -39,17 +39,54 @@ class Family(BaseModel):
 
 
 class FamilyChange(BaseModel):
-    """PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id."""
+    """PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id,
+    or leave_family = true with neither (takes the voter out of their family)."""
     family_id: uuid.UUID | None = Field(None, description="Move the voter into this existing family")
     new_family_id: uuid.UUID | None = Field(None, description="Start a new family with this phone-made id")
     new_family_label: str | None = Field(None, max_length=200)
     make_head: bool = Field(False, description="Make this voter the head of the family")
+    leave_family: bool = Field(False, description="Take the voter out of their family (added 12 Nov)")
 
     @model_validator(mode="after")
     def _one(self) -> FamilyChange:
-        if (self.family_id is None) == (self.new_family_id is None):
+        if self.leave_family:
+            if self.family_id or self.new_family_id or self.make_head:
+                raise ValueError("leave_family goes alone: no family_id, new_family_id or make_head")
+        elif (self.family_id is None) == (self.new_family_id is None):
             raise ValueError("give exactly one of family_id or new_family_id")
         return self
+
+
+class FamilyIn(BaseModel):
+    """POST /families and push type `family_new` (entity_id = the family id): a family made by hand."""
+    id: uuid.UUID = Field(description="Made by the phone; a repeat with the same id is stored once")
+    booth_id: uuid.UUID = Field(description="The booth (part) the family belongs to")
+    label: str = Field(min_length=1, max_length=200, description="Family name, free text")
+
+
+class FamilyPatch(BaseModel):
+    """PATCH /families/{id}: rename."""
+    label: str = Field(min_length=1, max_length=200)
+
+
+class FamilyPage(Page):
+    items: list[Family]
+
+
+class PartNote(BaseModel):
+    """The one shared note of a roll part (its booth)."""
+    booth_id: uuid.UUID
+    note: str
+    version: int = Field(description="0 = no note yet")
+    updated_at: datetime | None
+    updated_by: uuid.UUID | None
+
+
+class PartNoteIn(BaseModel):
+    """PUT /booths/{id}/note and push type `part_note` (entity_id = the booth id, base_version = version)."""
+    note: str = Field(max_length=2000)
+    version: int = Field(ge=0, description="The version you last saw; 0 if the part had no note yet. "
+                                           "A stale one: 409 with the server copy (push: conflict)")
 
 
 class VoterFamily(BaseModel):
