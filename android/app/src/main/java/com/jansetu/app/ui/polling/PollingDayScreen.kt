@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
@@ -93,7 +94,10 @@ class PollingDayViewModel @Inject constructor(local: LocalDb, private val schedu
  * marks not sent yet. Counts include other workers' marks up to the last sync.
  */
 @Composable
-fun PollingDayScreen(session: Session, onMarkVoted: (String) -> Unit, vm: PollingDayViewModel = hiltViewModel()) {
+fun PollingDayScreen(
+    session: Session, onMarkVoted: (String) -> Unit, onMarkMany: (String) -> Unit,
+    vm: PollingDayViewModel = hiltViewModel(),
+) {
     if (!session.canPoll) {
         EmptyState("Polling day is not part of your role. Booth agents and supervisors mark who has voted.")
         return
@@ -137,6 +141,9 @@ fun PollingDayScreen(session: Session, onMarkVoted: (String) -> Unit, vm: Pollin
         }
         Button(onClick = { onMarkVoted(b.id) }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.HowToVote, null); Text("  Mark voted")
+        }
+        OutlinedButton(onClick = { onMarkMany(b.id) }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Checklist, null); Text("  Mark many voted")
         }
         if (unsent > 0) {
             Text(

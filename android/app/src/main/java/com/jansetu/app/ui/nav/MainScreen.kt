@@ -52,7 +52,10 @@ import com.jansetu.app.ui.share.SHARE_ROUTE
 import com.jansetu.app.ui.share.ShareWhatsAppScreen
 import com.jansetu.app.ui.share.shareRoute
 import com.jansetu.app.ui.sync.SyncScreen
+import com.jansetu.app.ui.polling.BULK_VOTED_ROUTE
+import com.jansetu.app.ui.polling.BulkVotedScreen
 import com.jansetu.app.ui.polling.MARK_VOTED_ROUTE
+import com.jansetu.app.ui.polling.bulkVotedRoute
 import com.jansetu.app.ui.polling.MarkVotedScreen
 import com.jansetu.app.ui.polling.PollingDayScreen
 import com.jansetu.app.ui.polling.markVotedRoute
@@ -125,7 +128,13 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { MorePage("Sync", onBack = { nav.popBackStack() }) { SyncScreen(onOpen = nav::openVoter) } }
-            composable("polling") { PollingDayScreen(session, onMarkVoted = { nav.navigate(markVotedRoute(it)) }) }
+            composable("polling") {
+                PollingDayScreen(session, onMarkVoted = { nav.navigate(markVotedRoute(it)) },
+                    onMarkMany = { nav.navigate(bulkVotedRoute(it)) })
+            }
+            composable(BULK_VOTED_ROUTE, arguments = listOf(navArgument("boothId") { type = NavType.StringType })) {
+                BulkVotedScreen(session, onBack = { nav.popBackStack() })
+            }
             composable(MARK_VOTED_ROUTE, arguments = listOf(navArgument("boothId") { type = NavType.StringType })) {
                 MarkVotedScreen(session, onBack = { nav.popBackStack() })
             }

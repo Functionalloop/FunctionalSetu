@@ -137,6 +137,18 @@ class TurnoutSyncTest {
         assertEquals("2026-11-14T03:30:00Z", mark(0)!!.markedAt)
     }
 
+    @Test fun markManyIsOneItemAndSkipsVotersAlreadyMarked() = runBlocking {
+        repo.markVoted(listOf(v[1].id), "single", me)
+        assertEquals(3, repo.markVoted(v.map { it.id }, "bulk_typed", me)) // v[1] is left as it is
+        val bulk = mem.outbox().queued(10).last()
+        val ids = ApiJson.parseToJsonElement(bulk.data).jsonObject
+        assertEquals("bulk_typed", ids.str("source"))
+        assertEquals(listOf(v[0].id, v[2].id, v[3].id), ids["voter_ids"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals(4, mem.turnout().partCounts(FakeVoters.booth).first().voted)
+        assertEquals(0, unsent())
+    }
+
     @Test fun aVoterSomeoneElseMarkedFirstShowsTheirMark() = runBlocking {
         marks[v[0].id] = true to other
         repo.markVoted(listOf(v[0].id), "single", me)
