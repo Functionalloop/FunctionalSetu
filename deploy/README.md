@@ -74,7 +74,15 @@ curl -s https://myjansetu.com/api/v1/health
 | Disk space | `df -h /` and `docker system df` |
 | Remove old images after updates | `docker image prune -f` |
 
-## 4. When something is wrong
+## 4. Copy a database from the laptop (done once in 6.5, 13 Nov)
+
+1. Laptop: `COMPOSE_FILE=deploy/docker-compose.dev.yml bash scripts/backup.sh jansetu-private/backups`, then `scp` the `.dump` and `.counts` to `/var/backups/jansetu/from-laptop/` (mode 700; compare `sha256sum`).
+2. Server: `scripts/backup.sh` (safety copy), `docker compose -f deploy/docker-compose.yml stop api`, `scripts/restore.sh --live <dump>`, `run --rm ops python scripts/migrate.py`.
+3. Remove laptop rehearsal data as the superuser in one transaction: `DELETE FROM app.sync_conflicts; DELETE FROM app.sync_mutations; DELETE FROM app.voter_surveys;` and end every session (`UPDATE app.auth_sessions SET revoked_at = now(), revoke_reason = 'moved_to_server' WHERE revoked_at IS NULL`). Only when the surveys are rehearsal data.
+4. `up -d`, then new passwords: `run --rm -v /var/backups/jansetu/users:/srv/jansetu/jansetu-private ops python scripts/create_demo_users.py --reset` (see `context/deploy.md`, Pitfalls), and `create_super_admin.py --username ... --reset` for any other super admin.
+5. `scripts/backup.sh` and copy that dump to the laptop; delete `from-laptop/`.
+
+## 5. When something is wrong
 
 - **Locked out of SSH:** Bluehost panel → VPS → console (does not use SSH). Log in as root with the root password and fix `/etc/ssh/sshd_config.d/00-jansetu.conf`.
 - **Restore the live database** (same server or a new one): `docker compose -f deploy/docker-compose.yml stop api`, then `scripts/restore.sh --live <dump>`, then `run --rm ops python scripts/migrate.py`, then `start api`. On a new server `--live` also moves the transaction counter so phones keep syncing (see `context/deploy.md`, Backups).

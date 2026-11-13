@@ -1,6 +1,6 @@
 # Deploy: server, Docker Compose, Caddy, backups, APK
 
-Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`deploy/docker-compose.yml`, `deploy/Caddyfile`, `backend/Dockerfile`) runs on the laptop. 6.2 done: `scripts/backup.sh`, `scripts/restore.sh`, tried on the laptop (the nightly cron is set up on the server in 6.4). 6.3 done: APK download and `GET /app/version`. 6.4 (13 Nov): the stack runs on the server at `https://myjansetu.com`, empty database (migrated, no workspace yet); commands in `deploy/README.md`. Not yet: data on the server (6.5), laptop fallback (6.6), release key and first APK (6.7), the worker container (no `backend/app/worker.py` yet).
+Current state (13 Nov): branch `step6-server`. Stack running at `https://myjansetu.com` with the real roll since 6.5 (31,871 voters, workspace `naik`, 4 demo users with temporary passwords, every phone waiting, no surveys). Done: 6.1 stack, 6.2 backup/restore, 6.3 APK download + `/app/version`, 6.4 server setup, 6.5 data, 6.8 Phones screen in the app. Not yet: laptop fallback (6.6), release key and first APK (6.7), the worker container (no `backend/app/worker.py` yet). Commands: `deploy/README.md`.
 
 ## Server (decided 13 Nov)
 
@@ -11,7 +11,8 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 - Set up 13 Nov with `deploy/server_setup.sh` and `deploy/make_env.sh` (see `deploy/README.md`): Docker 29.9 + compose v5.7 from Docker's apt repo, ufw (22, 80, 443 tcp, 443 udp), unattended security upgrades, Docker log limit 10 MB x 5, cron + logrotate (not in Bluehost's minimal image). Code in `/srv/jansetu` (copied with `git archive`, no git on the server), server `.env` there (mode 600, passwords generated on the server, never copied off). Server clock UTC.
 - Tested 13 Nov: HTTPS with a Let's Encrypt certificate for `myjansetu.com` and `www` (www → 301 to the main name, http → 308), `/health` ok, `/app/version` 404 (nothing published), 5432 closed from outside; backup + restore check on the server (47 tables); after `sudo reboot` all containers, ufw and the SSH lockdown came back by themselves.
 - Audit 13 Nov: `backup.sh` run with cron's bare environment (`env -i`, PATH `/usr/bin:/bin`) works; the first real cron run is 21:00 UTC on 13 Nov, check `/var/log/jansetu/backup.log` after it. Unattended upgrades install kernels but never reboot (`Automatic-Reboot` is off): when `/var/run/reboot-required` exists, `sudo systemctl reboot` at a quiet time (done 13 Nov, kernel 6.8.0-149; everything came back by itself), or switch automatic reboots on in 12.7. A reboot from the Bluehost panel did not take effect on 13 Nov; check `uptime` afterwards. `/api/v1/docs` and `/api/v1/openapi.json` are public until 12.7.
-- For 6.5: the dev database brings 4 users, 3 approved phones, 11 sessions and 3 rehearsal surveys (13 Nov). `restore.sh --live` replaces the whole database, so create or reset users after it, not before: `create_super_admin.py --username ... --reset` (new temporary password, sessions ended, phones pending) and `create_demo_users.py --reset`; then `approve_phone.py --username demo.admin` once the demo admin's phone has logged in (the admin approves every other phone in the app).
+- 6.5 done 13 Nov: dev dump `jansetu_20261113T075540Z` (laptop backup xid 215,380) restored with `restore.sh --live`; counts matched (47 tables); counter moved 2,196 → 2,215,385; then `migrate.py` (role passwords); rehearsal data removed (4 surveys, 6 sync records, sessions ended; audit log kept, it is append-only); `create_demo_users.py --reset` (all 4 users new temporary passwords, phones pending). Checked: 31,871 voters (API role: 0 without context, 31,871 in `naik`), the laptop password of demo.admin is refused, the new temporary one logs in with must-change. Server dump `jansetu_20261113T075759Z` copied to the laptop's `jansetu-private/backups/`.
+- Server demo passwords: `jansetu-private/demo_users_server.txt` on the laptop (temporary, each user sets a new one at first login). The demo admin's phone is approved with `approve_phone.py` after its first login.
 - Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
 
 ## SSH (locked down 13 Nov)
@@ -81,6 +82,9 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - `DOMAIN`, `ACME_EMAIL`: for Caddy. Caddy gets the HTTPS certificate from Let's Encrypt itself; there is no SSL key to paste. The domain's A record must point at the server before `compose up`, and ports 80 and 443 must be open.
 
 ## Pitfalls
+
+- `ops` runs with `--rm`: a script that writes a file inside the container (`create_demo_users.py` writes `jansetu-private/demo_users.txt` and never prints passwords) loses it. Mount a private folder: `run --rm -v /var/backups/jansetu/users:/srv/jansetu/jansetu-private ops ...` (folder owned by uid 10001, mode 700), copy the file off with `sudo cat`, then delete the folder.
+- `app.set_context` lasts one transaction: a psql check as `jansetu_app` must run `BEGIN; SELECT app.set_context(...); SELECT ...; COMMIT;`, or it counts 0.
 
 - `docker compose exec -T` reads stdin: in a script piped over SSH (`ssh ... bash -s < file`) it swallows the rest of the script. Run such scripts with `< /dev/null` or as a direct command.
 - PowerShell 5.1 strips inner quotes from arguments to `ssh`; put multi-line server commands in a file and send it with `cmd /c "ssh ... bash -s < file"`.
