@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from ..deps import CurrentUser, Db, ReadyUser, get_active_principal, get_ready_principal
+from ..deps import SURVEY_ROLES, CurrentUser, Db, ReadyUser, get_active_principal, get_ready_principal
 from ..schemas import PushRequest, PushResponse, SyncPage
 from ..schemas_field import Conflict, ConflictPage, ConflictResolution, ConflictStatus
 from ..stubs import NOT_BUILT, Cursor, Limit, Surveyor, not_built
@@ -34,7 +34,7 @@ def pull(
     if user.device_status in ("blocked", "wiped"):
         return SyncPage(watermark="0", next_cursor=None, wipe=True)
     ready = get_ready_principal(get_active_principal(user))  # 403 device_pending / password_change_required
-    return pull_page(conn, load_scope(conn, ready), since, cursor, limit)
+    return pull_page(conn, load_scope(conn, ready), since, cursor, limit, survey_role=ready.role in SURVEY_ROLES)
 
 
 @router.post("/push", response_model=PushResponse,

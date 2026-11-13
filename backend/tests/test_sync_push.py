@@ -186,7 +186,7 @@ def test_pushed_survey_comes_back_in_the_next_pull(client, ws):
     assert [(s["voter_id"], s["notes"], s["version"]) for s in surveys] == [(str(ws.v[0]), "from the phone", 1)]
 
 
-@pytest.mark.parametrize("ptype", ["voted", "new_voter", "part_note", "slip_event"])
+@pytest.mark.parametrize("ptype", ["voted", "part_note", "slip_event"])
 def test_types_not_built_are_rejected_and_not_recorded(client, ws, owner_conn, ptype):
     it = {**item(ws.v[0]), "type": ptype}
     for _ in range(2):  # a retry gets the same answer, never a stored "duplicate"

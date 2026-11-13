@@ -434,6 +434,61 @@ class Visit(BaseModel):
     lng: float | None
 
 
+class Form6Status(StrEnum):
+    not_applied = "not_applied"
+    applied = "applied"
+    approved = "approved"
+    rejected = "rejected"
+
+
+_NEW_VOTER_TEXT = ("full_name_en", "full_name_mr", "relative_name", "address", "notes")
+
+
+class NewVoterFields(BaseModel):
+    """Eligible but Not Registered (7.5; "new voter" and "not registered" are one thing). The person
+    belongs to a part (booth_id) or, with no part, to the Village Panchayat (ward_id = the booth's ward)."""
+    full_name_en: str | None = Field(None, max_length=200)
+    full_name_mr: str | None = Field(None, max_length=200)
+    relative_name: str | None = Field(None, max_length=200)
+    dob: date | None = None
+    gender: Gender | None = None
+    mobile: str | None = Field(None, pattern=MOBILE_PATTERN)
+    address: str | None = Field(None, max_length=500)
+    ward_id: uuid.UUID = Field(description="The Village Panchayat (geo level `ward`)")
+    booth_id: uuid.UUID | None = Field(None, description="The part, if known; it must be in ward_id")
+    family_id: uuid.UUID | None = Field(None, description="A Kutumb of the same part (needs booth_id)")
+    form6_status: Form6Status = Form6Status.not_applied
+    notes: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _blank_is_none(cls, data):
+        # Spaces at the ends are dropped; an empty text field is no value.
+        if isinstance(data, dict):
+            data = {k: (v.strip() or None) if k in _NEW_VOTER_TEXT and isinstance(v, str) else v
+                    for k, v in data.items()}
+        return data
+
+    @model_validator(mode="after")
+    def _checks(self) -> NewVoterFields:
+        if not (self.full_name_en or self.full_name_mr):
+            raise ValueError("give full_name_en or full_name_mr")
+        if self.dob is not None and self.dob > date.today():
+            raise ValueError("dob: date of birth is in the future")
+        if self.family_id is not None and self.booth_id is None:
+            raise ValueError("family_id needs booth_id (a Kutumb belongs to one part)")
+        return self
+
+
+class NewVoter(NewVoterFields):
+    id: uuid.UUID
+    version: int
+    matched_voter_id: uuid.UUID | None = Field(description="Set when this person appears in a new roll")
+    created_by: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 class SyncFamily(BaseModel):
     """A Kutumb in the sync pull (7.2). Its members come separately in `family_members`."""
     id: uuid.UUID
@@ -554,7 +609,9 @@ class SyncPage(BaseModel):
         "`since`, family_id null = taken out). Replace by voter_id"))
     visits: list[Visit] = Field(default_factory=list, description=(
         "Visits in the user's booths (7.3; first download: all; delta: new since `since`)"))
-    new_voters: list[dict] = Field(default_factory=list, description="NewVoter rows; from step 7.5")
+    new_voters: list[NewVoter] = Field(default_factory=list, description=(
+        "Eligible but Not Registered in the user's area (7.5; by part, or Village Panchayat when no part; "
+        "first download: all; delta: changed since `since`). Replace by id"))
     turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
 
 
@@ -569,7 +626,9 @@ class PushType(StrEnum):
     family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
     without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
     Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
-    the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id). The others come with plan steps 7 and 8. Until then an item of those
+    the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`
+    (7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the
+    version the phone last had; stale: conflict with the server copy). The others come with plan steps 7 and 8. Until then an item of those
     types is rejected with not_implemented and NOT recorded, so a retry after the server update
     applies it."""
     survey = "survey"
@@ -593,14 +652,19 @@ class PushStatus(StrEnum):
 class PushItem(BaseModel):
     id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
     type: PushType
-    entity_id: uuid.UUID = Field(description="survey, family, visit: the voter id; family_new: the Kutumb's id")
+    entity_id: uuid.UUID = Field(description=(
+        "survey, family, visit: the voter id; family_new: the Kutumb's id; new_voter, new_voter_update: "
+        "the new voter's id"))
     base_version: int = Field(ge=0, description=(
-        "survey: the version the phone last had; 0 = no survey yet. family_new, family, visit: 0"))
+        "survey: the version the phone last had; 0 = no survey yet. new_voter_update: the version the phone "
+        "last had (1 or more). family_new, family, visit, new_voter: 0"))
     changed_at: datetime | None = Field(None, description="When the change was made on the phone")
     data: dict = Field(description=(
         "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
         "family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). "
         "family: PUT /voters/{id}/family body (FamilyChange). visit: POST /voters/{id}/visits body (VisitIn). "
+        "new_voter: POST /new-voters body (NewVoterIn; `id` may be left out, it is entity_id). "
+        "new_voter_update: PATCH /new-voters/{id} body (NewVoterPatch) without `version`. "
         "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
 
 
@@ -619,9 +683,11 @@ class PushResult(BaseModel):
     duplicate: bool = Field(description="This id was received before: the stored result, nothing applied again")
     error: PushError | None = Field(None, description="rejected only")
     survey: Survey | None = Field(None, description=(
-        "applied: the saved copy (new version); conflict: the server copy"))
+        "survey: applied: the saved copy (new version); conflict: the server copy"))
     family: SyncFamily | None = Field(None, description="family_new, applied: the Kutumb as stored")
     visit: Visit | None = Field(None, description="visit, applied: the visit as stored")
+    new_voter: NewVoter | None = Field(None, description=(
+        "new_voter, new_voter_update: applied: the saved copy (new version); conflict: the server copy"))
     family_member: SyncFamilyMember | None = Field(None, description=(
         "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the "
         "voter was never in one)"))

@@ -12,8 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response, status
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import (BirthdayPage, HistoryPage, NewVoter, NewVoterIn, NewVoterPage, NewVoterPatch, PartNote,
-                             PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage)
+from ..schemas_field import BirthdayPage, HistoryPage, PartNote, PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
@@ -40,26 +39,6 @@ def get_part_note(booth_id: uuid.UUID, conn: Db, user: ReadyUser) -> PartNote:
             summary="Save the part's shared note. Stale version: 409 with the server copy. Survey roles.")
 def save_part_note(booth_id: uuid.UUID, body: PartNoteIn, conn: Db, user: Surveyor) -> PartNote:
     not_built("7.11")
-
-
-# --- new voters (7.5) -------------------------------------------------------------------------
-@router.get("/new-voters", response_model=NewVoterPage,
-            summary="People added by hand (not on the roll), with Form 6 status. Survey roles.")
-def list_new_voters(conn: Db, user: Surveyor, ward_id: uuid.UUID | None = None,
-                    form6_status: str | None = None, limit: Limit = 50, cursor: Cursor = None) -> NewVoterPage:
-    not_built("7.5")
-
-
-@router.post("/new-voters", response_model=NewVoter, status_code=status.HTTP_201_CREATED,
-             summary="Add a person who is not on the roll. A repeat id is stored once. Survey roles.")
-def add_new_voter(body: NewVoterIn, conn: Db, user: Surveyor) -> NewVoter:
-    not_built("7.5")
-
-
-@router.patch("/new-voters/{new_voter_id}", response_model=NewVoter,
-              summary="Edit a new voter or its Form 6 status. Stale version: 409 with the server copy. Survey roles.")
-def update_new_voter(new_voter_id: uuid.UUID, body: NewVoterPatch, conn: Db, user: Surveyor) -> NewVoter:
-    not_built("7.5")
 
 
 # --- history (7.6) ----------------------------------------------------------------------------

@@ -18,6 +18,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
   - `voters`: first download = every voter in the area, removed ones left out; delta = voters in the area with `sync_xid >= W`, removed ones **included** (`deleted_at` set).
   - `surveys`: surveys of non-removed voters in the area (delta: `sync_xid >= W`).
   - `families` (7.2): Kutumbs whose **booth** is in the scope (first: not deleted; delta: changed, deleted ones included with `deleted_at`). No member list on the row.
+  - `new_voters` (7.5): Eligible but Not Registered whose part (or Village Panchayat when no part) is in the scope; **survey roles only** (a booth agent's pull has none: `pull_page(..., survey_role=)`). First: not deleted; delta: changed since W. Replace by id.
   - `visits` (7.3): visits whose booth is in the scope (first: all; delta: new since W). Not deleted ones only (there is no delete).
   - `members` (7.2): `family_members` rows (`voter_id`, `family_id`, `updated_at`) of non-removed voters in the area. First: only voters in a Kutumb; delta: changed rows, `family_id` null = taken out. Replace by `voter_id`.
   - `gone` (delta only): ids of voters changed since W that are now **outside** the area (moved booth, area switched off for them). Ids only, never the row.
@@ -29,13 +30,19 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ## `POST /sync/push` (built 4.8)
 
-- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey`, `family_new`, `family`, `visit`; others `not_implemented`), `entity_id` (voter id; `family_new`: the Kutumb id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
+- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey`, `family_new`, `family`, `visit`, `new_voter`, `new_voter_update`; others `not_implemented`), `entity_id` (voter id; `family_new`: the Kutumb id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
 - Result per item, same order: `applied` (`survey` = saved copy with the new version), `conflict` (`survey` = server copy, `conflict_fields`), `rejected` (`error.code`: `forbidden_role`, `validation_error`, `not_found`, ...). `duplicate: true` = this id was seen before; the stored status is returned and nothing is applied again.
 - **One bad item never fails the batch** (the outbox would stick): `data` is validated per item. Only a broken envelope (bad `id`, unknown `type`, > 500 items) is a 422 for the whole request.
 - Retry safety, two layers: (1) look up `sync_mutations (device_id, client_mutation_id)` first; (2) each item runs in a SAVEPOINT and records its result with `INSERT ... ON CONFLICT DO NOTHING` at the end; if a parallel request recorded the id first, the savepoint is rolled back and the stored result returned. Test `test_parallel_retries_apply_once` fails without layer 2.
 - Conflict: nothing written to the survey; one `sync_conflicts` row per differing field (`client_value` / `server_value` jsonb, `status = open`). If the phone's data equals the server copy, it is `applied` with no conflict rows. Resolving conflicts (`GET /sync/conflicts`, `.../resolve`) is not built.
 - Needs a phone: a login without a device gets 403 `device_required` (the retry key is per device). Roles are checked per item (`SURVEY_ROLES` for surveys): a booth agent's survey item is `rejected`, not a 403 for the batch.
 - Uses the same `write_survey` as `PUT /voters/{id}/survey`, so both follow one set of rules.
+
+### Eligible but Not Registered items (7.5)
+
+- `new_voter`: `entity_id` = the record's id, `data` = `POST /new-voters` body (`id` may be left out), `base_version` 0. A repeat id returns the stored record (first copy kept).
+- `new_voter_update`: `entity_id` = the record's id, `data` = `PATCH /new-voters/{id}` body without `version`, `base_version` = the version the phone last had (1 or more; 0 is rejected). Stale: `conflict` with `new_voter` = the server copy and `conflict_fields`; one `sync_conflicts` row per field (`entity_type` `new_voter`). Stale but equal to the server: `applied`. Result `new_voter` = the saved copy.
+- Push the `new_voter` before its `new_voter_update` items (an update of a record the server does not have is `rejected` `not_found`).
 
 ### Visit items (7.3)
 

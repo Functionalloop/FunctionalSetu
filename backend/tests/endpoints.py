@@ -56,6 +56,11 @@ class Endpoint:
         return f"{self.method} {self.path}"
 
 
+def _new_voter_body(world) -> dict[str, Any]:
+    """A record in workspace A's booth 1 (inside every test user's area)."""
+    return {"full_name_en": "Rule Check", "ward_id": str(world.a.ward), "booth_id": str(world.a.booths[0])}
+
+
 ENDPOINTS: list[Endpoint] = [
     # system and auth
     Endpoint("GET", "/health", level="public"),
@@ -89,6 +94,12 @@ ENDPOINTS: list[Endpoint] = [
     # visits (7.3); behaviour: test_visits.py
     Endpoint("POST", "/voters/{voter_id}/visits", roles=SURVEY_ROLES, target="voter",
              body=lambda w: {"id": str(uuid.uuid4()), "outcome": "not_home", "visited_at": "2026-11-13T10:00:00Z"}),
+    # Eligible but Not Registered (7.5); behaviour: test_new_voters.py
+    Endpoint("GET", "/new-voters", roles=SURVEY_ROLES, lists="new_voter", area_params=("ward_id",)),
+    Endpoint("POST", "/new-voters", roles=SURVEY_ROLES,
+             body=lambda w: {"id": str(uuid.uuid4()), **_new_voter_body(w)}),
+    Endpoint("PATCH", "/new-voters/{new_voter_id}", roles=SURVEY_ROLES, target="new_voter",
+             body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # sync conflicts (7.10; who resolves: gap-table proposal)
@@ -98,9 +109,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/families", ALL, "ready"),
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
-    ("GET", "/new-voters", SURVEY_ROLES, "ready"),
-    ("POST", "/new-voters", SURVEY_ROLES, "ready"),
-    ("PATCH", "/new-voters/{new_voter_id}", SURVEY_ROLES, "ready"),
     ("GET", "/voters/{voter_id}/history", ALL, "ready"),
     ("POST", "/voters/{voter_id}/slip-events", ALL, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
@@ -245,6 +253,22 @@ def _family_state(world, family_id: uuid.UUID):
     return world.conn.execute("SELECT label, updated_at FROM app.families WHERE id = %s", (family_id,)).fetchone()
 
 
+def _make_new_voter(world, where: str) -> uuid.UUID:
+    """An Eligible but Not Registered record in that place's booth, made by the workspace's super admin."""
+    tenant, _, ward, booth = world.place(where)
+    ws = world.a if tenant == world.a.tenant else world.b
+    nid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.new_voters (id, tenant_id, full_name_en, ward_id, booth_id, created_by)
+           VALUES (%s, %s, 'Rule Person', %s, %s, %s)""", (nid, tenant, ward, booth, ws.users["boss"]))
+    return nid
+
+
+def _new_voter_state(world, new_voter_id: uuid.UUID):
+    return world.conn.execute("SELECT version, form6_status, updated_at FROM app.new_voters WHERE id = %s",
+                              (new_voter_id,)).fetchone()
+
+
 def _booth(world, where: str) -> uuid.UUID:
     return world.place(where)[3]
 
@@ -254,4 +278,5 @@ KINDS: dict[str, Kind] = {
     "device": Kind(_make_device, _device_state),
     "family": Kind(_make_family, _family_state),
     "booth": Kind(_booth),
+    "new_voter": Kind(_make_new_voter, _new_voter_state),
 }

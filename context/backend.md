@@ -25,7 +25,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/errors.py` | `ApiError(status, code, message)`; one JSON shape for all errors; `ERROR_RESPONSES` for OpenAPI |
 | `app/security.py` | Argon2id hashing, JWT access token (15 min), refresh token helpers |
 | `app/schemas.py` | All Pydantic request/response models, `Role` enum |
-| `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `sync.py`, `app_version.py`; stubs in `field.py`, `misc.py`, ... |
+| `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `sync.py`, `app_version.py`; stubs in `field.py`, `misc.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
 
@@ -83,11 +83,12 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /voters/{voter_id}` | all roles, area scope (404 outside, removed or other workspace). Roll fields + `survey` (null until first save) |
 | `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
 | `GET /sync/pull` | first download and delta (`since`), blocked phone gets `wipe: true`; see `context/sync.md`. Endpoint-table flag `wipe_on_block`. Settings load via `app/workspace_settings.py` (shared with `/me`) |
-| `POST /sync/push` | `survey` (4.8), `family_new` and `family` (7.2), `visit` (7.3, dispatch table `APPLY` in `sync_push.py`); per-item results, retry-safe; see `context/sync.md`. Survey writes go through `write_survey` in `routers/voters.py` (shared with PUT) |
+| `POST /sync/push` | `survey` (4.8), `family_new` and `family` (7.2), `visit` (7.3), `new_voter` and `new_voter_update` (7.5) (dispatch table `APPLY` in `sync_push.py`); per-item results, retry-safe; see `context/sync.md`. Survey writes go through `write_survey` in `routers/voters.py` (shared with PUT) |
 | `POST /families` | Kutumb Connect (7.1), `SURVEY_ROLES`. Free-text `label` (trimmed, 1–200) in one **booth** (a ward or another area: 404). Phone-made id; a repeat returns the stored Kutumb (first name kept, 201). An id taken by a record the user cannot see: 409 `id_in_use` |
 | `PATCH /families/{id}` | rename, `SURVEY_ROLES` |
 | `GET /booths/{id}/families` | all roles; the booth's Kutumbs by `lower(label)`, id; cursor `[sort_name, id]`. Not a booth / outside area: 404 |
 | `GET /voters/{id}/family` | all roles; `{"family": Family | null}` |
+| `GET/POST /new-voters`, `PATCH /new-voters/{id}` | Eligible but Not Registered (7.5), `SURVEY_ROLES`, `routers/new_voters.py`. A record is seen through `coalesce(booth_id, ward_id)` (its part, else its Village Panchayat), so a booth-only surveyor cannot add or see a record without a part (404). `check_place`: part in that ward (422), Kutumb in that part (422). POST: repeat id stored once (first copy kept), id of an unseen record 409 `id_in_use`. PATCH: the whole record + `version` (starts at 1, `bump_version` trigger); stale 409 `version_conflict` with `current`. List: newest first, cursor `[created_at, id]`, filters `ward_id`, `form6_status`. Text fields trimmed, blank = null; `dob` not in the future; `family_id` needs `booth_id`. Model in `schemas.py` (pull and push use it) |
 | `POST /voters/{id}/visits` | visits (7.3), `SURVEY_ROLES`, `routers/visits.py`. Stored under the phone-made id (`id` = `client_mutation_id`; `ON CONFLICT DO NOTHING`), so a repeat returns the stored visit (201); an id used by another voter's visit: 409 `id_in_use`. `booth_id`, `house_no` copied from the voter, `family_id` = their Kutumb now. `revisit_at` only with `revisit` (422). Never writes `voter_surveys.last_visit_*` (would raise the survey version) |
 | `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 

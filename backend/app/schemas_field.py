@@ -13,7 +13,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from .schemas import MOBILE_PATTERN, Gender, Location, UserSummary, Visit, VisitOutcome  # noqa: F401 (re-export)
+from .schemas import (MOBILE_PATTERN, Form6Status, Gender, Location, NewVoter, NewVoterFields,  # noqa: F401
+                      UserSummary, Visit, VisitOutcome)  # (re-exported)
 
 
 class Page(BaseModel):
@@ -129,51 +130,15 @@ class VisitIn(BaseModel):
 
 
 # --- new voters (7.5) --------------------------------------------------------------------
-class Form6Status(StrEnum):
-    not_applied = "not_applied"
-    applied = "applied"
-    approved = "approved"
-    rejected = "rejected"
-
-
-class NewVoterFields(BaseModel):
-    full_name_en: str | None = Field(None, max_length=200)
-    full_name_mr: str | None = Field(None, max_length=200)
-    relative_name: str | None = Field(None, max_length=200)
-    dob: date | None = None
-    gender: Gender | None = None
-    mobile: str | None = Field(None, pattern=MOBILE_PATTERN)
-    address: str | None = Field(None, max_length=500)
-    ward_id: uuid.UUID
-    booth_id: uuid.UUID | None = None
-    family_id: uuid.UUID | None = None
-    form6_status: Form6Status = Form6Status.not_applied
-    notes: str | None = Field(None, max_length=2000)
-
-    @model_validator(mode="after")
-    def _name(self) -> NewVoterFields:
-        if not (self.full_name_en or self.full_name_mr):
-            raise ValueError("give full_name_en or full_name_mr")
-        return self
-
-
 class NewVoterIn(NewVoterFields):
-    """POST /new-voters and push type `new_voter`."""
+    """POST /new-voters and push type `new_voter` (entity_id = this id)."""
     id: uuid.UUID = Field(description="Made by the phone (offline); a repeat with the same id is stored once")
 
 
 class NewVoterPatch(NewVoterFields):
-    """PATCH /new-voters/{id} and push type `new_voter_update`: the whole record plus the version last seen."""
+    """PATCH /new-voters/{id} and push type `new_voter_update` (without `version`; base_version = it):
+    the whole record plus the version last seen."""
     version: int = Field(ge=1)
-
-
-class NewVoter(NewVoterFields):
-    id: uuid.UUID
-    version: int
-    matched_voter_id: uuid.UUID | None = Field(description="Set when this person appears in a new roll")
-    created_by: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
 
 
 class NewVoterPage(Page):

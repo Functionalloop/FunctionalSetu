@@ -29,17 +29,19 @@ from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
+from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
-from app.schemas_field import FamilyChange, FamilyIn, VisitIn  # noqa: E402
+from app.schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, VisitIn  # noqa: E402
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
 from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
-LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "sync_mutations", "sync_conflicts",
+LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "sync_mutations",
+                   "sync_conflicts",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -276,6 +278,33 @@ def main() -> None:
                 if not cursor:
                     break
             report(n == 1 and v1 == v2 and seen == {vb.id}, "visit sent twice stored once, in the delta pull",
+                   f"{ms:.0f} ms")
+
+            # Eligible but Not Registered (7.5): added twice = once, a stale edit is 409, in the delta pull
+            w_nv = current_watermark(conn)
+            place = conn.execute(text("SELECT ward_id, booth_id FROM app.voters WHERE id = :id"),
+                                 {"id": members[0]}).one()
+            nb = NewVoterIn(id=uuid.uuid4(), full_name_en="Check Person", ward_id=place.ward_id,
+                            booth_id=place.booth_id, dob="2008-01-01")
+            n1, ms = timed(lambda: write_new_voter(conn, surveyor, s_srv, nb))
+            n2 = write_new_voter(conn, surveyor, s_srv, nb)
+            edit = NewVoterPatch(**{**nb.model_dump(exclude={"id"}), "form6_status": "applied", "version": 1})
+            saved = update_new_voter(nb.id, edit, conn, surveyor, s_srv)
+            try:
+                update_new_voter(nb.id, edit, conn, surveyor, s_srv)  # version 1 again: stale
+                stale = None
+            except ApiError as e:
+                stale = e.status
+            listed = list_new_voters(conn, surveyor, s_srv, limit=50, cursor=None)
+            seen, cursor = set(), None
+            while True:
+                page = pull_page(conn, s_srv, w_nv, cursor, 1000)
+                seen |= {x.id for x in page.new_voters}
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            report(n1 == n2 and saved.version == 2 and stale == 409 and nb.id in {x.id for x in listed.items}
+                   and seen == {nb.id}, "new voter added twice stored once; stale edit 409; in the delta pull",
                    f"{ms:.0f} ms")
         finally:
             trans.rollback()
