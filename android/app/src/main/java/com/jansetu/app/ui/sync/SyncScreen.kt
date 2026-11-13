@@ -54,13 +54,16 @@ data class SyncInfo(
 
 /** [title]: what the change was about (a voter's survey, a Kutumb, a visit). */
 data class Problem(val item: OutboxEntity, val title: String) {
-    /** Every type but a new Kutumb is about one voter, whose screen opens on a tap. */
-    val voterId: String? get() = item.entityId.takeIf { item.type != OutboxEntity.TYPE_FAMILY_NEW }
+    /** Surveys, Kutumb membership and visits are about one voter, whose screen opens on a tap. */
+    val voterId: String? get() = item.entityId.takeIf { item.type !in NOT_A_VOTER }
 }
+
+private val NOT_A_VOTER = setOf(OutboxEntity.TYPE_FAMILY_NEW, OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE)
 
 private fun title(item: OutboxEntity, names: Map<String, String>): String {
     val name = names[item.entityId] ?: "Voter"
     return when (item.type) {
+        OutboxEntity.TYPE_NEW_VOTER, OutboxEntity.TYPE_NEW_VOTER_UPDATE -> "Eligible but Not Registered: " + (names[item.entityId] ?: "")
         OutboxEntity.TYPE_FAMILY_NEW -> "New Kutumb " + (runCatching {
             ApiJson.parseToJsonElement(item.data).jsonObject["label"]?.jsonPrimitive?.content
         }.getOrNull() ?: "")
@@ -88,7 +91,10 @@ class SyncViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SyncInfo())
 
     val problems = db.outbox().problems().map { items ->
-        val names = db.voters().voters(items.map { it.entityId }).associate { it.id to it.displayName() }
+        val names = db.voters().voters(items.map { it.entityId }).associate { it.id to it.displayName() } +
+            items.filter { it.type in NOT_A_VOTER }.mapNotNull { i ->
+                db.newVoters().get(i.entityId)?.let { i.entityId to (it.fullNameEn ?: it.fullNameMr ?: "") }
+            }
         items.map { Problem(it, title(it, names)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -140,7 +146,8 @@ private fun ProblemCard(p: Problem, onOpen: (String) -> Unit, vm: SyncViewModel)
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(p.title, style = MaterialTheme.typography.titleMedium)
             Text(
-                if (conflict) "Survey changed by someone else first" +
+                if (conflict) (if (p.item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE) "Record" else "Survey") +
+                    " changed by someone else first" +
                     (p.item.conflictFields?.takeIf { it.isNotBlank() }?.let { " (${it.replace(",", ", ")})" } ?: "") +
                     ". The server kept both; choose which copy stays."
                 else "Not accepted by the server: ${p.item.errorMessage}",

@@ -174,6 +174,10 @@ data class OutboxEntity(
         const val TYPE_FAMILY = "family"
         /** A visit; entity_id = the voter, data.id = the visit's id. */
         const val TYPE_VISIT = "visit"
+        /** Eligible but Not Registered, made on the phone; entity_id = its id, base_version 0. */
+        const val TYPE_NEW_VOTER = "new_voter"
+        /** An edit of one; entity_id = its id, base_version = the version the phone last had. */
+        const val TYPE_NEW_VOTER_UPDATE = "new_voter_update"
     }
 }
 
@@ -222,4 +226,36 @@ data class VisitEntity(
     @ColumnInfo(name = "visited_by") val visitedBy: String,
     /** Made on this phone, not sent yet. */
     val pending: Boolean = false,
+)
+
+/**
+ * Eligible but Not Registered (7.5): a person who can vote but is not on the roll. Belongs to a part
+ * (booth_id) or, with no part, its Village Panchayat (ward_id). [version] is the last version the server
+ * confirmed (1 for a record not confirmed yet: the server gives 1 on create); [pending] / [conflict] as
+ * on surveys. form6_status: not_applied, applied, approved, rejected.
+ */
+@Entity(tableName = "new_voters", indices = [Index("booth_id"), Index("ward_id"), Index("created_at")])
+data class NewVoterEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "full_name_en") val fullNameEn: String? = null,
+    @ColumnInfo(name = "full_name_mr") val fullNameMr: String? = null,
+    @ColumnInfo(name = "relative_name") val relativeName: String? = null,
+    /** yyyy-MM-dd */
+    val dob: String? = null,
+    /** M, F or O */
+    val gender: String? = null,
+    val mobile: String? = null,
+    val address: String? = null,
+    @ColumnInfo(name = "ward_id") val wardId: String,
+    @ColumnInfo(name = "booth_id") val boothId: String? = null,
+    @ColumnInfo(name = "family_id") val familyId: String? = null,
+    @ColumnInfo(name = "form6_status") val form6Status: String = "not_applied",
+    val notes: String? = null,
+    val version: Int = 1,
+    @ColumnInfo(name = "matched_voter_id") val matchedVoterId: String? = null,
+    @ColumnInfo(name = "created_by") val createdBy: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: String,
+    @ColumnInfo(name = "updated_at") val updatedAt: String? = null,
+    val pending: Boolean = false,
+    val conflict: Boolean = false,
 )

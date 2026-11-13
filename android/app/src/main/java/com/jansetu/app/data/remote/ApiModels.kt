@@ -228,6 +228,29 @@ data class VisitDto(
     @SerialName("visited_by") val visitedBy: String,
 )
 
+/** Eligible but Not Registered (NewVoter), as the pull sends it and the push returns it. */
+@Serializable
+data class NewVoterDto(
+    val id: String,
+    @SerialName("full_name_en") val fullNameEn: String? = null,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    @SerialName("relative_name") val relativeName: String? = null,
+    val dob: String? = null,
+    val gender: String? = null,
+    val mobile: String? = null,
+    val address: String? = null,
+    @SerialName("ward_id") val wardId: String,
+    @SerialName("booth_id") val boothId: String? = null,
+    @SerialName("family_id") val familyId: String? = null,
+    @SerialName("form6_status") val form6Status: String = "not_applied",
+    val notes: String? = null,
+    val version: Int,
+    @SerialName("matched_voter_id") val matchedVoterId: String? = null,
+    @SerialName("created_by") val createdBy: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)
+
 /** PATCH /families/{id}: rename a Kutumb (online only; there is no push type for it). */
 @Serializable data class FamilyPatch(val label: String)
 
@@ -249,6 +272,7 @@ data class SyncPage(
     val families: List<SyncFamily> = emptyList(),
     @SerialName("family_members") val familyMembers: List<SyncFamilyMember> = emptyList(),
     val visits: List<VisitDto> = emptyList(),
+    @SerialName("new_voters") val newVoters: List<NewVoterDto> = emptyList(),
 )
 
 @Serializable
@@ -275,6 +299,7 @@ data class PushResult(
     @SerialName("conflict_fields") val conflictFields: List<String> = emptyList(),
     val family: SyncFamily? = null,
     val visit: VisitDto? = null,
+    @SerialName("new_voter") val newVoter: NewVoterDto? = null,
 )
 
 @Serializable data class PushResponse(val results: List<PushResult>)

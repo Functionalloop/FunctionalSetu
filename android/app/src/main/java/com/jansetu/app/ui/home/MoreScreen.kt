@@ -28,6 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.jansetu.app.BuildConfig
 import com.jansetu.app.data.Session
+import com.jansetu.app.ui.newvoter.ENR_TITLE
+import androidx.compose.material.icons.filled.PersonAdd
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PHONE_ADMIN_ROLES
@@ -43,7 +45,7 @@ class MoreViewModel @Inject constructor(private val repo: SessionRepository, loc
 
 /** Shell for the More menu; later steps add their items here (polling day, admin, reports). */
 @Composable
-fun MoreScreen(session: Session, onPhones: () -> Unit, vm: MoreViewModel = hiltViewModel()) {
+fun MoreScreen(session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, vm: MoreViewModel = hiltViewModel()) {
     val unsent by vm.unsent.collectAsStateWithLifecycle(0)
     var confirm by remember { mutableStateOf(false) }
 
@@ -54,6 +56,15 @@ fun MoreScreen(session: Session, onPhones: () -> Unit, vm: MoreViewModel = hiltV
             leadingContent = { Icon(Icons.Default.Person, null) },
         )
         HorizontalDivider()
+        if (session.canSurvey) { // survey roles, as on the server (7.5)
+            ListItem(
+                headlineContent = { Text(ENR_TITLE) },
+                supportingContent = { Text("People who can vote but are not on the roll; Form 6 status") },
+                leadingContent = { Icon(Icons.Default.PersonAdd, null) },
+                modifier = Modifier.clickable(onClick = onNewVoters),
+            )
+            HorizontalDivider()
+        }
         if (session.user.role in PHONE_ADMIN_ROLES) {
             ListItem(
                 headlineContent = { Text("Phones") },

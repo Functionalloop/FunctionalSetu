@@ -4,6 +4,7 @@ import com.jansetu.app.data.local.AreaEntity
 import com.jansetu.app.data.local.ColorTagEntity
 import com.jansetu.app.data.local.CustomFieldLabelEntity
 import com.jansetu.app.data.local.FamilyEntity
+import com.jansetu.app.data.local.NewVoterEntity
 import com.jansetu.app.data.local.VisitEntity
 import com.jansetu.app.data.local.ListEntryEntity
 import com.jansetu.app.data.local.SurveyEntity
@@ -11,6 +12,7 @@ import com.jansetu.app.data.local.VoterEntity
 import com.jansetu.app.data.remote.ColorTagDto
 import com.jansetu.app.data.remote.CustomFieldLabelDto
 import com.jansetu.app.data.remote.NamedListEntry
+import com.jansetu.app.data.remote.NewVoterDto
 import com.jansetu.app.data.remote.SurveyDto
 import com.jansetu.app.data.remote.SyncFamily
 import com.jansetu.app.data.remote.VisitDto
@@ -46,6 +48,13 @@ fun SurveyDto.toEntity() = SurveyEntity(
 fun SyncFamily.toEntity() = boothId?.let { FamilyEntity(id, wardId, it, label, updatedAt, pending = false) }
 
 fun VisitDto.toEntity() = VisitEntity(id, voterId, boothId, houseNo, outcome, visitedAt, revisitAt, note, visitedBy, pending = false)
+
+fun NewVoterDto.toEntity() = NewVoterEntity(
+    id = id, fullNameEn = fullNameEn, fullNameMr = fullNameMr, relativeName = relativeName, dob = dob,
+    gender = gender, mobile = mobile, address = address, wardId = wardId, boothId = boothId, familyId = familyId,
+    form6Status = form6Status, notes = notes, version = version, matchedVoterId = matchedVoterId,
+    createdBy = createdBy, createdAt = createdAt, updatedAt = updatedAt, pending = false, conflict = false,
+)
 
 fun NamedListEntry.toEntity(kind: String) = ListEntryEntity(id, kind, nameMr, nameEn, sortOrder, isActive)
 

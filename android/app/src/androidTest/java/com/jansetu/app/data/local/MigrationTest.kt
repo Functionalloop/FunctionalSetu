@@ -25,7 +25,7 @@ class MigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java,
-        listOf(Migration2To3(), Migration3To4()), FrameworkSQLiteOpenHelperFactory(),
+        listOf(Migration2To3(), Migration3To4(), Migration4To5()), FrameworkSQLiteOpenHelperFactory(),
     )
 
     @Test fun version2To3KeepsUnsentSurveysAndCleansTheirOutboxItems() {
@@ -111,6 +111,24 @@ class MigrationTest {
         listOf("families", "family_members", "visits").forEach { t ->
             db.query("SELECT count(*) FROM $t").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
         }
+        db.close()
+    }
+
+    @Test fun version4To5AddsNewVotersAndAsksForAFullDownload() {
+        val file = "migration-test-5.db"
+        helper.createDatabase(file, 4).apply {
+            execSQL("INSERT INTO sync_state (key, value) VALUES ('watermark', '123'), ('pull_cursor', 'x'), ('walk_list_booth', 'b1')")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(file, 5, true, *emptyArray())
+
+        db.query("SELECT key FROM sync_state").use { c ->
+            assertEquals("only the watermark and cursor go", 1, c.count)
+            c.moveToFirst()
+            assertEquals("walk_list_booth", c.getString(0))
+        }
+        db.query("SELECT count(*) FROM new_voters").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
         db.close()
     }
 }

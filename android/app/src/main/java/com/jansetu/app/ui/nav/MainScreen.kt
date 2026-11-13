@@ -34,6 +34,8 @@ import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PhonesScreen
 import com.jansetu.app.ui.home.HomeScreen
 import com.jansetu.app.ui.home.MoreScreen
+import com.jansetu.app.ui.newvoter.NewVoterFormScreen
+import com.jansetu.app.ui.newvoter.NewVoterListScreen
 import com.jansetu.app.ui.search.SearchScreen
 import com.jansetu.app.ui.sync.SyncScreen
 import com.jansetu.app.ui.voter.VoterScreen
@@ -90,11 +92,21 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
         },
     ) { padding ->
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
-            composable("home") { HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } }, onSync = { nav.navigate("sync") }) }
+            composable("home") {
+                HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } },
+                    onSync = { nav.navigate("sync") }, onNewVoters = { nav.navigate("newvoters") })
+            }
             composable("search") { SearchScreen(onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
-            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }) }
+            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") }) }
+            composable("newvoters") {
+                NewVoterListScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate("newvoter/$it") },
+                    onAdd = { nav.navigate("newvoter/new") })
+            }
+            composable("newvoter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                NewVoterFormScreen(session, onBack = { nav.popBackStack() })
+            }
             composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter)
