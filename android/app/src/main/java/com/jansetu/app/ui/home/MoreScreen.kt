@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ import com.jansetu.app.BuildConfig
 import com.jansetu.app.data.Session
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
+import com.jansetu.app.ui.admin.PHONE_ADMIN_ROLES
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -41,7 +43,7 @@ class MoreViewModel @Inject constructor(private val repo: SessionRepository, loc
 
 /** Shell for the More menu; later steps add their items here (polling day, admin, reports). */
 @Composable
-fun MoreScreen(session: Session, vm: MoreViewModel = hiltViewModel()) {
+fun MoreScreen(session: Session, onPhones: () -> Unit, vm: MoreViewModel = hiltViewModel()) {
     val unsent by vm.unsent.collectAsStateWithLifecycle(0)
     var confirm by remember { mutableStateOf(false) }
 
@@ -52,6 +54,15 @@ fun MoreScreen(session: Session, vm: MoreViewModel = hiltViewModel()) {
             leadingContent = { Icon(Icons.Default.Person, null) },
         )
         HorizontalDivider()
+        if (session.user.role in PHONE_ADMIN_ROLES) {
+            ListItem(
+                headlineContent = { Text("Phones") },
+                supportingContent = { Text("Approve waiting phones, block a lost one (needs internet)") },
+                leadingContent = { Icon(Icons.Default.PhoneAndroid, null) },
+                modifier = Modifier.clickable(onClick = onPhones),
+            )
+            HorizontalDivider()
+        }
         ListItem(
             headlineContent = { Text("About") },
             supportingContent = { Text("JANSETU ${BuildConfig.VERSION_NAME}") },

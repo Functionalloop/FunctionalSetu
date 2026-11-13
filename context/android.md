@@ -27,6 +27,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 | `data/SessionRepository.kt` | login, set password, device status, logout |
 | `data/OutboxRepository.kt` | survey save = local row + outbox item in one transaction |
 | `data/sync/` | `SyncRepository` (pull/push), `PullWorker` (first download), `SyncWorker` (every 15 min + Sync now), `WipeHandler` |
+| `ui/admin/PhonesScreen.kt` | More > Phones (admin, super admin; 6.8): `GET /devices` by status, approve, block with reason; Waiting list refreshes every 10 s; no Block on your own phone. Needs internet |
 | `ui/nav/AppRoot.kt` | screen chosen from the session: Login → Set password → Waiting for approval → First download → main (Home, Search, Sync, More) |
 
 ## Decisions
@@ -68,6 +69,9 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 - The API must be running with `--host 0.0.0.0` before logging in; when nothing listens on port 8000 the login just waits until it times out. Check from the phone's browser: `http://<laptop IP>:8000/api/v1/health`.
 - Checked by hand: login, approval, first download, search, voter details, Call / WhatsApp / SMS, the new survey fields. Rehearsal (5.13): survey saved on the vivo in airplane mode, sent on reconnect, then seen on the Samsung after Sync now (Surveyed 1 → 2).
 - Fixed after the check: the three contact buttons now share the row equally (SMS was squeezed); Filters is no longer a full-screen `Dialog` but a screen shown in place of the search list (Back closes it). On Android 15-16 the full-screen dialog window was as tall as the screen but started below the status bar, so it spilled under the navigation bar and reported zero insets; neither `safeDrawing` padding nor `decorFitsSystemWindows = false` helped. Do not use full-screen dialogs; use a screen or a route.
+- Wireless debugging: `adb mdns services` finds nothing on this laptop, so the phone's connect port must be read off its screen. If the pairing popup hides it, scan for it (one open port in the range shown, e.g. 41000-41999, with a Python socket loop) and `adb connect`. 13 Nov: Samsung M35 `192.168.1.3`, vivo `192.168.1.8` (ports change each time wireless debugging is switched on).
+- Clean start on a phone for a check: `adb shell pm clear com.jansetu.app.debug` (deletes the app's local database and login; dev only).
+- Phones check (6.8, 13 Nov): Samsung as demo.admin (approved with `approve_phone.py`, first download 31,871), vivo as demo.surveyor waiting; approved from the Samsung's Phones screen, the vivo moved on within 5 s and downloaded 872. New passwords set on the phones are in `jansetu-private/demo_phone_passwords.txt`.
 - Wireless debugging (no cable): phone Developer options → Wireless debugging → Pair with code; `adb pair <ip>:<pairing port> <code>` then `adb connect <ip>:<port on the main screen>`. Each code has its own pairing port. Turning on airplane mode cuts the adb link.
 - Approving a phone without the portal: log in as `demo.admin` through the API, `GET /devices?status=pending`, `POST /devices/{id}/approve`. A fresh `--reset` admin must set its own password first (`password_change_required`).
 

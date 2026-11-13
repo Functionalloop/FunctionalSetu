@@ -251,3 +251,28 @@ data class ErrorBody(
 )
 
 @Serializable data class ErrorResponse(val error: ErrorBody)
+
+// --- Phones, as an admin sees them (GET /devices, approve, block) ---
+
+@Serializable
+data class AdminDevice(
+    val id: String,
+    val status: String,
+    val model: String? = null,
+    @SerialName("os_version") val osVersion: String? = null,
+    @SerialName("app_version_code") val appVersionCode: Int? = null,
+    @SerialName("requested_at") val requestedAt: String,
+    @SerialName("decided_at") val decidedAt: String? = null,
+    @SerialName("user_id") val userId: String,
+    @SerialName("blocked_reason") val blockedReason: String? = null,
+    // Only in the list (GET /devices), not in the approve / block answer.
+    val username: String? = null,
+    @SerialName("full_name_en") val fullNameEn: String? = null,
+    val role: String? = null,
+    @SerialName("last_seen_at") val lastSeenAt: String? = null,
+)
+
+@Serializable
+data class DevicePage(val items: List<AdminDevice>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable data class BlockDeviceRequest(val reason: String? = null)

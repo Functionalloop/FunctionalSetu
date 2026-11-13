@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jansetu.app.data.Session
 import com.jansetu.app.data.local.LocalDb
+import com.jansetu.app.ui.admin.PhonesScreen
 import com.jansetu.app.ui.home.HomeScreen
 import com.jansetu.app.ui.home.MoreScreen
 import com.jansetu.app.ui.search.SearchScreen
@@ -89,7 +90,8 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("home") { HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } }, onSync = { nav.navigate("sync") }) }
             composable("search") { SearchScreen(onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
-            composable("more") { MoreScreen(session) }
+            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }) }
+            composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() })
             }
