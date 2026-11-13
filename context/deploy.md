@@ -1,6 +1,6 @@
 # Deploy: server, Docker Compose, Caddy, backups, APK
 
-Current state (13 Nov): branch `step6-server`. Stack running at `https://myjansetu.com` with the real roll since 6.5 (31,871 voters, workspace `naik`, 4 demo users with temporary passwords, every phone waiting, no surveys). Done: 6.1 stack, 6.2 backup/restore, 6.3 APK download + `/app/version`, 6.4 server setup, 6.5 data, 6.8 Phones screen in the app. Not yet: laptop fallback (6.6), release key and first APK (6.7), the worker container (no `backend/app/worker.py` yet). Commands: `deploy/README.md`.
+Current state (14 Nov IST): the server runs `main` with Steps 7 and 8 (deployed 13 Nov 20:10 UTC; migrations 001–004; server API contract = `docs/openapi.json`); backup `jansetu_20261113T200809Z` taken just before. Before that, from 13 Nov: branch `step6-server`. Stack running at `https://myjansetu.com` with the real roll since 6.5 (31,871 voters, workspace `naik`, 4 demo users with temporary passwords, every phone waiting, no surveys). Done: 6.1 stack, 6.2 backup/restore, 6.3 APK download + `/app/version`, 6.4 server setup, 6.5 data, 6.8 Phones screen in the app. Not yet: laptop fallback (6.6), release key and first APK (6.7), the worker container (no `backend/app/worker.py` yet). Commands: `deploy/README.md`.
 
 ## Server (decided 13 Nov)
 
@@ -63,7 +63,7 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 
 ## APK publishing (6.3)
 
-Published: **0.1.0** (versionCode 1, required) on 13 Nov, `/download/jansetu-0.1.0.apk`, 34 MB, SHA-256 `1566ae7a…22806`. `/app/version` answers it without a token; the download through Caddy matched the hash. Phone test 13 Nov: the Samsung on mobile data downloaded it from `apk_url`, installed it, logged in as demo.admin against the server, was approved with `approve_phone.py` and downloaded the roll.
+Published: **0.2.0** (versionCode 2, optional) on 14 Nov IST, `/download/jansetu-0.2.0.apk`, SHA-256 `166ea388…6fca8a`, download hash checked; Steps 7 and 8. Before it: **0.1.0** (versionCode 1, required) on 13 Nov, `/download/jansetu-0.1.0.apk`, 34 MB, SHA-256 `1566ae7a…22806`. `/app/version` answers it without a token; the download through Caddy matched the hash. Phone test 13 Nov: the Samsung on mobile data downloaded it from `apk_url`, installed it, logged in as demo.admin against the server, was approved with `approve_phone.py` and downloaded the roll.
 
 
 1. Build the **signed release** APK (`gradlew assembleRelease`; key and settings: `context/android.md`, Release build). Raise `versionCode` first.
