@@ -7,10 +7,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from .. import conflicts
+
 from ..deps import SURVEY_ROLES, CurrentUser, Db, ReadyUser, get_active_principal, get_ready_principal
 from ..schemas import PushRequest, PushResponse, SyncPage
 from ..schemas_field import Conflict, ConflictPage, ConflictResolution, ConflictStatus
-from ..stubs import NOT_BUILT, Cursor, Limit, Surveyor, not_built
+from ..stubs import Cursor, Limit, Surveyor
 from ..scope import UserScope, load_scope
 from ..sync_pull import WATERMARK_PATTERN, pull_page
 from ..sync_push import push as apply_push
@@ -44,16 +46,18 @@ def push(body: PushRequest, conn: Db, user: ReadyUser, scope: UserScope) -> Push
     return PushResponse(results=apply_push(conn, user, scope, body.items))
 
 
-@router.get("/conflicts", response_model=ConflictPage, responses=NOT_BUILT,
-            summary="Conflicts to review. A surveyor sees their own; supervisor and above all in their area. "
-                    "Survey roles. (Plan 7.10; who resolves is the gap-table proposal.)")
-def list_conflicts(conn: Db, user: Surveyor, status: ConflictStatus = ConflictStatus.open,
+@router.get("/conflicts", response_model=ConflictPage,
+            summary="Conflicts to review, newest first. A surveyor sees the rows of their own pushes; supervisor "
+                    "and above all in their area. Survey roles.")
+def list_conflicts(conn: Db, user: Surveyor, scope: UserScope, status: ConflictStatus = ConflictStatus.open,
                    entity_id: uuid.UUID | None = None, limit: Limit = 50, cursor: Cursor = None) -> ConflictPage:
-    not_built("7.10")
+    return conflicts.list_conflicts(conn, user, scope, status, entity_id, limit, cursor)
 
 
-@router.post("/conflicts/{conflict_id}/resolve", response_model=Conflict, responses=NOT_BUILT,
-             summary="Keep the phone's value (written with a new version) or the server's. Survey roles, "
-                     "same rule as the list.")
-def resolve_conflict(conflict_id: uuid.UUID, body: ConflictResolution, conn: Db, user: Surveyor) -> Conflict:
-    not_built("7.10")
+@router.post("/conflicts/{conflict_id}/resolve", response_model=Conflict,
+             summary="Keep the phone's value (that field is written on the current record with a new version; "
+                     "422 if the record would break a rule) or the server's (nothing written). 409 conflict_resolved "
+                     "if already decided. Survey roles, same rule as the list.")
+def resolve_conflict(conflict_id: uuid.UUID, body: ConflictResolution, conn: Db, user: Surveyor,
+                     scope: UserScope) -> Conflict:
+    return conflicts.resolve_conflict(conn, user, scope, conflict_id, body.keep)

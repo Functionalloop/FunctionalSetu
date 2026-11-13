@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.config import get_settings  # noqa: E402
+from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
@@ -37,6 +38,7 @@ from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
+from app.schemas_field import ConflictStatus  # noqa: E402
 from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, ProblemReportIn,  # noqa: E402
                                SlipEventIn, VisitIn)
 from app.scope import load_scope  # noqa: E402
@@ -361,6 +363,26 @@ def main() -> None:
             report_problem(ProblemReportIn(body="Check report", app_version_code=1), conn, surveyor)
             n = conn.execute(text("SELECT count(*) FROM app.problem_reports WHERE body = 'Check report'")).scalar()
             report(n == 1, "problem report stored")
+
+            # Conflict review (7.10): a stale push on a surveyed voter, kept from the phone once
+            v0 = batch[0].entity_id
+            push(conn, phone_admin, s_admin, [PushItem(id=uuid.uuid4(), type="survey", entity_id=v0, base_version=1,
+                                                       data={"notes": "check server"})])
+            res = push(conn, phone_admin, s_admin, [PushItem(id=uuid.uuid4(), type="survey", entity_id=v0,
+                                                             base_version=1, data={"notes": "check phone"})])
+            page, ms = timed(lambda: list_conflicts(conn, phone_admin, s_admin, ConflictStatus.open, None, 50, None))
+            mine = [c for c in page.items if c.entity_id == v0]
+            other = list_conflicts(conn, surveyor, s_srv, ConflictStatus.open, v0, 50, None).items
+            resolve_conflict(conn, phone_admin, s_admin, mine[0].id, ConflictStatus.kept_client)
+            try:
+                resolve_conflict(conn, phone_admin, s_admin, mine[0].id, ConflictStatus.kept_client)
+                twice = 200
+            except ApiError as e:
+                twice = e.status
+            row = conn.execute(text("SELECT version, notes FROM app.voter_surveys WHERE voter_id = :v"), {"v": v0}).first()
+            report(res[0].status.value == "conflict" and len(mine) == 1 and not other and tuple(row) == (3, "check phone")
+                   and twice == 409, "conflict listed, kept from the phone once; not shown to another surveyor",
+                   f"list {ms:.0f} ms")
         finally:
             trans.rollback()
 

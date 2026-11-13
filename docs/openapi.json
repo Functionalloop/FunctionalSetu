@@ -3434,7 +3434,7 @@
         "tags": [
           "sync"
         ],
-        "summary": "Conflicts to review. A surveyor sees their own; supervisor and above all in their area. Survey roles. (Plan 7.10; who resolves is the gap-table proposal.)",
+        "summary": "Conflicts to review, newest first. A surveyor sees the rows of their own pushes; supervisor and above all in their area. Survey roles.",
         "operationId": "list_conflicts",
         "security": [
           {
@@ -3569,16 +3569,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -3588,7 +3578,7 @@
         "tags": [
           "sync"
         ],
-        "summary": "Keep the phone's value (written with a new version) or the server's. Survey roles, same rule as the list.",
+        "summary": "Keep the phone's value (that field is written on the current record with a new version; 422 if the record would break a rule) or the server's (nothing written). 409 conflict_resolved if already decided. Survey roles, same rule as the list.",
         "operationId": "resolve_conflict",
         "security": [
           {
@@ -3680,16 +3670,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {

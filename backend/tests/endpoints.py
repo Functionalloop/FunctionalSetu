@@ -106,6 +106,10 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
     # Information Updation (7.6); behaviour: test_history.py
     Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # conflict review (7.10); behaviour: test_conflicts.py. The rows here are survey1's (own for a surveyor).
+    Endpoint("GET", "/sync/conflicts", roles=SURVEY_ROLES, lists="conflict"),
+    Endpoint("POST", "/sync/conflicts/{conflict_id}/resolve", roles=SURVEY_ROLES, target="conflict",
+             body={"keep": "kept_server"}),
     # More menu (7.9); behaviour: test_misc.py. No terms text in the test database: 404 (own tests load one).
     Endpoint("GET", "/terms/current", level="public", works=False),
     Endpoint("POST", "/terms/accept", level="active", body={"version": 1}, works=False),
@@ -120,9 +124,6 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"id": str(uuid.uuid4()), "channel": "whatsapp", "at": "2026-11-13T10:00:00Z"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
-    # sync conflicts (7.10; who resolves: gap-table proposal)
-    ("GET", "/sync/conflicts", SURVEY_ROLES, "ready"),
-    ("POST", "/sync/conflicts/{conflict_id}/resolve", SURVEY_ROLES, "ready"),
     # field work (7)
     ("GET", "/families", ALL, "ready"),
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
@@ -287,6 +288,27 @@ def _make_voter_birthday(world, where: str) -> uuid.UUID:
     return vid
 
 
+def _make_conflict(world, where: str) -> uuid.UUID:
+    """An open survey conflict on a voter of that place, from a push by the workspace's surveyor."""
+    vid = _make_voter(world, where)
+    tenant = world.place(where)[0]
+    ws = world.a if tenant == world.a.tenant else world.b
+    world.conn.execute("INSERT INTO app.voter_surveys (voter_id, tenant_id, notes) VALUES (%s, %s, 'server')",
+                       (vid, tenant))
+    cid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.sync_conflicts (id, tenant_id, entity_type, entity_id, field_name,
+                                 client_value, server_value, client_user_id)
+                          VALUES (%s, %s, 'voter_survey', %s, 'notes', '"phone"', '"server"', %s)""",
+                       (cid, tenant, vid, ws.users["survey1"]))
+    return cid
+
+
+def _conflict_state(world, conflict_id: uuid.UUID):
+    return world.conn.execute("""SELECT c.status, c.resolved_by, s.notes, s.version FROM app.sync_conflicts c
+                                 JOIN app.voter_surveys s ON s.voter_id = c.entity_id WHERE c.id = %s""",
+                              (conflict_id,)).fetchone()
+
+
 def _make_announcement(world, where: str) -> uuid.UUID:
     """An announcement for that place's booth, by the workspace's super admin."""
     tenant, _, _, booth = world.place(where)
@@ -314,4 +336,5 @@ KINDS: dict[str, Kind] = {
     "new_voter": Kind(_make_new_voter, _new_voter_state),
     "voter_birthday": Kind(_make_voter_birthday),
     "announcement": Kind(_make_announcement, _announcement_state),
+    "conflict": Kind(_make_conflict, _conflict_state),
 }

@@ -6,6 +6,7 @@ import com.jansetu.app.data.local.OutboxEntity
 import com.jansetu.app.data.local.SyncStateEntity
 import com.jansetu.app.data.remote.ApiJson
 import com.jansetu.app.data.remote.ApiResult
+import com.jansetu.app.data.remote.ConflictResolution
 import com.jansetu.app.data.remote.JansetuApi
 import com.jansetu.app.data.remote.NewVoterDto
 import com.jansetu.app.data.remote.PushItem
@@ -305,7 +306,41 @@ class SyncRepository @Inject constructor(
         else db.voters().survey(item.entityId)?.let { db.voters().upsertSurvey(it.copy(conflict = false)) }
     }
 
-    /** Conflict, "send mine again": the phone's copy goes on top of the server's version. */
+    /**
+     * 7.10: decide this phone's conflict on the server (needs internet), then settle the phone.
+     * The server's open rows for this record from [userId]'s pushes are all decided the same way;
+     * keeping the phone's values writes them on the server, and the next pull brings the new copy.
+     * Ok(false) = nothing was open any more (decided by a supervisor): the server's copy is used.
+     */
+    suspend fun resolve(item: OutboxEntity, userId: String, keepMine: Boolean): ApiResult<Boolean> {
+        val open = when (val page = apiCall { api.conflicts(entityId = item.entityId, limit = 200) }) {
+            is ApiResult.Ok -> page.value.items.filter { it.clientUser.id == userId }
+            is ApiResult.Err -> return page
+            is ApiResult.Offline -> return page
+        }
+        val keep = if (keepMine) KEEP_PHONE else KEEP_SERVER
+        when (val r = resolveAll(open.map { it.id }) { id -> apiCall { api.resolveConflict(id, ConflictResolution(keep)) } }) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Err -> return r
+            is ApiResult.Offline -> return r
+        }
+        val kept = keepMine && open.isNotEmpty()
+        if (kept) settleKept(item) else discardMine(item)
+        return ApiResult.Ok(kept)
+    }
+
+    /** The server now holds the phone's values: drop the item and let the next pull overwrite the local copy. */
+    private suspend fun settleKept(item: OutboxEntity) = db.withTransaction {
+        db.outbox().delete(item.id)
+        if (item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE) {
+            db.newVoters().get(item.entityId)?.let { db.newVoters().upsert(listOf(it.copy(conflict = false, pending = false))) }
+        } else {
+            db.voters().survey(item.entityId)?.let { db.voters().upsertSurvey(it.copy(conflict = false, pending = false)) }
+        }
+    }
+
+    /** Conflict, "send mine again" (5.11, phone only): the phone's copy goes on top of the server's version.
+     *  The Sync screen decides on the server since 7.10 ([resolve]). */
     suspend fun keepMine(item: OutboxEntity) = db.withTransaction {
         val isNewVoter = item.type == OutboxEntity.TYPE_NEW_VOTER_UPDATE
         val serverVersion = item.serverCopy?.let {

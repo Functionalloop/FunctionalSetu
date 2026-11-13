@@ -399,3 +399,28 @@ data class ProblemReportIn(
     @SerialName("app_version_code") val appVersionCode: Int?,
     @SerialName("phone_model") val phoneModel: String?,
 )
+
+// --- Conflict review (7.10) ---
+
+@Serializable
+data class Conflict(
+    val id: String,
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String,
+    @SerialName("field_name") val fieldName: String,
+    @SerialName("client_value") val clientValue: JsonElement? = null,
+    @SerialName("server_value") val serverValue: JsonElement? = null,
+    @SerialName("client_user") val clientUser: UserSummary,
+    @SerialName("client_changed_at") val clientChangedAt: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    val status: String,
+)
+
+@Serializable
+data class ConflictPage(
+    val items: List<Conflict>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+/** keep: "kept_client" (the phone's value is written) or "kept_server". */
+@Serializable data class ConflictResolution(val keep: String)

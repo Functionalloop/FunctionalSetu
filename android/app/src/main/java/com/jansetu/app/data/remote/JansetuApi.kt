@@ -42,6 +42,15 @@ interface JansetuApi {
 
     @PATCH("families/{id}") suspend fun renameFamily(@Path("id") id: String, @Body body: FamilyPatch): SyncFamily
 
+    // Conflict review (7.10)
+    @GET("sync/conflicts")
+    suspend fun conflicts(
+        @Query("entity_id") entityId: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): ConflictPage
+    @POST("sync/conflicts/{id}/resolve") suspend fun resolveConflict(@Path("id") id: String, @Body body: ConflictResolution): Conflict
+
     // More menu (7.9)
     @GET("me") suspend fun me(): Me
     @GET("terms/current") suspend fun terms(): Terms

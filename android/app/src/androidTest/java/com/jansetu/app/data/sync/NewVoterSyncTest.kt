@@ -58,6 +58,9 @@ class NewVoterSyncTest {
     private val serverVersion = mutableMapOf<String, Int>()
     private var answer: (JsonObject) -> String = ::serverAnswer
     private var pullBody = """{"watermark":"1"}"""
+    /** GET /sync/conflicts answer, and the resolve calls received: conflict id -> keep. */
+    private var conflictsBody = """{"items":[]}"""
+    private val resolved = mutableMapOf<String, String>()
     private val user = "00000000-0000-0000-0000-00000000aaaa"
 
     @Before fun setUp() {
@@ -67,7 +70,14 @@ class NewVoterSyncTest {
         }
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
-                if (!request.requestUrl!!.encodedPath.endsWith("/sync/push")) return MockResponse().setBody(pullBody)
+                val path = request.requestUrl!!.encodedPath
+                if (path.endsWith("/sync/conflicts")) return MockResponse().setBody(conflictsBody)
+                if (path.endsWith("/resolve")) {
+                    val keep = ApiJson.parseToJsonElement(request.body.readUtf8()).jsonObject["keep"]!!.jsonPrimitive.content
+                    synchronized(resolved) { resolved[path.split("/").dropLast(1).last()] = keep }
+                    return MockResponse().setBody(conflictJson("x", "x", "x"))
+                }
+                if (!path.endsWith("/sync/push")) return MockResponse().setBody(pullBody)
                 val items = ApiJson.parseToJsonElement(request.body.readUtf8()).jsonObject["items"]!!.jsonArray.map { it.jsonObject }
                 synchronized(pushed) { pushed += items }
                 return MockResponse().setBody("""{"results":[${items.joinToString(",") { answer(it) }}]}""")
@@ -188,6 +198,44 @@ class NewVoterSyncTest {
         assertEquals(SyncOutcome.Done, sync.push())
         assertEquals(5, mem.newVoters().get(id)!!.version)
         assertFalse(mem.newVoters().get(id)!!.conflict)
+    }
+
+    private fun conflictJson(id: String, entity: String, by: String) =
+        """{"id":"$id","entity_type":"new_voter","entity_id":"$entity","field_name":"notes","client_value":"mine",
+            "server_value":"server copy","client_user":{"id":"$by","username":"u","full_name_en":"Fake","role":"surveyor"},
+            "created_at":"2026-11-13T10:00:00Z","status":"open"}"""
+
+    @Test fun keepMineIsDecidedOnTheServer() = runBlocking { // 7.10
+        val id = repo.save(person(), user)
+        sync.push()
+        serverVersion[id] = 4
+        repo.save(mem.newVoters().get(id)!!.copy(notes = "mine"), user)
+        sync.push()
+        val other = "00000000-0000-0000-0000-00000000bbbb"
+        conflictsBody = """{"items":[${conflictJson("c1", id, user)},${conflictJson("c2", id, other)}]}"""
+
+        val r = sync.resolve(mem.outbox().problems().first().single(), user, keepMine = true)
+        assertEquals(com.jansetu.app.data.remote.ApiResult.Ok(true), r)
+        assertEquals(mapOf("c1" to KEEP_PHONE), resolved) // only this user's row; the other worker's stays
+        assertTrue(mem.outbox().problems().first().isEmpty())
+        assertTrue(mem.outbox().queued(10).isEmpty()) // nothing sent again: the server wrote it
+        val now = mem.newVoters().get(id)!!
+        assertFalse(now.conflict || now.pending) // the next pull overwrites it with the decided copy
+    }
+
+    @Test fun keepMineAfterTheSupervisorDecidedUsesTheServerCopy() = runBlocking { // 7.10
+        val id = repo.save(person(), user)
+        sync.push()
+        serverVersion[id] = 2
+        repo.save(mem.newVoters().get(id)!!.copy(notes = "mine"), user)
+        sync.push()
+        conflictsBody = """{"items":[]}""" // nothing open any more
+
+        val r = sync.resolve(mem.outbox().problems().first().single(), user, keepMine = true)
+        assertEquals(com.jansetu.app.data.remote.ApiResult.Ok(false), r)
+        assertTrue(resolved.isEmpty())
+        assertEquals("server copy", mem.newVoters().get(id)!!.notes)
+        assertTrue(mem.outbox().problems().first().isEmpty())
     }
 
     @Test fun useServerCopyDropsMine() = runBlocking {
