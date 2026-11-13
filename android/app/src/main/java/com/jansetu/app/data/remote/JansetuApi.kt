@@ -4,6 +4,7 @@ import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -35,6 +36,29 @@ interface JansetuApi {
     ): SyncPage
 
     @POST("sync/push") suspend fun push(@Body body: PushRequest): PushResponse
+
+    @GET("voters/{id}/history")
+    suspend fun history(@Path("id") voterId: String, @Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): HistoryPage
+
+    @PATCH("families/{id}") suspend fun renameFamily(@Path("id") id: String, @Body body: FamilyPatch): SyncFamily
+
+    // Conflict review (7.10)
+    @GET("sync/conflicts")
+    suspend fun conflicts(
+        @Query("entity_id") entityId: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): ConflictPage
+    @POST("sync/conflicts/{id}/resolve") suspend fun resolveConflict(@Path("id") id: String, @Body body: ConflictResolution): Conflict
+
+    // More menu (7.9)
+    @GET("me") suspend fun me(): Me
+    @GET("terms/current") suspend fun terms(): Terms
+    @POST("terms/accept") suspend fun acceptTerms(@Body body: TermsAccept): Response<Unit>
+    @GET("announcements")
+    suspend fun announcements(@Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): AnnouncementPage
+    @POST("announcements/{id}/read") suspend fun readAnnouncement(@Path("id") id: String): Response<Unit>
+    @POST("problem-reports") suspend fun reportProblem(@Body body: ProblemReportIn): Response<Unit>
 }
 
 /**

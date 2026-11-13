@@ -32,7 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -60,6 +60,7 @@ import com.jansetu.app.data.local.SurveyEntity
 import com.jansetu.app.data.local.VoterEntity
 import com.jansetu.app.data.sync.SyncScheduler
 import com.jansetu.app.ui.common.displayName
+import com.jansetu.app.ui.family.KutumbTab
 import com.jansetu.app.ui.common.genderLabel
 import com.jansetu.app.ui.common.istTime
 import com.jansetu.app.ui.common.nameEn
@@ -90,14 +91,17 @@ class VoterViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     val castes = db.lists().entries("caste")
     val professions = db.lists().entries("profession")
-    val positions = db.lists().entries("position")
     val influencerTypes = db.lists().entries("influencer_type")
     val colorTags = db.lists().colorTags()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoterScreen(session: Session, onBack: () -> Unit, vm: VoterViewModel = hiltViewModel()) {
+fun VoterScreen(
+    session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, onSlip: (String) -> Unit,
+    onShare: (List<String>) -> Unit,
+    vm: VoterViewModel = hiltViewModel(),
+) {
     val voter by vm.voter.collectAsStateWithLifecycle()
     val survey by vm.survey.collectAsStateWithLifecycle()
     val areas by vm.areas.collectAsStateWithLifecycle()
@@ -113,20 +117,24 @@ fun VoterScreen(session: Session, onBack: () -> Unit, vm: VoterViewModel = hiltV
     ) { padding ->
         val v = voter ?: return@Scaffold
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
+            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) {
                 Tab(tab == 0, { tab = 0 }, text = { Text("Details") })
                 Tab(tab == 1, { tab = 1 }, text = { Text("Survey") })
+                Tab(tab == 2, { tab = 2 }, text = { Text("Kutumb Connect", maxLines = 1) })
+                Tab(tab == 3, { tab = 3 }, text = { Text("Information Updation", maxLines = 1) })
             }
             when (tab) {
-                0 -> DetailsTab(v, survey, areas)
-                else -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
+                0 -> DetailsTab(v, survey, areas, onSlip = { onSlip(v.id) })
+                1 -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
+                2 -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen, onShare = onShare)
+                else -> HistoryTab()
             }
         }
     }
 }
 
 @Composable
-private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, AreaEntity>) {
+private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, AreaEntity>, onSlip: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         v.nameEn()?.let { Text(it, style = MaterialTheme.typography.headlineSmall) }
@@ -159,6 +167,7 @@ private fun DetailsTab(v: VoterEntity, s: SurveyEntity?, areas: Map<String, Area
             }
         }
         if (s?.mobile1 == null) Text("No mobile number yet. Add it in the Survey tab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = onSlip, modifier = Modifier.fillMaxWidth()) { Text("Voter slip") }
         s?.updatedAt?.let { Text("Survey updated ${istTime(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

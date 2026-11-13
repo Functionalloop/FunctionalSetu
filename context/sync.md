@@ -17,6 +17,10 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 - **Then phases**, keyset-paged by id, `limit` 1–2000 (default 1000):
   - `voters`: first download = every voter in the area, removed ones left out; delta = voters in the area with `sync_xid >= W`, removed ones **included** (`deleted_at` set).
   - `surveys`: surveys of non-removed voters in the area (delta: `sync_xid >= W`).
+  - `families` (7.2): Kutumbs whose **booth** is in the scope (first: not deleted; delta: changed, deleted ones included with `deleted_at`). No member list on the row.
+  - `new_voters` (7.5): Eligible but Not Registered whose part (or Village Panchayat when no part) is in the scope; **survey roles only** (a booth agent's pull has none: `pull_page(..., survey_role=)`). First: not deleted; delta: changed since W. Replace by id.
+  - `visits` (7.3): visits whose booth is in the scope (first: all; delta: new since W). Not deleted ones only (there is no delete).
+  - `members` (7.2): `family_members` rows (`voter_id`, `family_id`, `updated_at`) of non-removed voters in the area. First: only voters in a Kutumb; delta: changed rows, `family_id` null = taken out. Replace by `voter_id`.
   - `gone` (delta only): ids of voters changed since W that are now **outside** the area (moved booth, area switched off for them). Ids only, never the row.
 - Only phases with rows are visited: page 1 counts them and the cursor carries the list. Idle delta = 1 request; a few changes = page 1 + one page per phase with rows.
 - Cursor = `[phases_left, last_id, W', since]` (`app/paging.py`); `since` rides in the cursor, so a `since` sent with a cursor is ignored.
@@ -26,13 +30,34 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ## `POST /sync/push` (built 4.8)
 
-- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey` only so far), `entity_id` (voter id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
+- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey`, `family_new`, `family`, `visit`, `new_voter`, `new_voter_update`; others `not_implemented`), `entity_id` (voter id; `family_new`: the Kutumb id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
 - Result per item, same order: `applied` (`survey` = saved copy with the new version), `conflict` (`survey` = server copy, `conflict_fields`), `rejected` (`error.code`: `forbidden_role`, `validation_error`, `not_found`, ...). `duplicate: true` = this id was seen before; the stored status is returned and nothing is applied again.
 - **One bad item never fails the batch** (the outbox would stick): `data` is validated per item. Only a broken envelope (bad `id`, unknown `type`, > 500 items) is a 422 for the whole request.
 - Retry safety, two layers: (1) look up `sync_mutations (device_id, client_mutation_id)` first; (2) each item runs in a SAVEPOINT and records its result with `INSERT ... ON CONFLICT DO NOTHING` at the end; if a parallel request recorded the id first, the savepoint is rolled back and the stored result returned. Test `test_parallel_retries_apply_once` fails without layer 2.
-- Conflict: nothing written to the survey; one `sync_conflicts` row per differing field (`client_value` / `server_value` jsonb, `status = open`). If the phone's data equals the server copy, it is `applied` with no conflict rows. Resolving conflicts (`GET /sync/conflicts`, `.../resolve`) is not built.
+- Conflict: nothing written to the survey; one `sync_conflicts` row per differing field (`client_value` / `server_value` jsonb, `status = open`). If the phone's data equals the server copy, it is `applied` with no conflict rows. Review (7.10): `GET /sync/conflicts` and `POST /sync/conflicts/{id}/resolve` (see `context/backend.md`); the phone decides its own conflicts there, supervisors and above also those of their team.
 - Needs a phone: a login without a device gets 403 `device_required` (the retry key is per device). Roles are checked per item (`SURVEY_ROLES` for surveys): a booth agent's survey item is `rejected`, not a 403 for the batch.
 - Uses the same `write_survey` as `PUT /voters/{id}/survey`, so both follow one set of rules.
+
+### Eligible but Not Registered items (7.5)
+
+- `new_voter`: `entity_id` = the record's id, `data` = `POST /new-voters` body (`id` may be left out), `base_version` 0. A repeat id returns the stored record (first copy kept).
+- `new_voter_update`: `entity_id` = the record's id, `data` = `PATCH /new-voters/{id}` body without `version`, `base_version` = the version the phone last had (1 or more; 0 is rejected). Stale: `conflict` with `new_voter` = the server copy and `conflict_fields`; one `sync_conflicts` row per field (`entity_type` `new_voter`). Stale but equal to the server: `applied`. Result `new_voter` = the saved copy.
+- Push the `new_voter` before its `new_voter_update` items (an update of a record the server does not have is `rejected` `not_found`).
+
+### Slip events (7.7)
+
+- `part_note` (7.11): `entity_id` = the booth, `data` = `{note}`, `base_version` = the note's version (0 = none yet), survey roles. Stale and different: `conflict` with `part_note` = the server copy and `conflict_fields` `["note"]`, **no `sync_conflicts` row** (that table takes surveys, new voters and Kutumbs only), so the phone decides it alone (keep mine = send again on the server's version). Stale but the same text: `applied`. Pull: phase `part_notes` (all roles, notes of the booths in the area; first: all; delta: changed), `SyncPage.part_notes`, replace by `booth_id`.
+- `slip_event`: `entity_id` = the voter, `data` = `POST /voters/{id}/slip-events` body (`{id, channel, at}`), `base_version` 0, **all roles** (booth agents too). The event id makes it safe to resend under a new outbox id. Result: no record (`applied` only). `at` later than the server clock is stored as now.
+
+### Visit items (7.3)
+
+- `visit`: `entity_id` = the voter, `data` = `POST /voters/{id}/visits` body with the visit's own `id`. The visit id makes it safe to resend under a new outbox id. Result `visit` = the stored visit. A walk-list house mark is a visit on any voter of that house.
+
+### Kutumb items (7.2)
+
+- `family_new`: `data` = `POST /families` body (`id` may be left out; it must equal `entity_id`). `family`: `data` = `PUT /voters/{id}/family` body. `base_version` 0 for both. Same code as the REST routes (`write_new_family`, `write_voter_family`).
+- No version and no conflicts: a Kutumb id sent again (even under a new outbox id) returns the stored Kutumb, first name kept; membership is last change wins. Push the `family_new` before the `family` items that use it (one batch is fine: items apply in order); a `family` for a Kutumb the server does not have is `rejected` `not_found`.
+- Results carry `family` (`family_new`) or `family_member` (`family`; null when the voter was never in a Kutumb). `sync_mutations.entity_type` = `family` / `family_member`; `operation` `delete` for `leave_family`.
 
 ## What the phone must do (step 5)
 
@@ -40,7 +65,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 2. Save every row of every page (replace by id). A voter with `deleted_at` set: delete it. `gone_voter_ids`: delete those voters and their surveys.
 3. `area_ids` (page 1): delete local areas not in it and their voters. If it holds an id the phone does not have (a new assignment), run a **first download** again after this pull (no wipe; rows are replaced). Delta rows cannot bring a new area: its voters have old `sync_xid`.
 4. When `next_cursor` is null, store `watermark`; send it as `since` next time. If the app stops mid-pull, re-send the last cursor (5.6) or start the pull again from the stored W (safe: rows replace).
-5. Push before pull. Keep each outbox item (with its `id`) until a result arrives: `applied` → update the local version from `survey`; `conflict` → keep the local copy marked as a conflict and show it (the pull brings the server copy); `rejected` → drop it and show the error. A network failure → send the same items with the same ids again.
+5. Push before pull. Keep each outbox item (with its `id`) until a result arrives: `applied` → update the local version from `survey`; `conflict` → keep the local copy marked as a conflict and show it (the pull brings the server copy); the worker decides it on the server (7.10): the phone lists the record's open rows from its own pushes, resolves them all `kept_client` or `kept_server` (a 422 is tried again after the others; 409 `conflict_resolved` is fine), then drops the item; keep = clear the flags so the next pull brings the new copy; none open any more = the server's copy; `rejected` → drop it and show the error. A network failure → send the same items with the same ids again.
 
 ## Real roll (11 Nov, dev DB, server time only)
 
@@ -49,6 +74,11 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 - Delta: nothing changed 1 page / 0.02 s; 100 voters changed 2 pages / 0.02 s; `since=1` (everything, like after a roll import) 31,871 voters in 33 pages / ~1 s.
 
 ## Not built yet / open
+
+- Phone side (7.4, local database version 4): `families`, `family_members` and `visits` are stored in Room; Kutumbs and visits of booths that leave `area_ids` are dropped with their voters. App 0.1.0 ignores the three lists; the update to version 4 starts a full download so nothing made earlier is missed. Details: `context/android.md`.
+- Phone side (7.11, local database version 6): `part_notes` stored in Room; a pulled note never overwrites one pending or in conflict; the update to version 6 starts a full download.
+- Phone side (7.7): `slip_event` items need no table on the phone; two shares of one voter's slip are two items (two events).
+- Phone side (7.5, local database version 5): `new_voters` stored in Room (survey roles); `new_voter` before `new_voter_update` in outbox order; the update to version 5 starts a full download.
 
 - `devices.last_pull_watermark` is not written: `devices` has an audit trigger, so a write per pull = an audit row per phone per sync. Decide when the admin needs "last synced" (maybe from `auth_sessions.last_seen_at`).
 - Nothing records that a blocked phone finished wiping (plan gap table: phone reports it on `/devices/me`; not decided).

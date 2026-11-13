@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the slip images in the app's cache are shared (FileProvider, 7.7). -->
+<paths>
+    <cache-path name="slips" path="slips/" />
+</paths>

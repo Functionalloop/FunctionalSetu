@@ -1,5 +1,6 @@
 package com.jansetu.app.ui.voter
 
+import com.jansetu.app.ui.partnote.PartNoteCard
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,9 +71,7 @@ data class SurveyForm(
     val hasNewAddress: Boolean = false,
     val newAddress: String = "",
     val notes: String = "",
-    // Client changes of 12 Nov
-    val isImportant: Boolean = false,
-    val positionId: String? = null,
+    // Client changes of 12 Nov (no Important voter field: 7.13)
     val isInfluencer: Boolean = false,
     val influencerTypeId: String? = null,
     val inSelfHelpGroup: Boolean = false,
@@ -100,8 +99,7 @@ data class SurveyForm(
             newAddressMr = if (marathi) addr else null,
             newAddressEn = if (!marathi) addr else null,
             notes = notes.trim().ifEmpty { null },
-            // A detail is kept only with its yes: switching "Important" off clears the position.
-            isImportant = isImportant, positionId = positionId.takeIf { isImportant },
+            // A detail is kept only with its yes: switching "Influencer" off clears the type.
             isInfluencer = isInfluencer, influencerTypeId = influencerTypeId.takeIf { isInfluencer },
             inSelfHelpGroup = inSelfHelpGroup,
             selfHelpGroupName = selfHelpGroupName.trim().ifEmpty { null }.takeIf { inSelfHelpGroup },
@@ -114,7 +112,7 @@ data class SurveyForm(
             mobile1 = s.mobile1 ?: "", mobile2 = s.mobile2 ?: "", dob = s.dob ?: "",
             casteId = s.casteId, professionId = s.professionId, colorTagId = s.colorTagId,
             hasNewAddress = s.hasNewAddress, newAddress = s.newAddressMr ?: s.newAddressEn ?: "", notes = s.notes ?: "",
-            isImportant = s.isImportant, positionId = s.positionId, isInfluencer = s.isInfluencer,
+            isInfluencer = s.isInfluencer,
             influencerTypeId = s.influencerTypeId, inSelfHelpGroup = s.inSelfHelpGroup,
             selfHelpGroupName = s.selfHelpGroupName ?: "", rationCard = s.rationCard,
         )
@@ -129,7 +127,6 @@ data class SurveyForm(
 fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, readOnly: Boolean) {
     val castes by vm.castes.collectAsState(emptyList())
     val professions by vm.professions.collectAsState(emptyList())
-    val positions by vm.positions.collectAsState(emptyList())
     val influencerTypes by vm.influencerTypes.collectAsState(emptyList())
     val tags by vm.colorTags.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
@@ -156,6 +153,7 @@ fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, 
     val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { save() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PartNoteCard(voter.boothId, canEdit = !readOnly) // the voter's part (7.11)
         if (readOnly) Text("Booth agents can see the survey but not change it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (stored?.conflict == true) Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
             Text("Someone else changed this survey at the same time. See the Sync screen.", Modifier.padding(12.dp))
@@ -181,12 +179,9 @@ fun SurveyScreen(vm: VoterViewModel, voter: VoterEntity, stored: SurveyEntity?, 
             }
         }
 
-        YesNo("Important voter", form.isImportant, enabled) { form = form.copy(isImportant = it) }
-        if (form.isImportant) SearchablePicker("Position", positions, form.positionId, enabled) {
-            form = form.copy(positionId = it)
-        }
         YesNo("Influencer", form.isInfluencer, enabled) { form = form.copy(isInfluencer = it) }
-        if (form.isInfluencer) Picker("Influencer type", influencerTypes, form.influencerTypeId, enabled) {
+        // The client's 11 entries (Sarpanch, Panch Member, ...), searchable (client, 12 Nov)
+        if (form.isInfluencer) SearchablePicker("Influencer type", influencerTypes, form.influencerTypeId, enabled) {
             form = form.copy(influencerTypeId = it)
         }
         YesNo("Self help group member", form.inSelfHelpGroup, enabled) { form = form.copy(inSelfHelpGroup = it) }

@@ -8,7 +8,8 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import admin, app_version, auth, devices, field, geo, health, me, misc, reports, rolls, sync, turnout, voters
+from .routers import (admin, app_version, auth, birthdays, devices, families, field, geo, health, me, misc,
+                      new_voters, part_notes, reports, rolls, slips, sync, turnout, visits, voters)
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -41,6 +42,7 @@ each refresh returns a new refresh token and the old one stops working.
 | 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |
 | 422 | `validation_error` (with `details`), `weak_password` | |
 | 409 | `version_conflict` (with `current` = the server copy) | stale `version` |
+| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
@@ -74,10 +76,17 @@ def create_app() -> FastAPI:
     app.include_router(devices.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(families.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(visits.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(new_voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(slips.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(birthdays.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(app_version.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(misc.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(part_notes.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
-    for planned in (field, misc, turnout, admin, rolls, reports):
+    for planned in (field, turnout, admin, rolls, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 

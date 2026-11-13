@@ -2,6 +2,7 @@ package com.jansetu.app.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 // Shapes from docs/openapi.json. Only the fields the app uses; unknown fields are ignored,
@@ -144,8 +145,6 @@ data class SurveyDto(
     @SerialName("extra_info_3") val extraInfo3: String? = null,
     @SerialName("extra_info_4") val extraInfo4: String? = null,
     @SerialName("extra_info_5") val extraInfo5: String? = null,
-    @SerialName("is_important") val isImportant: Boolean = false,
-    @SerialName("position_id") val positionId: String? = null,
     @SerialName("is_influencer") val isInfluencer: Boolean = false,
     @SerialName("influencer_type_id") val influencerTypeId: String? = null,
     @SerialName("in_self_help_group") val inSelfHelpGroup: Boolean = false,
@@ -196,9 +195,86 @@ data class SyncLists(
     val professions: List<NamedListEntry> = emptyList(),
     @SerialName("color_tags") val colorTags: List<ColorTagDto> = emptyList(),
     @SerialName("custom_field_labels") val customFieldLabels: List<CustomFieldLabelDto> = emptyList(),
-    val positions: List<NamedListEntry> = emptyList(),
     @SerialName("influencer_types") val influencerTypes: List<NamedListEntry> = emptyList(),
 )
+
+/** A Kutumb as the pull sends it (SyncFamily) and as the push result returns it. */
+@Serializable
+data class SyncFamily(
+    val id: String,
+    @SerialName("ward_id") val wardId: String? = null,
+    @SerialName("booth_id") val boothId: String? = null,
+    val label: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+)
+
+/** A voter's Kutumb; familyId null = taken out. */
+@Serializable
+data class SyncFamilyMember(
+    @SerialName("voter_id") val voterId: String,
+    @SerialName("family_id") val familyId: String? = null,
+)
+
+@Serializable
+data class VisitDto(
+    val id: String,
+    @SerialName("voter_id") val voterId: String? = null,
+    @SerialName("booth_id") val boothId: String,
+    @SerialName("house_no") val houseNo: String? = null,
+    val outcome: String,
+    @SerialName("visited_at") val visitedAt: String,
+    @SerialName("revisit_at") val revisitAt: String? = null,
+    val note: String? = null,
+    @SerialName("visited_by") val visitedBy: String,
+)
+
+/** Eligible but Not Registered (NewVoter), as the pull sends it and the push returns it. */
+@Serializable
+data class NewVoterDto(
+    val id: String,
+    @SerialName("full_name_en") val fullNameEn: String? = null,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    @SerialName("relative_name") val relativeName: String? = null,
+    val dob: String? = null,
+    val gender: String? = null,
+    val mobile: String? = null,
+    val address: String? = null,
+    @SerialName("ward_id") val wardId: String,
+    @SerialName("booth_id") val boothId: String? = null,
+    @SerialName("family_id") val familyId: String? = null,
+    @SerialName("form6_status") val form6Status: String = "not_applied",
+    val notes: String? = null,
+    val version: Int,
+    @SerialName("matched_voter_id") val matchedVoterId: String? = null,
+    @SerialName("created_by") val createdBy: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)
+
+/** GET /voters/{id}/history (7.6, Information Updation). */
+@Serializable
+data class HistoryChange(
+    val old: JsonElement? = null,
+    val new: JsonElement? = null,
+    @SerialName("old_label") val oldLabel: String? = null,
+    @SerialName("new_label") val newLabel: String? = null,
+)
+
+@Serializable
+data class HistoryEntry(
+    val at: String,
+    val kind: String,
+    val action: String,
+    val by: UserSummary? = null,
+    val changes: Map<String, HistoryChange> = emptyMap(),
+)
+
+@Serializable
+data class HistoryPage(val items: List<HistoryEntry>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+/** PATCH /families/{id}: rename a Kutumb (online only; there is no push type for it). */
+@Serializable data class FamilyPatch(val label: String)
 
 @Serializable
 data class SyncPage(
@@ -215,6 +291,21 @@ data class SyncPage(
     val voters: List<SyncVoter> = emptyList(),
     val surveys: List<SurveyDto> = emptyList(),
     @SerialName("gone_voter_ids") val goneVoterIds: List<String> = emptyList(),
+    val families: List<SyncFamily> = emptyList(),
+    @SerialName("family_members") val familyMembers: List<SyncFamilyMember> = emptyList(),
+    val visits: List<VisitDto> = emptyList(),
+    @SerialName("new_voters") val newVoters: List<NewVoterDto> = emptyList(),
+    @SerialName("part_notes") val partNotes: List<PartNoteDto> = emptyList(),
+)
+
+/** 7.11: a part's shared note; version 0 = none yet. */
+@Serializable
+data class PartNoteDto(
+    @SerialName("booth_id") val boothId: String,
+    val note: String,
+    val version: Int,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("updated_by") val updatedBy: String? = null,
 )
 
 @Serializable
@@ -239,6 +330,10 @@ data class PushResult(
     val error: PushError? = null,
     val survey: SurveyDto? = null,
     @SerialName("conflict_fields") val conflictFields: List<String> = emptyList(),
+    val family: SyncFamily? = null,
+    val visit: VisitDto? = null,
+    @SerialName("new_voter") val newVoter: NewVoterDto? = null,
+    @SerialName("part_note") val partNote: PartNoteDto? = null,
 )
 
 @Serializable data class PushResponse(val results: List<PushResult>)
@@ -276,3 +371,68 @@ data class AdminDevice(
 data class DevicePage(val items: List<AdminDevice>, @SerialName("next_cursor") val nextCursor: String? = null)
 
 @Serializable data class BlockDeviceRequest(val reason: String? = null)
+
+// --- More menu (7.9) ---
+
+@Serializable
+data class Terms(
+    val version: Int,
+    @SerialName("body_mr") val bodyMr: String,
+    @SerialName("body_en") val bodyEn: String,
+    @SerialName("published_at") val publishedAt: String,
+)
+
+@Serializable data class TermsAccept(val version: Int)
+
+/** GET /me: only what the app reads. */
+@Serializable data class MeUserTerms(@SerialName("terms_version") val termsVersion: Int? = null)
+@Serializable data class Me(val user: MeUserTerms)
+
+@Serializable
+data class Announcement(
+    val id: String,
+    val body: String,
+    @SerialName("audience_geo_id") val audienceGeoId: String? = null,
+    @SerialName("created_by") val createdBy: UserSummary,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("expires_at") val expiresAt: String? = null,
+    @SerialName("is_read") val isRead: Boolean,
+)
+
+@Serializable
+data class AnnouncementPage(
+    val items: List<Announcement>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class ProblemReportIn(
+    val body: String,
+    @SerialName("app_version_code") val appVersionCode: Int?,
+    @SerialName("phone_model") val phoneModel: String?,
+)
+
+// --- Conflict review (7.10) ---
+
+@Serializable
+data class Conflict(
+    val id: String,
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String,
+    @SerialName("field_name") val fieldName: String,
+    @SerialName("client_value") val clientValue: JsonElement? = null,
+    @SerialName("server_value") val serverValue: JsonElement? = null,
+    @SerialName("client_user") val clientUser: UserSummary,
+    @SerialName("client_changed_at") val clientChangedAt: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    val status: String,
+)
+
+@Serializable
+data class ConflictPage(
+    val items: List<Conflict>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+/** keep: "kept_client" (the phone's value is written) or "kept_server". */
+@Serializable data class ConflictResolution(val keep: String)

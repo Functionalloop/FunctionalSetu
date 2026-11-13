@@ -43,6 +43,9 @@ class SetPasswordViewModel @Inject constructor(private val repo: SessionReposito
         private set
     var error by mutableStateOf<String?>(null)
         private set
+    /** Set when the server accepted the new password (Change password in More goes back then). */
+    var done by mutableStateOf(false)
+        private set
 
     fun save() {
         val currentPassword = repo.loginPassword ?: current
@@ -56,7 +59,9 @@ class SetPasswordViewModel @Inject constructor(private val repo: SessionReposito
         if (error != null || busy) return
         busy = true
         viewModelScope.launch {
-            error = repo.changePassword(currentPassword, new).userMessage()
+            val r = repo.changePassword(currentPassword, new)
+            error = r.userMessage()
+            done = r is ApiResult.Ok
             busy = false
         }
     }

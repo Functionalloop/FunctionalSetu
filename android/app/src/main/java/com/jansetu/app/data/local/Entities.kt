@@ -28,6 +28,8 @@ data class AreaEntity(
     indices = [
         Index("ward_id"), Index("booth_id"), Index("serial_no"),
         Index(value = ["part_no", "booth_no", "serial_no"]),
+        // Walk list (7.4): the houses of one booth.
+        Index(value = ["booth_id", "house_no"]),
     ],
 )
 data class VoterEntity(
@@ -65,7 +67,7 @@ data class VoterEntity(
  * The phone's copy of a voter's survey. [version] is the last version the server confirmed
  * (0 = none yet); a local save keeps it and sets [pending] until the push result arrives.
  */
-@Entity(tableName = "surveys", indices = [Index("color_tag_id"), Index("is_surveyed"), Index("is_important")])
+@Entity(tableName = "surveys", indices = [Index("color_tag_id"), Index("is_surveyed"), Index("is_influencer")])
 data class SurveyEntity(
     @PrimaryKey @ColumnInfo(name = "voter_id") val voterId: String,
     @ColumnInfo(name = "mobile_1") val mobile1: String? = null,
@@ -85,9 +87,7 @@ data class SurveyEntity(
     @ColumnInfo(name = "extra_info_3") val extraInfo3: String? = null,
     @ColumnInfo(name = "extra_info_4") val extraInfo4: String? = null,
     @ColumnInfo(name = "extra_info_5") val extraInfo5: String? = null,
-    // Client changes of 12 Nov (SRS 1.1)
-    @ColumnInfo(name = "is_important") val isImportant: Boolean = false,
-    @ColumnInfo(name = "position_id") val positionId: String? = null,
+    // Client changes of 12 Nov (SRS 1.1); no Important voter field or position since 7.13 (database version 3)
     @ColumnInfo(name = "is_influencer") val isInfluencer: Boolean = false,
     @ColumnInfo(name = "influencer_type_id") val influencerTypeId: String? = null,
     @ColumnInfo(name = "in_self_help_group") val inSelfHelpGroup: Boolean = false,
@@ -108,7 +108,7 @@ data class SurveyEntity(
     val conflict: Boolean = false,
 )
 
-/** Simple lists: kind = "caste" | "profession" | "position" | "influencer_type". */
+/** Simple lists: kind = "caste" | "profession" | "influencer_type". */
 @Entity(tableName = "list_entries", indices = [Index("kind")])
 data class ListEntryEntity(
     @PrimaryKey val id: String,
@@ -168,6 +168,20 @@ data class OutboxEntity(
         const val STATUS_CONFLICT = "conflict"
         const val STATUS_REJECTED = "rejected"
         const val TYPE_SURVEY = "survey"
+        /** A part's shared note (7.11); entity_id = the booth, base_version = the note's version (0 = none). */
+        const val TYPE_PART_NOTE = "part_note"
+        /** A new Kutumb; entity_id = the Kutumb's id. Always sent before the `family` items that use it. */
+        const val TYPE_FAMILY_NEW = "family_new"
+        /** A voter put in a Kutumb or taken out; entity_id = the voter. */
+        const val TYPE_FAMILY = "family"
+        /** A visit; entity_id = the voter, data.id = the visit's id. */
+        const val TYPE_VISIT = "visit"
+        /** Eligible but Not Registered, made on the phone; entity_id = its id, base_version 0. */
+        const val TYPE_NEW_VOTER = "new_voter"
+        /** An edit of one; entity_id = its id, base_version = the version the phone last had. */
+        const val TYPE_NEW_VOTER_UPDATE = "new_voter_update"
+        /** A slip shared (7.7); entity_id = the voter, data = {id, channel, at}. Nothing kept locally. */
+        const val TYPE_SLIP_EVENT = "slip_event"
     }
 }
 
@@ -176,4 +190,76 @@ data class OutboxEntity(
 data class SyncStateEntity(
     @PrimaryKey val key: String,
     val value: String?,
+)
+
+/**
+ * A Kutumb (7.4): made by hand by a surveyor, a name and its members, in one booth.
+ * [pending] = made or renamed on this phone and not confirmed by the server yet.
+ */
+@Entity(tableName = "families", indices = [Index("booth_id")])
+data class FamilyEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "ward_id") val wardId: String?,
+    @ColumnInfo(name = "booth_id") val boothId: String,
+    val label: String?,
+    @ColumnInfo(name = "updated_at") val updatedAt: String?,
+    val pending: Boolean = false,
+)
+
+/** A voter's Kutumb. Only voters in a Kutumb have a row; taking a voter out deletes it. */
+@Entity(tableName = "family_members", indices = [Index("family_id")])
+data class FamilyMemberEntity(
+    @PrimaryKey @ColumnInfo(name = "voter_id") val voterId: String,
+    @ColumnInfo(name = "family_id") val familyId: String,
+)
+
+/**
+ * A door-to-door visit (7.3 on the server). booth_id and house_no are the voter's, so the walk
+ * list finds the last visit of a house. outcome: met, not_home, revisit, shifted.
+ */
+@Entity(tableName = "visits", indices = [Index(value = ["booth_id", "house_no"]), Index("voter_id")])
+data class VisitEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "voter_id") val voterId: String?,
+    @ColumnInfo(name = "booth_id") val boothId: String,
+    @ColumnInfo(name = "house_no") val houseNo: String?,
+    val outcome: String,
+    @ColumnInfo(name = "visited_at") val visitedAt: String,
+    @ColumnInfo(name = "revisit_at") val revisitAt: String? = null,
+    val note: String? = null,
+    @ColumnInfo(name = "visited_by") val visitedBy: String,
+    /** Made on this phone, not sent yet. */
+    val pending: Boolean = false,
+)
+
+/**
+ * Eligible but Not Registered (7.5): a person who can vote but is not on the roll. Belongs to a part
+ * (booth_id) or, with no part, its Village Panchayat (ward_id). [version] is the last version the server
+ * confirmed (1 for a record not confirmed yet: the server gives 1 on create); [pending] / [conflict] as
+ * on surveys. form6_status: not_applied, applied, approved, rejected.
+ */
+@Entity(tableName = "new_voters", indices = [Index("booth_id"), Index("ward_id"), Index("created_at")])
+data class NewVoterEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "full_name_en") val fullNameEn: String? = null,
+    @ColumnInfo(name = "full_name_mr") val fullNameMr: String? = null,
+    @ColumnInfo(name = "relative_name") val relativeName: String? = null,
+    /** yyyy-MM-dd */
+    val dob: String? = null,
+    /** M, F or O */
+    val gender: String? = null,
+    val mobile: String? = null,
+    val address: String? = null,
+    @ColumnInfo(name = "ward_id") val wardId: String,
+    @ColumnInfo(name = "booth_id") val boothId: String? = null,
+    @ColumnInfo(name = "family_id") val familyId: String? = null,
+    @ColumnInfo(name = "form6_status") val form6Status: String = "not_applied",
+    val notes: String? = null,
+    val version: Int = 1,
+    @ColumnInfo(name = "matched_voter_id") val matchedVoterId: String? = null,
+    @ColumnInfo(name = "created_by") val createdBy: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: String,
+    @ColumnInfo(name = "updated_at") val updatedAt: String? = null,
+    val pending: Boolean = false,
+    val conflict: Boolean = false,
 )

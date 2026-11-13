@@ -3,13 +3,21 @@ package com.jansetu.app.data.sync
 import com.jansetu.app.data.local.AreaEntity
 import com.jansetu.app.data.local.ColorTagEntity
 import com.jansetu.app.data.local.CustomFieldLabelEntity
+import com.jansetu.app.data.local.FamilyEntity
+import com.jansetu.app.data.local.NewVoterEntity
+import com.jansetu.app.data.local.VisitEntity
 import com.jansetu.app.data.local.ListEntryEntity
 import com.jansetu.app.data.local.SurveyEntity
 import com.jansetu.app.data.local.VoterEntity
 import com.jansetu.app.data.remote.ColorTagDto
 import com.jansetu.app.data.remote.CustomFieldLabelDto
 import com.jansetu.app.data.remote.NamedListEntry
+import com.jansetu.app.data.remote.NewVoterDto
+import com.jansetu.app.data.remote.PartNoteDto
+import com.jansetu.app.data.local.PartNoteEntity
 import com.jansetu.app.data.remote.SurveyDto
+import com.jansetu.app.data.remote.SyncFamily
+import com.jansetu.app.data.remote.VisitDto
 import com.jansetu.app.data.remote.SyncArea
 import com.jansetu.app.data.remote.SyncVoter
 
@@ -31,11 +39,23 @@ fun SurveyDto.toEntity() = SurveyEntity(
     newAddressMr = newAddressMr, newAddressEn = newAddressEn, notes = notes,
     extraCheck1 = extraCheck1, extraCheck2 = extraCheck2, extraInfo1 = extraInfo1, extraInfo2 = extraInfo2,
     extraInfo3 = extraInfo3, extraInfo4 = extraInfo4, extraInfo5 = extraInfo5,
-    isImportant = isImportant, positionId = positionId, isInfluencer = isInfluencer,
+    isInfluencer = isInfluencer,
     influencerTypeId = influencerTypeId, inSelfHelpGroup = inSelfHelpGroup, selfHelpGroupName = selfHelpGroupName,
     rationCard = rationCard,
     version = version, isSurveyed = isSurveyed, surveyedAt = surveyedAt, lat = lat, lng = lng,
     locationAccuracyM = locationAccuracyM, locationCapturedAt = locationCapturedAt, updatedAt = updatedAt,
+)
+
+/** Null for a Kutumb without a booth (none are made that way since 7.1). */
+fun SyncFamily.toEntity() = boothId?.let { FamilyEntity(id, wardId, it, label, updatedAt, pending = false) }
+
+fun VisitDto.toEntity() = VisitEntity(id, voterId, boothId, houseNo, outcome, visitedAt, revisitAt, note, visitedBy, pending = false)
+
+fun NewVoterDto.toEntity() = NewVoterEntity(
+    id = id, fullNameEn = fullNameEn, fullNameMr = fullNameMr, relativeName = relativeName, dob = dob,
+    gender = gender, mobile = mobile, address = address, wardId = wardId, boothId = boothId, familyId = familyId,
+    form6Status = form6Status, notes = notes, version = version, matchedVoterId = matchedVoterId,
+    createdBy = createdBy, createdAt = createdAt, updatedAt = updatedAt, pending = false, conflict = false,
 )
 
 fun NamedListEntry.toEntity(kind: String) = ListEntryEntity(id, kind, nameMr, nameEn, sortOrder, isActive)
@@ -43,3 +63,5 @@ fun NamedListEntry.toEntity(kind: String) = ListEntryEntity(id, kind, nameMr, na
 fun ColorTagDto.toEntity() = ColorTagEntity(id, code, hex, labelMr, labelEn, isDefault, sortOrder, isActive)
 
 fun CustomFieldLabelDto.toEntity() = CustomFieldLabelEntity(fieldKey, labelMr, labelEn, isEnabled)
+
+fun PartNoteDto.toEntity() = PartNoteEntity(boothId, note, version, updatedAt, updatedBy)

@@ -6,6 +6,12 @@ Every change the client asked for after the SRS, and what was decided. Newest li
 - **Replaces** = takes the place of an earlier note or of something already built.
 - **Change request** = not in SRS 1.1. Built only after the client approves the updated app flow; time and cost are agreed separately (SRS, "Change requests").
 
+## 13 Nov 2026: app flow approved
+
+The client approved the updated app flow and wireframes (`docs/app_flow_v2.pdf`) on 13 Nov. Task 7.13 (influencer only, no Important voter field) is built. The change requests (Step 14) still wait for the time and cost (open item 6 below).
+
+**Kutumb Connect confirmed (13 Nov):** the client confirmed that a Kutumb must **not** be made from the house number: some voters live on rent, so one house number can hold people of different families. Kutumbs stay made by hand (7.1, 7.2, 7.4); open item 1 is closed. The walk list still goes house by house (it is a route for door-to-door work, not a family list).
+
 ## 13 Nov 2026: server provider (developer's change)
 
 Not asked by the client. SRS 1.1 ("Platform, hosting and security") says a KVM 4 VPS with 200 GB NVMe in an India region; the server is now a Bluehost VPS. The SRS text is not edited. The client was told on 13 Nov; work goes on without waiting for a written answer.
@@ -32,7 +38,7 @@ Source: `docs/client_changes_12nov.pdf` ("App Flow Modifications & Additional Fu
 | 4 | Ration card AAY, PHH, NPHH | Same | Built | – |
 | 5 | Synced notes for the whole part | Same | One shared note per part | 7.11 |
 | 6 | Filter for influencers | Replaces | The Important voters filter becomes an Influencer filter | 7.13 |
-| 7, 8 | Families made automatically from the house number, then edited | Replaces (developer's decision, 12 Nov) | **Not automatic.** The surveyor makes each Kutumb, types its name (usually the name of the head of the family, as plain text) and adds or removes members. This differs from PDF item 7; the app flow asks the client to confirm it | 7.1, 7.2, 7.4 |
+| 7, 8 | Families made automatically from the house number, then edited | Replaces (developer's decision, 12 Nov) | **Not automatic.** The surveyor makes each Kutumb, types its name (usually the name of the head of the family, as plain text) and adds or removes members. This differs from PDF item 7; **confirmed by the client 13 Nov** (tenants share house numbers) | 7.1, 7.2, 7.4 |
 | 9 | No family head | Replaces | No head field; "set the head" leaves the contract | 7.1 |
 | 10 | "Family" becomes "Kutumb Connect" | Replaces | Tab, screen and menu names | 7.4 |
 | 11 | No WhatsApp API; a standard share | Same | The phone's own WhatsApp | 7.12 |
@@ -74,7 +80,7 @@ Sources: Goa State Election Commission (sec.goa.gov.in), goa.gov.in (North Goa Z
 
 ### Still open with the client (asked in the app flow)
 
-1. Kutumb Connect made by the surveyor, not from house numbers (differs from PDF item 7).
+1. ~~Kutumb Connect made by the surveyor, not from house numbers.~~ Closed 13 Nov: confirmed (tenants share house numbers).
 2. WhatsApp to at most 5 voters as the bulk option; no bulk SMS (less than PDF items 24, 27).
 3. The list of parts in each Village Panchayat / Municipal Council.
 4. Previous election results: which elections and years, and whether the figures are per part, per panchayat or for the whole constituency.

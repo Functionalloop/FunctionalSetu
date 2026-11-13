@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 36 / 99 done (36%)** `███████░░░░░░░░░░░░░`
+**Overall: 49 / 99 done (49%)** `██████████░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -11,7 +11,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 5 – Android demo app | 16 / 16 | `██████████` |
 | Step 6 – Server | 8 / 8 | `██████████` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 0 / 13 | `░░░░░░░░░░` |
+| Step 7 – Field screens | 13 / 13 | `██████████` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
@@ -70,21 +70,21 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 0/13
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 13/13
 
-- [ ] **7.13** Survey: influencer only · due 26 Nov
-- [ ] **7.1** Kutumb Connect, made by hand · due 26 Nov
-- [ ] **7.2** Kutumb Connect in sync · due 26 Nov
-- [ ] **7.3** Visits API · due 26 Nov
-- [ ] **7.4** Screens: Kutumb Connect, Walk list · due 26 Nov
-- [ ] **7.5** Eligible but Not Registered · due 26 Nov
-- [ ] **7.6** Information Updation · due 27 Nov
-- [ ] **7.7** Voter slip · due 27 Nov
-- [ ] **7.8** Birthdays and Select many · due 27 Nov
-- [ ] **7.9** More menu items · due 27 Nov
-- [ ] **7.10** Conflict review · due 27 Nov
-- [ ] **7.11** Part notes · due 27 Nov
-- [ ] **7.12** Share on WhatsApp, at most 5 voters · due 27 Nov
+- [x] **7.13** Survey: influencer only · due 26 Nov · done 2026-11-13 · `18f27b7`
+- [x] **7.1** Kutumb Connect, made by hand · due 26 Nov · done 2026-11-13 · `3c731ec`
+- [x] **7.2** Kutumb Connect in sync · due 26 Nov · done 2026-11-13 · `06ecb0b`
+- [x] **7.3** Visits API · due 26 Nov · done 2026-11-13 · `5e65a64`
+- [x] **7.4** Screens: Kutumb Connect, Walk list · due 26 Nov · done 2026-11-13 · `4a3ddea`
+- [x] **7.5** Eligible but Not Registered · due 26 Nov · done 2026-11-13 · `d921963`
+- [x] **7.6** Information Updation · due 27 Nov · done 2026-11-13 · `df46d38`
+- [x] **7.7** Voter slip · due 27 Nov · done 2026-11-13 · `54b342e`
+- [x] **7.8** Birthdays and Select many · due 27 Nov · done 2026-11-13 · `dc28f91`
+- [x] **7.9** More menu items · due 27 Nov · done 2026-11-13 · `560d3d2`
+- [x] **7.10** Conflict review · due 27 Nov · done 2026-11-13 · `7d769c5`
+- [x] **7.11** Part notes · due 27 Nov · done 2026-11-13 · `de723fb`
+- [x] **7.12** Share on WhatsApp, at most 5 voters · due 27 Nov · done 2026-11-14 · `7e460af`
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day` — 0/3
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "JANSETU API",
-    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
+    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -1193,7 +1193,7 @@
             }
           },
           {
-            "name": "important",
+            "name": "influencer",
             "in": "query",
             "required": false,
             "schema": {
@@ -1205,10 +1205,27 @@
                   "type": "null"
                 }
               ],
-              "description": "true: important voters only; false: the others",
-              "title": "Important"
+              "description": "true: influencers only; false: the others",
+              "title": "Influencer"
             },
-            "description": "true: important voters only; false: the others"
+            "description": "true: influencers only; false: the others"
+          },
+          {
+            "name": "influencer_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Influencer Type Id"
+            }
           },
           {
             "name": "limit",
@@ -1515,6 +1532,134 @@
         }
       }
     },
+    "/api/v1/voters/{voter_id}/history": {
+      "get": {
+        "tags": [
+          "voters"
+        ],
+        "summary": "Information Updation: every change to the voter, newest first (survey, Kutumb, visits, voted marks, roll edits, slips), each with who, when and the fields changed. All roles.",
+        "operationId": "get_voter_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voters/{voter_id}/survey": {
       "put": {
         "tags": [
@@ -1556,6 +1701,1432 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Survey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/families": {
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Make a Kutumb by hand (free-text name) in a booth. A repeat id is stored once. Survey roles.",
+        "operationId": "create_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Family"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Walk list: houses of a booth in house-number order, with the last visit. All roles.",
+        "operationId": "walk_list",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booth_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booth Id"
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/VisitOutcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only houses whose last visit was this",
+              "title": "Outcome"
+            },
+            "description": "only houses whose last visit was this"
+          },
+          {
+            "name": "not_visited",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Not Visited"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalkListPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/families/{family_id}": {
+      "patch": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Rename a Kutumb. Survey roles.",
+        "operationId": "rename_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Family"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booths/{booth_id}/families": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The Kutumbs made in a booth, by name. All roles.",
+        "operationId": "booth_families",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "booth_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Booth Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/family": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The voter's Kutumb and its members (null when in none). All roles.",
+        "operationId": "get_voter_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoterFamily"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Put the voter in a Kutumb of their booth (moving them out of any other), or take them out with leave_family. Survey roles.",
+        "operationId": "set_voter_family",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoterFamily"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/visits": {
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Record a visit (met, not home, revisit, shifted). A repeat id is stored once. Survey roles.",
+        "operationId": "add_visit",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Visit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/new-voters": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Eligible but Not Registered: people added by hand (not on the roll), newest first, with Form 6 status. Survey roles.",
+        "operationId": "list_new_voters",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ward_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ward Id"
+            }
+          },
+          {
+            "name": "form6_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Form6Status"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Form6 Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewVoterPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Add a person who is not on the roll (Eligible but Not Registered). A repeat id is stored once. Survey roles.",
+        "operationId": "add_new_voter",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewVoterIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewVoter"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/new-voters/{new_voter_id}": {
+      "patch": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Edit an Eligible but Not Registered record or its Form 6 status (the whole record plus `version`). Stale version: 409 with the server copy. Survey roles.",
+        "operationId": "update_new_voter",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "new_voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "New Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewVoterPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewVoter"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/slip-events": {
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Log that a slip was shared or printed. A repeat id is stored once. All roles.",
+        "operationId": "add_slip_event",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlipEventIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/birthdays": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Voters in the user's area with a birthday between two dates (day and month), in birthday order. Date of birth from the survey. All roles.",
+        "operationId": "birthdays",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default: date_from (one day). At most 365 days after date_from.",
+              "title": "Date To"
+            },
+            "description": "Default: date_from (one day). At most 365 days after date_from."
+          },
+          {
+            "name": "booth_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Booth Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirthdayPage"
                 }
               }
             }
@@ -1863,7 +3434,7 @@
         "tags": [
           "sync"
         ],
-        "summary": "Conflicts to review. A surveyor sees their own; supervisor and above all in their area. Survey roles. (Plan 7.10; who resolves is the gap-table proposal.)",
+        "summary": "Conflicts to review, newest first. A surveyor sees the rows of their own pushes; supervisor and above all in their area. Survey roles.",
         "operationId": "list_conflicts",
         "security": [
           {
@@ -1998,16 +3569,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -2017,7 +3578,7 @@
         "tags": [
           "sync"
         ],
-        "summary": "Keep the phone's value (written with a new version) or the server's. Survey roles, same rule as the list.",
+        "summary": "Keep the phone's value (that field is written on the current record with a new version; 422 if the record would break a rule) or the server's (nothing written). 409 conflict_resolved if already decided. Survey roles, same rule as the list.",
         "operationId": "resolve_conflict",
         "security": [
           {
@@ -2116,16 +3677,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -2211,37 +3762,20 @@
         }
       }
     },
-    "/api/v1/voters/{voter_id}/family": {
+    "/api/v1/terms/current": {
       "get": {
         "tags": [
-          "field work"
+          "more"
         ],
-        "summary": "The voter's family and its members. All roles.",
-        "operationId": "get_voter_family",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          }
-        ],
+        "summary": "Current terms of use. Public. 404 not_found until the terms text has been loaded.",
+        "operationId": "current_terms",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VoterFamily"
+                  "$ref": "#/components/schemas/Terms"
                 }
               }
             }
@@ -2298,132 +3832,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Move the voter into a family (or a new one), or make them the head. Survey roles.",
-        "operationId": "set_voter_family",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyChange"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VoterFamily"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -2435,57 +3843,108 @@
         }
       }
     },
-    "/api/v1/families": {
+    "/api/v1/terms/accept": {
+      "post": {
+        "tags": [
+          "more"
+        ],
+        "summary": "Record that the user accepted this terms version (it must be the current one, else 409 terms_changed). All roles (also while the phone waits).",
+        "operationId": "accept_terms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermsAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/announcements": {
       "get": {
         "tags": [
-          "field work"
+          "more"
         ],
-        "summary": "Walk list: houses of a booth in house-number order, with the last visit. All roles.",
-        "operationId": "walk_list",
+        "summary": "Announcements for this user's area, newest first, with read flags. All roles.",
+        "operationId": "list_announcements",
         "security": [
           {
             "HTTPBearer": []
           }
         ],
         "parameters": [
-          {
-            "name": "booth_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Booth Id"
-            }
-          },
-          {
-            "name": "outcome",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/VisitOutcome"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "only houses whose last visit was this",
-              "title": "Outcome"
-            },
-            "description": "only houses whose last visit was this"
-          },
-          {
-            "name": "not_visited",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Not Visited"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -2523,7 +3982,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WalkListPage"
+                  "$ref": "#/components/schemas/AnnouncementPage"
                 }
               }
             }
@@ -2580,16 +4039,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -2602,10 +4051,10 @@
       },
       "post": {
         "tags": [
-          "field work"
+          "admin"
         ],
-        "summary": "Make a family by hand (free-text name) in a booth. A repeat id is stored once. Survey roles.",
-        "operationId": "create_family",
+        "summary": "Send an announcement to everyone or one area. Admin.",
+        "operationId": "create_announcement",
         "security": [
           {
             "HTTPBearer": []
@@ -2616,7 +4065,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyIn"
+                "$ref": "#/components/schemas/AnnouncementIn"
               }
             }
           }
@@ -2627,7 +4076,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Family"
+                  "$ref": "#/components/schemas/Announcement"
                 }
               }
             }
@@ -2705,13 +4154,13 @@
         }
       }
     },
-    "/api/v1/families/{family_id}": {
-      "patch": {
+    "/api/v1/announcements/{announcement_id}/read": {
+      "post": {
         "tags": [
-          "field work"
+          "more"
         ],
-        "summary": "Rename a family. Survey roles.",
-        "operationId": "rename_family",
+        "summary": "Mark one announcement as read (again is fine). All roles.",
+        "operationId": "read_announcement",
         "security": [
           {
             "HTTPBearer": []
@@ -2719,14 +4168,93 @@
         ],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "announcement_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Announcement Id"
             }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/problem-reports": {
+      "post": {
+        "tags": [
+          "more"
+        ],
+        "summary": "'Report a problem' from the Help screen. All roles (also while the phone waits).",
+        "operationId": "report_problem",
+        "security": [
+          {
+            "HTTPBearer": []
           }
         ],
         "requestBody": {
@@ -2734,21 +4262,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyPatch"
+                "$ref": "#/components/schemas/ProblemReportIn"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Family"
-                }
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "400": {
             "description": "Bad request",
@@ -2809,27 +4330,15 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
-      }
-    },
-    "/api/v1/booths/{booth_id}/families": {
+      },
       "get": {
         "tags": [
-          "field work"
+          "admin"
         ],
-        "summary": "The families made in a booth, by name. All roles.",
-        "operationId": "booth_families",
+        "summary": "Problems reported from the Help screen, newest first. Admin.",
+        "operationId": "list_problem_reports",
         "security": [
           {
             "HTTPBearer": []
@@ -2837,13 +4346,20 @@
         ],
         "parameters": [
           {
-            "name": "booth_id",
-            "in": "path",
-            "required": true,
+            "name": "status",
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Booth Id"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(open|done)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           },
           {
@@ -2883,7 +4399,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FamilyPage"
+                  "$ref": "#/components/schemas/ProblemReportPage"
                 }
               }
             }
@@ -3055,16 +4571,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       },
@@ -3171,766 +4677,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voters/{voter_id}/visits": {
-      "post": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Record a visit (met, not home, revisit, shifted). A repeat id is stored once. Survey roles.",
-        "operationId": "add_visit",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VisitIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Visit"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/new-voters": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "People added by hand (not on the roll), with Form 6 status. Survey roles.",
-        "operationId": "list_new_voters",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "ward_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ward Id"
-            }
-          },
-          {
-            "name": "form6_status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Form6 Status"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NewVoterPage"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Add a person who is not on the roll. A repeat id is stored once. Survey roles.",
-        "operationId": "add_new_voter",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewVoterIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NewVoter"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/new-voters/{new_voter_id}": {
-      "patch": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Edit a new voter or its Form 6 status. Stale version: 409 with the server copy. Survey roles.",
-        "operationId": "update_new_voter",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "new_voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "New Voter Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewVoterPatch"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NewVoter"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voters/{voter_id}/history": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Every change to the voter, newest first: survey, visits, voted, roll edits. All roles.",
-        "operationId": "voter_history",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voters/{voter_id}/slip-events": {
-      "post": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Log that a slip was shared or printed. A repeat id is stored once. All roles.",
-        "operationId": "add_slip_event",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SlipEventIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -3987,943 +4733,6 @@
             "content": {
               "image/png": {},
               "application/pdf": {}
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/birthdays": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Voters in the user's area with a birthday between two dates (day and month). All roles.",
-        "operationId": "birthdays",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "date_from",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "date",
-              "title": "Date From"
-            }
-          },
-          {
-            "name": "date_to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Date To"
-            }
-          },
-          {
-            "name": "booth_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Booth Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirthdayPage"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/terms/current": {
-      "get": {
-        "tags": [
-          "more"
-        ],
-        "summary": "Current terms of use. Public.",
-        "operationId": "current_terms",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Terms"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/terms/accept": {
-      "post": {
-        "tags": [
-          "more"
-        ],
-        "summary": "Record that the user accepted this terms version. All roles (also while the phone waits).",
-        "operationId": "accept_terms",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TermsAccept"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/announcements": {
-      "get": {
-        "tags": [
-          "more"
-        ],
-        "summary": "Announcements for this user's area, newest first, with read flags. All roles.",
-        "operationId": "list_announcements",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnnouncementPage"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Send an announcement to everyone or one area. Admin.",
-        "operationId": "create_announcement",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AnnouncementIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Announcement"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/announcements/{announcement_id}/read": {
-      "post": {
-        "tags": [
-          "more"
-        ],
-        "summary": "Mark one announcement as read. All roles.",
-        "operationId": "read_announcement",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "announcement_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Announcement Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/problem-reports": {
-      "post": {
-        "tags": [
-          "more"
-        ],
-        "summary": "'Report a problem' from the Help screen. All roles (also while the phone waits).",
-        "operationId": "report_problem",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProblemReportIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Problems reported from the Help screen, newest first. Admin.",
-        "operationId": "list_problem_reports",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(open|done)$"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the previous page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the previous page"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemReportPage"
-                }
-              }
             }
           },
           "400": {
@@ -14727,7 +14536,8 @@
                 "type": "null"
               }
             ],
-            "title": "House No"
+            "title": "House No",
+            "description": "Not set on hand-made Kutumbs"
           },
           "label": {
             "anyOf": [
@@ -14739,19 +14549,7 @@
               }
             ],
             "title": "Label",
-            "description": "Family name, typed by the surveyor (families are made by hand, client 12 Nov)"
-          },
-          "head_voter_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Head Voter Id"
+            "description": "Kutumb name, free text typed by the surveyor (often the name of the head of the family)"
           },
           "source": {
             "$ref": "#/components/schemas/FamilySource"
@@ -14763,7 +14561,7 @@
             },
             "type": "array",
             "title": "Member Ids",
-            "description": "Voters in this family"
+            "description": "Voters in this Kutumb, in roll order"
           },
           "updated_at": {
             "type": "string",
@@ -14778,12 +14576,12 @@
           "booth_id",
           "house_no",
           "label",
-          "head_voter_id",
           "source",
           "member_ids",
           "updated_at"
         ],
-        "title": "Family"
+        "title": "Family",
+        "description": "A Kutumb (Kutumb Connect): made by hand by a surveyor, in one booth, with no head (client, 12 Nov)."
       },
       "FamilyChange": {
         "properties": {
@@ -14798,49 +14596,19 @@
               }
             ],
             "title": "Family Id",
-            "description": "Move the voter into this existing family"
-          },
-          "new_family_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "New Family Id",
-            "description": "Start a new family with this phone-made id"
-          },
-          "new_family_label": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "New Family Label"
-          },
-          "make_head": {
-            "type": "boolean",
-            "title": "Make Head",
-            "description": "Make this voter the head of the family",
-            "default": false
+            "description": "Put the voter in this Kutumb (same booth as the voter)"
           },
           "leave_family": {
             "type": "boolean",
             "title": "Leave Family",
-            "description": "Take the voter out of their family (added 12 Nov)",
+            "description": "Take the voter out of their Kutumb",
             "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "FamilyChange",
-        "description": "PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id,\nor leave_family = true with neither (takes the voter out of their family)."
+        "description": "PUT /voters/{id}/family and push type `family`: family_id puts the voter in that Kutumb (moving them\nout of any other), or leave_family = true alone takes them out. A Kutumb is made with POST /families.\nThere is no head (13 Nov): unknown fields such as make_head are refused (422)."
       },
       "FamilyIn": {
         "properties": {
@@ -14848,20 +14616,20 @@
             "type": "string",
             "format": "uuid",
             "title": "Id",
-            "description": "Made by the phone; a repeat with the same id is stored once"
+            "description": "Made by the phone; a repeat with the same id is stored once (first name kept)"
           },
           "booth_id": {
             "type": "string",
             "format": "uuid",
             "title": "Booth Id",
-            "description": "The booth (part) the family belongs to"
+            "description": "The booth (part) the Kutumb belongs to"
           },
           "label": {
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
             "title": "Label",
-            "description": "Family name, free text"
+            "description": "Kutumb name, free text"
           }
         },
         "type": "object",
@@ -14871,7 +14639,7 @@
           "label"
         ],
         "title": "FamilyIn",
-        "description": "POST /families and push type `family_new` (entity_id = the family id): a family made by hand."
+        "description": "POST /families and push type `family_new` (entity_id = the family id): a Kutumb made by hand."
       },
       "FamilyPage": {
         "properties": {
@@ -15132,17 +14900,18 @@
           "at": {
             "type": "string",
             "format": "date-time",
-            "title": "At"
+            "title": "At",
+            "description": "When it was saved on the server; for a visit, the visit's own time"
           },
           "kind": {
             "type": "string",
             "title": "Kind",
-            "description": "survey, visit, voted, roll_edit, family, slip, new_voter_match"
+            "description": "survey, family (Kutumb membership), visit, voted, roll_edit, slip; new_voter_match later (Matching Engine)"
           },
           "action": {
             "type": "string",
             "title": "Action",
-            "description": "insert, update, delete, or the event name"
+            "description": "insert, update, delete; for a slip, the channel (pdf, print, whatsapp, sms)"
           },
           "by": {
             "anyOf": [
@@ -15159,7 +14928,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Changes",
-            "description": "field -> {old, new}; empty when not a field change"
+            "description": "field -> {old, new} with the database column names (e.g. mobile_1, notes, caste_id, family_id, is_voted, outcome). An update lists only the fields that changed; an insert or delete lists the fields that have a value. Reference fields (caste_id, profession_id, color_tag_id, influencer_type_id, karyakarta_id, family_id, ward_id, booth_id, ...) also carry old_label / new_label. Empty for a slip, or when only bookkeeping changed."
           }
         },
         "type": "object",
@@ -15170,7 +14939,8 @@
           "by",
           "changes"
         ],
-        "title": "HistoryEntry"
+        "title": "HistoryEntry",
+        "description": "One change (Information Updation, 7.6)."
       },
       "HistoryPage": {
         "properties": {
@@ -15812,7 +15582,7 @@
           "is_active"
         ],
         "title": "NamedListEntry",
-        "description": "An entry of a simple list: caste, profession, position or influencer type."
+        "description": "An entry of a simple list: caste, profession or influencer type."
       },
       "NewVoter": {
         "properties": {
@@ -15901,7 +15671,8 @@
           "ward_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Ward Id"
+            "title": "Ward Id",
+            "description": "The Village Panchayat (geo level `ward`)"
           },
           "booth_id": {
             "anyOf": [
@@ -15913,7 +15684,8 @@
                 "type": "null"
               }
             ],
-            "title": "Booth Id"
+            "title": "Booth Id",
+            "description": "The part, if known; it must be in ward_id"
           },
           "family_id": {
             "anyOf": [
@@ -15925,7 +15697,8 @@
                 "type": "null"
               }
             ],
-            "title": "Family Id"
+            "title": "Family Id",
+            "description": "A Kutumb of the same part (needs booth_id)"
           },
           "form6_status": {
             "$ref": "#/components/schemas/Form6Status",
@@ -16080,7 +15853,8 @@
           "ward_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Ward Id"
+            "title": "Ward Id",
+            "description": "The Village Panchayat (geo level `ward`)"
           },
           "booth_id": {
             "anyOf": [
@@ -16092,7 +15866,8 @@
                 "type": "null"
               }
             ],
-            "title": "Booth Id"
+            "title": "Booth Id",
+            "description": "The part, if known; it must be in ward_id"
           },
           "family_id": {
             "anyOf": [
@@ -16104,7 +15879,8 @@
                 "type": "null"
               }
             ],
-            "title": "Family Id"
+            "title": "Family Id",
+            "description": "A Kutumb of the same part (needs booth_id)"
           },
           "form6_status": {
             "$ref": "#/components/schemas/Form6Status",
@@ -16135,7 +15911,7 @@
           "id"
         ],
         "title": "NewVoterIn",
-        "description": "POST /new-voters and push type `new_voter`."
+        "description": "POST /new-voters and push type `new_voter` (entity_id = this id)."
       },
       "NewVoterPage": {
         "properties": {
@@ -16252,7 +16028,8 @@
           "ward_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Ward Id"
+            "title": "Ward Id",
+            "description": "The Village Panchayat (geo level `ward`)"
           },
           "booth_id": {
             "anyOf": [
@@ -16264,7 +16041,8 @@
                 "type": "null"
               }
             ],
-            "title": "Booth Id"
+            "title": "Booth Id",
+            "description": "The part, if known; it must be in ward_id"
           },
           "family_id": {
             "anyOf": [
@@ -16276,7 +16054,8 @@
                 "type": "null"
               }
             ],
-            "title": "Family Id"
+            "title": "Family Id",
+            "description": "A Kutumb of the same part (needs booth_id)"
           },
           "form6_status": {
             "$ref": "#/components/schemas/Form6Status",
@@ -16306,7 +16085,7 @@
           "version"
         ],
         "title": "NewVoterPatch",
-        "description": "PATCH /new-voters/{id} and push type `new_voter_update`: the whole record plus the version last seen."
+        "description": "PATCH /new-voters/{id} and push type `new_voter_update` (without `version`; base_version = it):\nthe whole record plus the version last seen."
       },
       "PairResolution": {
         "properties": {
@@ -16588,13 +16367,13 @@
             "type": "string",
             "format": "uuid",
             "title": "Entity Id",
-            "description": "survey: the voter id"
+            "description": "survey, family, visit, slip_event: the voter id; family_new: the Kutumb's id; new_voter, new_voter_update: the new voter's id"
           },
           "base_version": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Base Version",
-            "description": "survey: the version the phone last had; 0 = no survey yet"
+            "description": "survey: the version the phone last had; 0 = no survey yet. new_voter_update: the version the phone last had (1 or more). family_new, family, visit, new_voter, slip_event: 0"
           },
           "changed_at": {
             "anyOf": [
@@ -16613,7 +16392,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Data",
-            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
+            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). family: PUT /voters/{id}/family body (FamilyChange). visit: POST /voters/{id}/visits body (VisitIn). new_voter: POST /new-voters body (NewVoterIn; `id` may be left out, it is entity_id). new_voter_update: PATCH /new-voters/{id} body (NewVoterPatch) without `version`. slip_event: POST /voters/{id}/slip-events body (SlipEventIn). Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
           }
         },
         "type": "object",
@@ -16697,7 +16476,62 @@
                 "type": "null"
               }
             ],
-            "description": "applied: the saved copy (new version); conflict: the server copy"
+            "description": "survey: applied: the saved copy (new version); conflict: the server copy"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncFamily"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "family_new, applied: the Kutumb as stored"
+          },
+          "visit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visit"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "visit, applied: the visit as stored"
+          },
+          "new_voter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NewVoter"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "new_voter, new_voter_update: applied: the saved copy (new version); conflict: the server copy"
+          },
+          "family_member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncFamilyMember"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the voter was never in one)"
+          },
+          "part_note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartNote"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "part_note: applied: the saved note (new version); conflict: the server copy"
           },
           "conflict_fields": {
             "items": {
@@ -16740,7 +16574,7 @@
           "slip_event"
         ],
         "title": "PushType",
-        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nOnly `survey` is built; the others come with plan steps 7 and 8. Until then an item of\nthose types is rejected with not_implemented and NOT recorded, so a retry after the server\nupdate applies it."
+        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`\n(7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the\nversion the phone last had; stale: conflict with the server copy), `slip_event` (7.7; base_version 0;\ndata.id = the event's id, stored once; all roles) and `part_note` (7.11; base_version = the note's\nversion, 0 for none; stale and different: conflict with the server copy, no sync_conflicts row). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
       },
       "RationCard": {
         "type": "string",
@@ -17654,25 +17488,6 @@
             ],
             "title": "Extra Info 5"
           },
-          "is_important": {
-            "type": "boolean",
-            "title": "Is Important",
-            "description": "Important voter",
-            "default": false
-          },
-          "position_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position Id",
-            "description": "From the positions list; only with is_important"
-          },
           "is_influencer": {
             "type": "boolean",
             "title": "Is Influencer",
@@ -17689,7 +17504,7 @@
               }
             ],
             "title": "Influencer Type Id",
-            "description": "From the influencer types list; only with is_influencer"
+            "description": "From the influencer types list (the client's 11 entries); only with is_influencer"
           },
           "in_self_help_group": {
             "type": "boolean",
@@ -18030,25 +17845,6 @@
             ],
             "title": "Extra Info 5"
           },
-          "is_important": {
-            "type": "boolean",
-            "title": "Is Important",
-            "description": "Important voter",
-            "default": false
-          },
-          "position_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position Id",
-            "description": "From the positions list; only with is_important"
-          },
           "is_influencer": {
             "type": "boolean",
             "title": "Is Influencer",
@@ -18065,7 +17861,7 @@
               }
             ],
             "title": "Influencer Type Id",
-            "description": "From the influencer types list; only with is_influencer"
+            "description": "From the influencer types list (the client's 11 entries); only with is_influencer"
           },
           "in_self_help_group": {
             "type": "boolean",
@@ -18266,6 +18062,123 @@
         ],
         "title": "SyncArea"
       },
+      "SyncFamily": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ward_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ward Id"
+          },
+          "booth_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booth Id"
+          },
+          "house_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House No"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Set when the Kutumb was deleted: delete it on the phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ward_id",
+          "booth_id",
+          "house_no",
+          "label",
+          "source",
+          "updated_at",
+          "deleted_at"
+        ],
+        "title": "SyncFamily",
+        "description": "A Kutumb in the sync pull (7.2). Its members come separately in `family_members`."
+      },
+      "SyncFamilyMember": {
+        "properties": {
+          "voter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Voter Id"
+          },
+          "family_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family Id"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voter_id",
+          "family_id",
+          "updated_at"
+        ],
+        "title": "SyncFamilyMember",
+        "description": "Which Kutumb a voter is in (7.2). family_id null = taken out of their Kutumb."
+      },
       "SyncLists": {
         "properties": {
           "castes": {
@@ -18296,14 +18209,6 @@
             "type": "array",
             "title": "Custom Field Labels"
           },
-          "positions": {
-            "items": {
-              "$ref": "#/components/schemas/NamedListEntry"
-            },
-            "type": "array",
-            "title": "Positions",
-            "description": "Positions of important voters"
-          },
           "influencer_types": {
             "items": {
               "$ref": "#/components/schemas/NamedListEntry"
@@ -18318,7 +18223,6 @@
           "professions",
           "color_tags",
           "custom_field_labels",
-          "positions",
           "influencer_types"
         ],
         "title": "SyncLists"
@@ -18417,6 +18321,18 @@
             "title": "Total Surveys",
             "description": "Page 1 only: surveys this pull will send"
           },
+          "total_families": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Families",
+            "description": "Page 1 only: Kutumbs this pull will send"
+          },
           "voters": {
             "items": {
               "$ref": "#/components/schemas/SyncVoter"
@@ -18442,30 +18358,43 @@
           },
           "families": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/SyncFamily"
             },
             "type": "array",
             "title": "Families",
-            "description": "Family rows (schema Family); from step 7.2"
+            "description": "Kutumbs of the user's booths (first download: not deleted; delta: changed since `since`)"
+          },
+          "family_members": {
+            "items": {
+              "$ref": "#/components/schemas/SyncFamilyMember"
+            },
+            "type": "array",
+            "title": "Family Members",
+            "description": "Kutumb membership of voters in the area (first download: voters in a Kutumb; delta: changed since `since`, family_id null = taken out). Replace by voter_id"
           },
           "visits": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/Visit"
             },
             "type": "array",
             "title": "Visits",
-            "description": "Visit rows (schema Visit); from step 7.3"
+            "description": "Visits in the user's booths (7.3; first download: all; delta: new since `since`)"
           },
           "new_voters": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/NewVoter"
             },
             "type": "array",
             "title": "New Voters",
-            "description": "NewVoter rows; from step 7.5"
+            "description": "Eligible but Not Registered in the user's area (7.5; by part, or Village Panchayat when no part; first download: all; delta: changed since `since`). Replace by id"
+          },
+          "part_notes": {
+            "items": {
+              "$ref": "#/components/schemas/PartNote"
+            },
+            "type": "array",
+            "title": "Part Notes",
+            "description": "7.11: the shared notes of the user's parts (first download: all; delta: changed since `since`). Replace by booth_id"
           },
           "turnout": {
             "items": {
@@ -19454,7 +19383,8 @@
                 "type": "null"
               }
             ],
-            "title": "Family Id"
+            "title": "Family Id",
+            "description": "The voter's Kutumb at the time of the visit"
           },
           "booth_id": {
             "type": "string",
@@ -19546,7 +19476,8 @@
           "lat",
           "lng"
         ],
-        "title": "Visit"
+        "title": "Visit",
+        "description": "One door-to-door visit (7.3). booth_id and house_no are the voter's at the time of the visit, so the\nwalk list can mark a whole house through any voter in it."
       },
       "VisitIn": {
         "properties": {
@@ -19575,7 +19506,7 @@
               }
             ],
             "title": "Revisit At",
-            "description": "outcome = revisit: when to come back"
+            "description": "Only with outcome = revisit: when to come back"
           },
           "note": {
             "anyOf": [

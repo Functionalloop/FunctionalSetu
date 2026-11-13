@@ -1,5 +1,6 @@
 package com.jansetu.app.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
@@ -17,6 +18,7 @@ abstract class VoterDao {
 
     @Query("DELETE FROM voters WHERE id IN (:ids)") protected abstract suspend fun deleteVoterRows(ids: List<String>)
     @Query("DELETE FROM surveys WHERE voter_id IN (:ids)") protected abstract suspend fun deleteSurveyRows(ids: List<String>)
+    @Query("DELETE FROM family_members WHERE voter_id IN (:ids)") protected abstract suspend fun deleteMemberRows(ids: List<String>)
     // FTS4 finds a row only by "rowid = ?"; "rowid IN (...)" would scan the whole index each time.
     @Query("DELETE FROM voter_fts WHERE rowid = :rowid") protected abstract suspend fun deleteFtsRow(rowid: Long)
     @Query("SELECT rowid FROM voters WHERE id IN (:ids)") protected abstract suspend fun rowids(ids: List<String>): List<Long>
@@ -33,6 +35,16 @@ abstract class VoterDao {
     @Query("SELECT * FROM voters WHERE id = :id") abstract suspend fun voter(id: String): VoterEntity?
     @Query("SELECT * FROM voters WHERE id = :id") abstract fun voterFlow(id: String): Flow<VoterEntity?>
     @Query("SELECT * FROM surveys WHERE voter_id = :id") abstract suspend fun survey(id: String): SurveyEntity?
+
+    /** 7.8 Birthdays: voters whose survey date of birth falls on one of these 'MM-DD' days. */
+    @Query(
+        """SELECT v.id, v.part_no, v.serial_no, v.first_name_en, v.middle_name_en, v.last_name_en,
+                  v.first_name_mr, v.middle_name_mr, v.last_name_mr, s.dob, s.mobile_1
+             FROM voters v JOIN surveys s ON s.voter_id = v.id
+            WHERE s.dob IS NOT NULL AND substr(s.dob, 6, 5) IN (:days)
+            ORDER BY v.part_no, v.serial_no""",
+    )
+    abstract suspend fun birthdays(days: List<String>): List<BirthdayRow>
     @Query("SELECT * FROM surveys WHERE voter_id = :id") abstract fun surveyFlow(id: String): Flow<SurveyEntity?>
 
     @RawQuery(observedEntities = [VoterEntity::class, SurveyEntity::class, ColorTagEntity::class])
@@ -80,7 +92,7 @@ abstract class VoterDao {
     @Transaction
     open suspend fun removeVoters(ids: List<String>) {
         ids.chunked(500).forEach {
-            deleteFts(it); deleteSurveyRows(it); deleteVoterRows(it)
+            deleteFts(it); deleteSurveyRows(it); deleteMemberRows(it); deleteVoterRows(it)
         }
     }
 
@@ -149,3 +161,17 @@ interface SyncStateDao {
     @Query("SELECT value FROM sync_state WHERE key = :key") fun flow(key: String): Flow<String?>
     @Query("DELETE FROM sync_state WHERE key = :key") suspend fun delete(key: String)
 }
+
+data class BirthdayRow(
+    val id: String,
+    @ColumnInfo(name = "part_no") val partNo: Int,
+    @ColumnInfo(name = "serial_no") val serialNo: Int,
+    @ColumnInfo(name = "first_name_en") val firstNameEn: String?,
+    @ColumnInfo(name = "middle_name_en") val middleNameEn: String?,
+    @ColumnInfo(name = "last_name_en") val lastNameEn: String?,
+    @ColumnInfo(name = "first_name_mr") val firstNameMr: String?,
+    @ColumnInfo(name = "middle_name_mr") val middleNameMr: String?,
+    @ColumnInfo(name = "last_name_mr") val lastNameMr: String?,
+    val dob: String,
+    @ColumnInfo(name = "mobile_1") val mobile1: String?,
+)

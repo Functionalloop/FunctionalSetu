@@ -106,10 +106,10 @@ fun FiltersScreen(db: AppDatabase, initial: VoterFilter, onApply: (VoterFilter) 
                     }
                 }
 
-                Text("Important voters", style = MaterialTheme.typography.titleSmall)
+                Text("Influencers", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(f.important == true, { f = f.copy(important = if (f.important == true) null else true) },
-                        { Text("Important only") })
+                    FilterChip(f.influencer == true, { f = f.copy(influencer = if (f.influencer == true) null else true) },
+                        { Text("Influencers only") })
                 }
 
                 Text("Survey", style = MaterialTheme.typography.titleSmall)
@@ -133,7 +133,7 @@ fun ColorDot(hex: String, size: Int = 14) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AreaPicker(label: String, areas: List<AreaEntity>, selected: String?, onPick: (String?) -> Unit) {
+fun AreaPicker(label: String, areas: List<AreaEntity>, selected: String?, allowAll: Boolean = true, onPick: (String?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val current = areas.firstOrNull { it.id == selected }
     ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
@@ -144,7 +144,7 @@ fun AreaPicker(label: String, areas: List<AreaEntity>, selected: String?, onPick
             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
         )
         ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("All") }, onClick = { onPick(null); open = false })
+            if (allowAll) DropdownMenuItem(text = { Text("All") }, onClick = { onPick(null); open = false })
             areas.forEach { a -> DropdownMenuItem(text = { Text(areaLabel(a)) }, onClick = { onPick(a.id); open = false }) }
         }
     }

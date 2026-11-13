@@ -12,10 +12,12 @@ Row fields:
   target       kind of record named by the path parameter, if any (see KINDS)
   lists        kind of record returned in `items` (list isolation is checked)
   area_params  query parameters that take an area id (404 outside the user's area)
-  body         JSON body to send
+  body         JSON body to send, or a function (world) -> body when it needs the shared data
   works        False: skip the "allowed role succeeds" check (covered in the endpoint's own tests)
   fresh_login  the call ends the session (logout): use a new login for the success check
   wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
+  query        query parameters sent with every call (required ones, e.g. date_from)
+  item_id      the key of a list item that holds the record's id (default "id")
   stub         contract only (4.10): an allowed role reaches it and gets 501 not_implemented (or 422 when
                the row has no sample body). Building it: drop `stub`, add `target` / `lists` and its own tests.
 """
@@ -45,15 +47,28 @@ class Endpoint:
     target: str | None = None
     lists: str | None = None
     area_params: tuple[str, ...] = ()
-    body: dict[str, Any] | None = None
+    body: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None
     works: bool = True
     fresh_login: bool = False
     wipe_on_block: bool = False
     stub: bool = False
+    query: dict[str, Any] = field(default_factory=dict)
+    item_id: str = "id"
 
     @property
     def label(self) -> str:
         return f"{self.method} {self.path}"
+
+
+def _part_note_body(world) -> dict[str, Any]:
+    """A save on top of the current version of workspace A's booth 1 note (each role saves in turn)."""
+    row = world.conn.execute("SELECT version FROM app.part_notes WHERE booth_id = %s", (world.a.booths[0],)).fetchone()
+    return {"note": "Rule check", "version": row[0] if row else 0}
+
+
+def _new_voter_body(world) -> dict[str, Any]:
+    """A record in workspace A's booth 1 (inside every test user's area)."""
+    return {"full_name_en": "Rule Check", "ward_id": str(world.a.ward), "booth_id": str(world.a.booths[0])}
 
 
 ENDPOINTS: list[Endpoint] = [
@@ -79,34 +94,49 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("POST", "/sync/push", body={"items": []}),  # per-item roles: test_sync_push.py
     Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
              body={"version": 0, "notes": "rule check"}),
+    # Kutumb Connect (7.1); behaviour and the booth list's isolation: test_families.py
+    Endpoint("POST", "/families", roles=SURVEY_ROLES,
+             body=lambda w: {"id": str(uuid.uuid4()), "booth_id": str(w.a.booths[0]), "label": "Rule check"}),
+    Endpoint("PATCH", "/families/{family_id}", roles=SURVEY_ROLES, target="family", body={"label": "Renamed"}),
+    Endpoint("GET", "/booths/{booth_id}/families", target="booth"),
+    Endpoint("GET", "/voters/{voter_id}/family", target="voter"),
+    Endpoint("PUT", "/voters/{voter_id}/family", roles=SURVEY_ROLES, target="voter", body={"leave_family": True}),
+    # visits (7.3); behaviour: test_visits.py
+    Endpoint("POST", "/voters/{voter_id}/visits", roles=SURVEY_ROLES, target="voter",
+             body=lambda w: {"id": str(uuid.uuid4()), "outcome": "not_home", "visited_at": "2026-11-13T10:00:00Z"}),
+    # Eligible but Not Registered (7.5); behaviour: test_new_voters.py
+    Endpoint("GET", "/new-voters", roles=SURVEY_ROLES, lists="new_voter", area_params=("ward_id",)),
+    Endpoint("POST", "/new-voters", roles=SURVEY_ROLES,
+             body=lambda w: {"id": str(uuid.uuid4()), **_new_voter_body(w)}),
+    Endpoint("PATCH", "/new-voters/{new_voter_id}", roles=SURVEY_ROLES, target="new_voter",
+             body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
+    # Information Updation (7.6); behaviour: test_history.py
+    Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # part notes (7.11); behaviour: test_part_notes.py. The target is the place's booth.
+    Endpoint("GET", "/booths/{booth_id}/note", target="part_note"),
+    Endpoint("PUT", "/booths/{booth_id}/note", roles=SURVEY_ROLES, target="part_note", body=_part_note_body),
+    # conflict review (7.10); behaviour: test_conflicts.py. The rows here are survey1's (own for a surveyor).
+    Endpoint("GET", "/sync/conflicts", roles=SURVEY_ROLES, lists="conflict"),
+    Endpoint("POST", "/sync/conflicts/{conflict_id}/resolve", roles=SURVEY_ROLES, target="conflict",
+             body={"keep": "kept_server"}),
+    # More menu (7.9); behaviour: test_misc.py. No terms text in the test database: 404 (own tests load one).
+    Endpoint("GET", "/terms/current", level="public", works=False),
+    Endpoint("POST", "/terms/accept", level="active", body={"version": 1}, works=False),
+    Endpoint("GET", "/announcements", lists="announcement"),
+    Endpoint("POST", "/announcements/{announcement_id}/read", target="announcement"),
+    Endpoint("POST", "/problem-reports", level="active", body={"body": "Rule check"}),
+    # birthdays (7.8); behaviour: test_birthdays.py
+    Endpoint("GET", "/birthdays", lists="voter_birthday", area_params=("booth_id",), item_id="voter_id",
+             query={"date_from": "2026-01-01", "date_to": "2026-12-31"}),
+    # voter slips (7.7); behaviour: test_slips.py
+    Endpoint("POST", "/voters/{voter_id}/slip-events", target="voter",
+             body=lambda w: {"id": str(uuid.uuid4()), "channel": "whatsapp", "at": "2026-11-13T10:00:00Z"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
-    # sync conflicts (7.10; who resolves: gap-table proposal)
-    ("GET", "/sync/conflicts", SURVEY_ROLES, "ready"),
-    ("POST", "/sync/conflicts/{conflict_id}/resolve", SURVEY_ROLES, "ready"),
     # field work (7)
-    ("GET", "/voters/{voter_id}/family", ALL, "ready"),
-    ("PUT", "/voters/{voter_id}/family", SURVEY_ROLES, "ready"),
     ("GET", "/families", ALL, "ready"),
-    ("POST", "/families", SURVEY_ROLES, "ready"),
-    ("PATCH", "/families/{family_id}", SURVEY_ROLES, "ready"),
-    ("GET", "/booths/{booth_id}/families", ALL, "ready"),
-    ("GET", "/booths/{booth_id}/note", ALL, "ready"),
-    ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
-    ("POST", "/voters/{voter_id}/visits", SURVEY_ROLES, "ready"),
-    ("GET", "/new-voters", SURVEY_ROLES, "ready"),
-    ("POST", "/new-voters", SURVEY_ROLES, "ready"),
-    ("PATCH", "/new-voters/{new_voter_id}", SURVEY_ROLES, "ready"),
-    ("GET", "/voters/{voter_id}/history", ALL, "ready"),
-    ("POST", "/voters/{voter_id}/slip-events", ALL, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
-    ("GET", "/birthdays", ALL, "ready"),
     # More menu (7.9)
-    ("GET", "/terms/current", ALL, "public"),
-    ("POST", "/terms/accept", ALL, "active"),
-    ("GET", "/announcements", ALL, "ready"),
-    ("POST", "/announcements/{announcement_id}/read", ALL, "ready"),
-    ("POST", "/problem-reports", ALL, "active"),
     # polling day (8.1): not surveyors
     ("GET", "/turnout/summary", POLLING_ROLES, "ready"),
     ("POST", "/turnout/marks", POLLING_ROLES, "ready"),
@@ -171,7 +201,6 @@ ENDPOINTS: list[Endpoint] = [
 PATH_SAMPLES = {"row_id": "1", "field_key": "extra_check_1", "kind": "birthday"}
 # Required query parameters of stub routes, so a call is well-formed.
 QUERY_SAMPLES = {"/families": {"booth_id": str(uuid.UUID(int=1))},
-                 "/birthdays": {"date_from": "2026-11-01"},
                  "/reports/worker-activity": {"date_from": "2026-11-01", "date_to": "2026-11-02"},
                  "/worker-locations": {"date_from": "2026-11-01", "date_to": "2026-11-02"}}
 
@@ -218,12 +247,111 @@ def _device_state(world, device_id: uuid.UUID):
 
 
 def _voter_state(world, voter_id: uuid.UUID):
-    """The voter's survey row (None until the first save)."""
-    return world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
-                              (voter_id,)).fetchone()
+    """The voter's survey row (None until the first save), Kutumb row (None until first put in one) and
+    number of visits."""
+    return (world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
+                               (voter_id,)).fetchone(),
+            world.conn.execute("SELECT family_id, updated_at FROM app.family_members WHERE voter_id = %s",
+                               (voter_id,)).fetchone(),
+            world.conn.execute("SELECT count(*) FROM app.visits WHERE voter_id = %s", (voter_id,)).fetchone()[0])
+
+
+def _make_family(world, where: str) -> uuid.UUID:
+    """A hand-made Kutumb in that place's booth."""
+    tenant, _, ward, booth = world.place(where)
+    fid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.families (id, tenant_id, ward_id, booth_id, label, source)
+           VALUES (%s, %s, %s, %s, 'Rule Kutumb', 'manual')""", (fid, tenant, ward, booth))
+    return fid
+
+
+def _family_state(world, family_id: uuid.UUID):
+    return world.conn.execute("SELECT label, updated_at FROM app.families WHERE id = %s", (family_id,)).fetchone()
+
+
+def _make_new_voter(world, where: str) -> uuid.UUID:
+    """An Eligible but Not Registered record in that place's booth, made by the workspace's super admin."""
+    tenant, _, ward, booth = world.place(where)
+    ws = world.a if tenant == world.a.tenant else world.b
+    nid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.new_voters (id, tenant_id, full_name_en, ward_id, booth_id, created_by)
+           VALUES (%s, %s, 'Rule Person', %s, %s, %s)""", (nid, tenant, ward, booth, ws.users["boss"]))
+    return nid
+
+
+def _new_voter_state(world, new_voter_id: uuid.UUID):
+    return world.conn.execute("SELECT version, form6_status, updated_at FROM app.new_voters WHERE id = %s",
+                              (new_voter_id,)).fetchone()
+
+
+def _make_voter_birthday(world, where: str) -> uuid.UUID:
+    """A voter whose survey has a date of birth (birthdays come from the survey)."""
+    vid = _make_voter(world, where)
+    tenant = world.place(where)[0]
+    world.conn.execute("INSERT INTO app.voter_surveys (voter_id, tenant_id, dob) VALUES (%s, %s, '1980-06-15')",
+                       (vid, tenant))
+    return vid
+
+
+def _make_part_note(world, where: str) -> uuid.UUID:
+    """The place's booth (a part note is reached by its booth id)."""
+    return world.place(where)[3]
+
+
+def _part_note_state(world, booth_id: uuid.UUID):
+    return world.conn.execute("SELECT note, version FROM app.part_notes WHERE booth_id = %s", (booth_id,)).fetchone()
+
+
+def _make_conflict(world, where: str) -> uuid.UUID:
+    """An open survey conflict on a voter of that place, from a push by the workspace's surveyor."""
+    vid = _make_voter(world, where)
+    tenant = world.place(where)[0]
+    ws = world.a if tenant == world.a.tenant else world.b
+    world.conn.execute("INSERT INTO app.voter_surveys (voter_id, tenant_id, notes) VALUES (%s, %s, 'server')",
+                       (vid, tenant))
+    cid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.sync_conflicts (id, tenant_id, entity_type, entity_id, field_name,
+                                 client_value, server_value, client_user_id)
+                          VALUES (%s, %s, 'voter_survey', %s, 'notes', '"phone"', '"server"', %s)""",
+                       (cid, tenant, vid, ws.users["survey1"]))
+    return cid
+
+
+def _conflict_state(world, conflict_id: uuid.UUID):
+    return world.conn.execute("""SELECT c.status, c.resolved_by, s.notes, s.version FROM app.sync_conflicts c
+                                 JOIN app.voter_surveys s ON s.voter_id = c.entity_id WHERE c.id = %s""",
+                              (conflict_id,)).fetchone()
+
+
+def _make_announcement(world, where: str) -> uuid.UUID:
+    """An announcement for that place's booth, by the workspace's super admin."""
+    tenant, _, _, booth = world.place(where)
+    ws = world.a if tenant == world.a.tenant else world.b
+    aid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.announcements (id, tenant_id, body, audience_geo_id, created_by)
+                          VALUES (%s, %s, 'Rule notice', %s, %s)""", (aid, tenant, booth, ws.users["boss"]))
+    return aid
+
+
+def _announcement_state(world, announcement_id: uuid.UUID):
+    return world.conn.execute("SELECT count(*) FROM app.announcement_reads WHERE announcement_id = %s",
+                              (announcement_id,)).fetchone()
+
+
+def _booth(world, where: str) -> uuid.UUID:
+    return world.place(where)[3]
 
 
 KINDS: dict[str, Kind] = {
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
+    "family": Kind(_make_family, _family_state),
+    "booth": Kind(_booth),
+    "new_voter": Kind(_make_new_voter, _new_voter_state),
+    "voter_birthday": Kind(_make_voter_birthday),
+    "announcement": Kind(_make_announcement, _announcement_state),
+    "conflict": Kind(_make_conflict, _conflict_state),
+    "part_note": Kind(_make_part_note, _part_note_state),
 }

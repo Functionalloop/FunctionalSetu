@@ -26,43 +26,69 @@ class OutboxRepository @Inject constructor(private val local: LocalDb) {
     suspend fun saveSurvey(edit: SurveyEntity, fix: Fix?) {
         val db = local.db
         val now = Instant.now().toString()
-        db.withTransaction {
-            val before = db.voters().survey(edit.voterId)
-            val row = edit.copy(
-                version = before?.version ?: 0,
-                isSurveyed = true,
-                surveyedAt = before?.surveyedAt ?: now,
-                lat = fix?.lat ?: before?.lat,
-                lng = fix?.lng ?: before?.lng,
-                locationAccuracyM = if (fix != null) fix.accuracyM else before?.locationAccuracyM,
-                locationCapturedAt = if (fix != null) now else before?.locationCapturedAt,
-                updatedAt = now,
-                pending = true,
-                conflict = before?.conflict ?: false,
-            )
-            db.voters().saveLocalSurvey(row)
+        db.withTransaction { saveInTransaction(edit, fix, now) }
+    }
 
-            val data = surveyPushData(row, fix).toString()
-            val outbox = db.outbox()
-            // An edit not sent yet is simply replaced (same id). Once sent, a new edit is a new item;
-            // the push rebases it on the version the first one gets.
-            val unsent = outbox.unsent(row.voterId, OutboxEntity.TYPE_SURVEY)
-            if (unsent == null || outbox.replaceData(unsent.id, data, now) == 0) {
-                outbox.insert(
-                    OutboxEntity(
-                        id = UUID.randomUUID().toString(), type = OutboxEntity.TYPE_SURVEY,
-                        entityId = row.voterId, baseVersion = row.version, changedAt = now, data = data,
-                    ),
-                )
+    /**
+     * Select many (7.8): the same colour tag (null = none) for many voters, saved and queued in one
+     * transaction: one survey item per voter whose tag changes, all sent by the next push. Each item
+     * carries that voter's whole survey as the phone has it, so nothing else is cleared on the server.
+     * Returns how many voters changed.
+     */
+    suspend fun setColorTag(voterIds: Collection<String>, colorTagId: String?): Int {
+        val db = local.db
+        val now = Instant.now().toString()
+        return db.withTransaction {
+            var changed = 0
+            for (id in voterIds.distinct()) {
+                val before = db.voters().survey(id)
+                if (before != null && before.colorTagId == colorTagId) continue
+                if (before == null && colorTagId == null) continue
+                saveInTransaction((before ?: SurveyEntity(voterId = id)).copy(colorTagId = colorTagId), null, now)
+                changed++
             }
+            changed
+        }
+    }
+
+    private suspend fun saveInTransaction(edit: SurveyEntity, fix: Fix?, now: String) {
+        val db = local.db
+        val before = db.voters().survey(edit.voterId)
+        val row = edit.copy(
+            version = before?.version ?: 0,
+            isSurveyed = true,
+            surveyedAt = before?.surveyedAt ?: now,
+            lat = fix?.lat ?: before?.lat,
+            lng = fix?.lng ?: before?.lng,
+            locationAccuracyM = if (fix != null) fix.accuracyM else before?.locationAccuracyM,
+            locationCapturedAt = if (fix != null) now else before?.locationCapturedAt,
+            updatedAt = now,
+            pending = true,
+            conflict = before?.conflict ?: false,
+        )
+        db.voters().saveLocalSurvey(row)
+
+        val data = surveyPushData(row, fix).toString()
+        val outbox = db.outbox()
+        // An edit not sent yet is simply replaced (same id). Once sent, a new edit is a new item;
+        // the push rebases it on the version the first one gets.
+        val unsent = outbox.unsent(row.voterId, OutboxEntity.TYPE_SURVEY)
+        if (unsent == null || outbox.replaceData(unsent.id, data, now) == 0) {
+            outbox.insert(
+                OutboxEntity(
+                    id = UUID.randomUUID().toString(), type = OutboxEntity.TYPE_SURVEY,
+                    entityId = row.voterId, baseVersion = row.version, changedAt = now, data = data,
+                ),
+            )
         }
     }
 }
 
 /**
  * The PUT /voters/{id}/survey body without `version` (SurveyIn). The server replaces every field,
- * so every field the phone knows is sent. A detail is sent only with its yes (the server refuses a
- * position without "important", and so on). `location` only when taken at this save.
+ * so every field the phone knows is sent. A detail is sent only with its yes (the server refuses an
+ * influencer type without "influencer", and so on). `location` only when taken at this save.
+ * Never `is_important` or `position_id`: removed in 7.13, the server refuses an item that has them.
  */
 fun surveyPushData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
     put("mobile_1", s.mobile1)
@@ -82,8 +108,6 @@ fun surveyPushData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
     put("extra_info_3", s.extraInfo3)
     put("extra_info_4", s.extraInfo4)
     put("extra_info_5", s.extraInfo5)
-    put("is_important", s.isImportant)
-    put("position_id", s.positionId.takeIf { s.isImportant })
     put("is_influencer", s.isInfluencer)
     put("influencer_type_id", s.influencerTypeId.takeIf { s.isInfluencer })
     put("in_self_help_group", s.inSelfHelpGroup)

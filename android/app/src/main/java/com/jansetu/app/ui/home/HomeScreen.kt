@@ -27,6 +27,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.jansetu.app.data.Session
+import com.jansetu.app.ui.newvoter.ENR_TITLE
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Cake
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import com.jansetu.app.ui.common.istTime
@@ -59,7 +62,10 @@ class HomeViewModel @Inject constructor(local: LocalDb) : ViewModel() {
 }
 
 @Composable
-fun HomeScreen(session: Session, onSearch: () -> Unit, onSync: () -> Unit, vm: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    session: Session, onSearch: () -> Unit, onSync: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
+    vm: HomeViewModel = hiltViewModel(),
+) {
     val c by vm.counts.collectAsStateWithLifecycle()
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -87,6 +93,12 @@ fun HomeScreen(session: Session, onSearch: () -> Unit, onSync: () -> Unit, vm: H
         )
         Button(onClick = onSearch, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Search, null); Text("  Search voters")
+        }
+        if (session.canSurvey) OutlinedButton(onClick = onNewVoters, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.PersonAdd, null); Text("  $ENR_TITLE")
+        }
+        OutlinedButton(onClick = onBirthdays, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Cake, null); Text("  Birthdays")
         }
         OutlinedButton(onClick = onSync, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Sync, null); Text("  Sync")
