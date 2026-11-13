@@ -10,6 +10,8 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 - So until 12.5 (office computer pulls the dumps) every backup lives only on this server: losing the VPS loses them too. Copy a dump to the laptop by hand after important data changes (`scp deploy@50.6.44.108:/var/backups/jansetu/<file>.dump jansetu-private/backups/`).
 - Set up 13 Nov with `deploy/server_setup.sh` and `deploy/make_env.sh` (see `deploy/README.md`): Docker 29.9 + compose v5.7 from Docker's apt repo, ufw (22, 80, 443 tcp, 443 udp), unattended security upgrades, Docker log limit 10 MB x 5, cron + logrotate (not in Bluehost's minimal image). Code in `/srv/jansetu` (copied with `git archive`, no git on the server), server `.env` there (mode 600, passwords generated on the server, never copied off). Server clock UTC.
 - Tested 13 Nov: HTTPS with a Let's Encrypt certificate for `myjansetu.com` and `www` (www → 301 to the main name, http → 308), `/health` ok, `/app/version` 404 (nothing published), 5432 closed from outside; backup + restore check on the server (47 tables); after `sudo reboot` all containers, ufw and the SSH lockdown came back by themselves.
+- Audit 13 Nov: `backup.sh` run with cron's bare environment (`env -i`, PATH `/usr/bin:/bin`) works; the first real cron run is 21:00 UTC on 13 Nov, check `/var/log/jansetu/backup.log` after it. A reboot is pending for a new kernel (`/var/run/reboot-required`): unattended upgrades install but never reboot (`Automatic-Reboot` is off), so reboot by hand at a quiet time, or switch it on in 12.7. `/api/v1/docs` and `/api/v1/openapi.json` are public until 12.7.
+- For 6.5: the dev database brings 4 users, 3 approved phones, 11 sessions and 3 rehearsal surveys (13 Nov). `restore.sh --live` replaces the whole database, so create or reset users after it, not before; `create_super_admin.py` refuses a user that exists (it needs a reset option).
 - Checked 13 Nov: IP 50.6.44.108 (`myjansetu.com` and `www` point to it, no AAAA record), Ubuntu 24.04.5, 4 cores, 15 GiB, 96 GB disk.
 
 ## SSH (locked down 13 Nov)
@@ -22,7 +24,6 @@ Current state (13 Nov): branch `step6-server`. 6.1 done: production stack (`depl
 - Locked out? Use the VNC / console in the Bluehost panel (does not go through SSH), log in as root with the root password, and fix `00-jansetu.conf`.
 - Adding a second admin later: add their key to `/home/deploy/.ssh/authorized_keys`, or create a user and add it to `AllowUsers`.
 - Before applying a new sshd change: `sudo sshd -t`, then `sudo systemctl reload ssh`, and test a new connection while the old one is still open.
-- Still to do in 6.4: firewall (ufw: 22, 80, 443), Docker, compose up.
 
 ## Production stack (`deploy/docker-compose.yml`, project `jansetu`)
 

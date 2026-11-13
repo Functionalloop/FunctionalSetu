@@ -59,7 +59,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 - **Database:** PostgreSQL 16. Migrations are plain numbered SQL files in `db/migrations/`, applied in order by `scripts/migrate.py`, which records them in a table.
 - **Android:** Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit + OkHttp, Room + SQLCipher (FTS for search), WorkManager for sync, Android Keystore for the DB key.
 - **Portal (teammate):** React + TypeScript + Vite static build, TanStack Query, API types generated from `openapi.json`.
-- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night, plus a Bluehost snapshot if the plan includes one.
+- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night (task 12.5; Bluehost has no snapshots on this plan).
 
 ## How the database must be used
 
@@ -142,6 +142,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - 50 wards (one per part) are a guess; the client will send which parts belong to which Village Panchayat (task 14.1). AC 2 of Goa is Pernem (SC).
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
 - The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
+- The server is outside India and has 100 GB, not the SRS's India region and 200 GB (`docs/change_log.md`, 13 Nov). The client has not been told yet and should agree in writing.
 
 Nothing outside the SRS and the client's changes of 12 Nov (`docs/change_log.md`) is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
 
