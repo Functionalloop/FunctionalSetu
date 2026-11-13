@@ -25,15 +25,16 @@ from sqlalchemy import Connection, text
 from .deps import SURVEY_ROLES, Principal, check_roles
 from .errors import ApiError
 from .routers.families import write_new_family, write_voter_family
+from .routers.visits import read_visit, write_visit
 from .routers.voters import check_survey_references, read_survey, voter_in_scope, write_survey
 from .schemas import (PushError, PushItem, PushResult, PushStatus, Survey, SurveyFields, SurveyIn, SyncFamily,
                       SyncFamilyMember)
-from .schemas_field import FamilyChange, FamilyIn
+from .schemas_field import FamilyChange, FamilyIn, VisitIn
 from .scope import Scope
 from .sync_pull import FAMILY_COLS, MEMBER_COLS
 
 # PushType -> sync_mutations entity_type (and sync_conflicts for surveys)
-ENTITY = {"survey": "voter_survey", "family_new": "family", "family": "family_member"}
+ENTITY = {"survey": "voter_survey", "family_new": "family", "family": "family_member", "visit": "visit"}
 
 
 class _Rejected(Exception):
@@ -71,6 +72,9 @@ def _attach(conn: Connection, item: PushItem, result: PushResult) -> None:
         result.survey = read_survey(conn, item.entity_id)
     elif item.type.value == "family_new":
         result.family = _family_row(conn, item.entity_id)
+    elif item.type.value == "visit":
+        visit_id = item.data.get("id")
+        result.visit = read_visit(conn, visit_id) if isinstance(visit_id, str) else None
     else:
         result.family_member = _member_row(conn, item.entity_id)
 
@@ -125,7 +129,7 @@ def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> Pus
 
 
 def _operation(item: PushItem) -> str:
-    if item.type.value == "family_new":
+    if item.type.value in ("family_new", "visit"):
         return "insert"
     if item.type.value == "family":
         return "delete" if item.data.get("leave_family") else "update"
@@ -204,7 +208,17 @@ def _apply_survey(conn: Connection, user: Principal, scope: Scope, item: PushIte
                       conflict_fields=list(differs))
 
 
-APPLY = {"survey": _apply_survey, "family_new": _apply_family_new, "family": _apply_family}
+def _apply_visit(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
+    _check_role(user)
+    body = _parse(VisitIn, **item.data)
+    try:
+        visit = write_visit(conn, user, scope, item.entity_id, body)
+    except ApiError as e:
+        raise _Rejected(e.code, e.message) from None
+    return PushResult(id=item.id, status=PushStatus.applied, duplicate=False, visit=visit)
+
+
+APPLY = {"survey": _apply_survey, "family_new": _apply_family_new, "family": _apply_family, "visit": _apply_visit}
 
 
 def _differing_fields(body: SurveyIn, server: Survey | None) -> dict[str, tuple[Any, Any]]:

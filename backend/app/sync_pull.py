@@ -6,6 +6,7 @@ Then phases, each keyset-paged by id:
               delta: voters in the area with sync_xid >= since, removed ones included (deleted_at set)
     surveys   surveys of voters in the area (delta: sync_xid >= since)
     families  Kutumbs whose booth is in the area (first: not deleted; delta: sync_xid >= since, deleted included)
+    visits    visits in the user's booths (first: all not deleted; delta: sync_xid >= since)
     members   family_members of voters in the area (first: in a Kutumb; delta: sync_xid >= since, also the
               rows with family_id null = taken out)
     gone      delta only: ids of voters changed since W that are now outside the area
@@ -26,12 +27,12 @@ from sqlalchemy import Connection, text
 from .paging import decode_cursor, encode_cursor, invalid_cursor
 from .routers.voters import SURVEY_COLUMNS
 from .schemas import (ColorTag, CustomFieldLabel, NamedListEntry, Survey, SyncArea, SyncFamily, SyncFamilyMember,
-                      SyncLists, SyncPage, SyncVoter)
+                      SyncLists, SyncPage, SyncVoter, Visit)
 from .scope import Scope
 from .workspace_settings import load_workspace_settings
 
-FIRST_PHASES = ("voters", "surveys", "families", "members")
-DELTA_PHASES = ("voters", "surveys", "families", "members", "gone")
+FIRST_PHASES = ("voters", "surveys", "families", "members", "visits")
+DELTA_PHASES = ("voters", "surveys", "families", "members", "visits", "gone")
 WATERMARK_PATTERN = r"^[0-9]{1,20}$"
 _WATERMARK_RE = re.compile(WATERMARK_PATTERN)
 
@@ -40,6 +41,7 @@ SURVEY_COLS = ", ".join(f"s.{c}" for c in SURVEY_COLUMNS)
 _AREA_COLS = ", ".join(f"g.{c}" for c in SyncArea.model_fields)
 FAMILY_COLS = ", ".join(f"f.{c}" for c in SyncFamily.model_fields)
 MEMBER_COLS = ", ".join(f"m.{c}" for c in SyncFamilyMember.model_fields)
+VISIT_COLS = ", ".join(f"t.{c}" for c in Visit.model_fields)
 _NAMED = "id, name_mr, name_en, name_hi, sort_order, is_active"
 
 
@@ -134,6 +136,11 @@ def _phase(phase: str, scope: Scope, since: str | None) -> _PhaseSql:
         where = f"f.deleted_at IS NULL AND {gcond}" if since is None else f"{_changed('f', since)} AND {gcond}"
         return _PhaseSql("app.families f JOIN app.geo_units g ON g.tenant_id = f.tenant_id AND g.id = f.booth_id",
                          where, {**gparams, "since": since}, "f.id", FAMILY_COLS, "id")
+    if phase == "visits":  # through the booth too; no delete route, so deleted rows never go out
+        gcond, gparams = scope.filter("g.path")
+        return _PhaseSql("app.visits t JOIN app.geo_units g ON g.tenant_id = t.tenant_id AND g.id = t.booth_id",
+                         f"t.deleted_at IS NULL AND {_changed('t', since)} AND {gcond}", {**gparams, "since": since},
+                         "t.id", VISIT_COLS, "id")
     if phase == "members":
         first = "m.family_id IS NOT NULL" if since is None else _changed("m", since)
         return _PhaseSql(f"app.family_members m {with_voter.format(a='m')}",
@@ -192,6 +199,8 @@ def pull_page(conn: Connection, scope: Scope, since: str | None, cursor: str | N
         page.families = [SyncFamily(**r) for r in rows]
     elif phase == "members":
         page.family_members = [SyncFamilyMember(**r) for r in rows]
+    elif phase == "visits":
+        page.visits = [Visit(**r) for r in rows]
     else:
         page.gone_voter_ids = [r["id"] for r in rows]
     return page

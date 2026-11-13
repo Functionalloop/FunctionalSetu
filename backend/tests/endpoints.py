@@ -86,6 +86,9 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/booths/{booth_id}/families", target="booth"),
     Endpoint("GET", "/voters/{voter_id}/family", target="voter"),
     Endpoint("PUT", "/voters/{voter_id}/family", roles=SURVEY_ROLES, target="voter", body={"leave_family": True}),
+    # visits (7.3); behaviour: test_visits.py
+    Endpoint("POST", "/voters/{voter_id}/visits", roles=SURVEY_ROLES, target="voter",
+             body=lambda w: {"id": str(uuid.uuid4()), "outcome": "not_home", "visited_at": "2026-11-13T10:00:00Z"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # sync conflicts (7.10; who resolves: gap-table proposal)
@@ -95,7 +98,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/families", ALL, "ready"),
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
-    ("POST", "/voters/{voter_id}/visits", SURVEY_ROLES, "ready"),
     ("GET", "/new-voters", SURVEY_ROLES, "ready"),
     ("POST", "/new-voters", SURVEY_ROLES, "ready"),
     ("PATCH", "/new-voters/{new_voter_id}", SURVEY_ROLES, "ready"),
@@ -220,11 +222,13 @@ def _device_state(world, device_id: uuid.UUID):
 
 
 def _voter_state(world, voter_id: uuid.UUID):
-    """The voter's survey row (None until the first save) and Kutumb row (None until first put in one)."""
+    """The voter's survey row (None until the first save), Kutumb row (None until first put in one) and
+    number of visits."""
     return (world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
                                (voter_id,)).fetchone(),
             world.conn.execute("SELECT family_id, updated_at FROM app.family_members WHERE voter_id = %s",
-                               (voter_id,)).fetchone())
+                               (voter_id,)).fetchone(),
+            world.conn.execute("SELECT count(*) FROM app.visits WHERE voter_id = %s", (voter_id,)).fetchone()[0])
 
 
 def _make_family(world, where: str) -> uuid.UUID:

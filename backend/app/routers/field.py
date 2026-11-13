@@ -13,7 +13,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from ..deps import Db, ReadyUser
 from ..schemas_field import (BirthdayPage, HistoryPage, NewVoter, NewVoterIn, NewVoterPage, NewVoterPatch, PartNote,
-                             PartNoteIn, SlipEventIn, Visit, VisitIn, VisitOutcome, WalkListPage)
+                             PartNoteIn, SlipEventIn, VisitOutcome, WalkListPage)
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
@@ -40,13 +40,6 @@ def get_part_note(booth_id: uuid.UUID, conn: Db, user: ReadyUser) -> PartNote:
             summary="Save the part's shared note. Stale version: 409 with the server copy. Survey roles.")
 def save_part_note(booth_id: uuid.UUID, body: PartNoteIn, conn: Db, user: Surveyor) -> PartNote:
     not_built("7.11")
-
-
-# --- visits (7.3) -----------------------------------------------------------------------------
-@router.post("/voters/{voter_id}/visits", response_model=Visit, status_code=status.HTTP_201_CREATED,
-             summary="Record a visit (met, not home, revisit, shifted). A repeat id is stored once. Survey roles.")
-def add_visit(voter_id: uuid.UUID, body: VisitIn, conn: Db, user: Surveyor) -> Visit:
-    not_built("7.3")
 
 
 # --- new voters (7.5) -------------------------------------------------------------------------

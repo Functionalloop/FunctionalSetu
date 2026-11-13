@@ -29,16 +29,17 @@ from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
+from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
-from app.schemas_field import FamilyChange, FamilyIn  # noqa: E402
+from app.schemas_field import FamilyChange, FamilyIn, VisitIn  # noqa: E402
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
 from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
-LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "sync_mutations", "sync_conflicts",
+LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "sync_mutations", "sync_conflicts",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -260,6 +261,22 @@ def main() -> None:
                 if not cursor:
                     break
             report({fa, fb} <= first_fams, "first download has the part's Kutumbs", f"{len(first_fams)} Kutumbs")
+
+            # Visits (7.3): one visit sent twice is stored once and comes in the surveyor's delta pull
+            w_vis = current_watermark(conn)
+            vb = VisitIn(id=uuid.uuid4(), outcome="not_home", visited_at="2026-11-13T10:00:00Z")
+            v1, ms = timed(lambda: write_visit(conn, surveyor, s_srv, members[0], vb))
+            v2 = write_visit(conn, surveyor, s_srv, members[0], vb)
+            n = conn.execute(text("SELECT count(*) FROM app.visits WHERE id = :id"), {"id": vb.id}).scalar()
+            seen, cursor = set(), None
+            while True:
+                page = pull_page(conn, s_srv, w_vis, cursor, 1000)
+                seen |= {v.id for v in page.visits}
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            report(n == 1 and v1 == v2 and seen == {vb.id}, "visit sent twice stored once, in the delta pull",
+                   f"{ms:.0f} ms")
         finally:
             trans.rollback()
 

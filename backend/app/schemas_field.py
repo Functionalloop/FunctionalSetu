@@ -13,7 +13,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from .schemas import MOBILE_PATTERN, Gender, Location, UserSummary
+from .schemas import MOBILE_PATTERN, Gender, Location, UserSummary, Visit, VisitOutcome  # noqa: F401 (re-export)
 
 
 class Page(BaseModel):
@@ -112,36 +112,20 @@ class WalkListPage(Page):
 
 
 # --- visits (7.3) ------------------------------------------------------------------------
-class VisitOutcome(StrEnum):
-    met = "met"
-    not_home = "not_home"
-    revisit = "revisit"
-    shifted = "shifted"
-
-
 class VisitIn(BaseModel):
     """POST /voters/{id}/visits and push type `visit` (push: entity_id = the voter)."""
     id: uuid.UUID = Field(description="Made by the phone; a repeat with the same id is stored once")
     outcome: VisitOutcome
     visited_at: datetime
-    revisit_at: datetime | None = Field(None, description="outcome = revisit: when to come back")
+    revisit_at: datetime | None = Field(None, description="Only with outcome = revisit: when to come back")
     note: str | None = Field(None, max_length=2000)
     location: Location | None = None
 
-
-class Visit(BaseModel):
-    id: uuid.UUID
-    voter_id: uuid.UUID | None
-    family_id: uuid.UUID | None
-    booth_id: uuid.UUID
-    house_no: str | None
-    outcome: VisitOutcome
-    visited_at: datetime
-    revisit_at: datetime | None
-    note: str | None
-    visited_by: uuid.UUID
-    lat: float | None
-    lng: float | None
+    @model_validator(mode="after")
+    def _revisit(self) -> VisitIn:
+        if self.revisit_at is not None and self.outcome != VisitOutcome.revisit:
+            raise ValueError("revisit_at needs outcome = revisit")
+        return self
 
 
 # --- new voters (7.5) --------------------------------------------------------------------

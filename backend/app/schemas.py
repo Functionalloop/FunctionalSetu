@@ -410,6 +410,30 @@ class SyncArea(Area):
     sort_order: int
 
 
+class VisitOutcome(StrEnum):
+    met = "met"
+    not_home = "not_home"
+    revisit = "revisit"
+    shifted = "shifted"
+
+
+class Visit(BaseModel):
+    """One door-to-door visit (7.3). booth_id and house_no are the voter's at the time of the visit, so the
+    walk list can mark a whole house through any voter in it."""
+    id: uuid.UUID
+    voter_id: uuid.UUID | None
+    family_id: uuid.UUID | None = Field(description="The voter's Kutumb at the time of the visit")
+    booth_id: uuid.UUID
+    house_no: str | None
+    outcome: VisitOutcome
+    visited_at: datetime
+    revisit_at: datetime | None
+    note: str | None
+    visited_by: uuid.UUID
+    lat: float | None
+    lng: float | None
+
+
 class SyncFamily(BaseModel):
     """A Kutumb in the sync pull (7.2). Its members come separately in `family_members`."""
     id: uuid.UUID
@@ -528,7 +552,8 @@ class SyncPage(BaseModel):
     family_members: list[SyncFamilyMember] = Field(default_factory=list, description=(
         "Kutumb membership of voters in the area (first download: voters in a Kutumb; delta: changed since "
         "`since`, family_id null = taken out). Replace by voter_id"))
-    visits: list[dict] = Field(default_factory=list, description="Visit rows (schema Visit); from step 7.3")
+    visits: list[Visit] = Field(default_factory=list, description=(
+        "Visits in the user's booths (7.3; first download: all; delta: new since `since`)"))
     new_voters: list[dict] = Field(default_factory=list, description="NewVoter rows; from step 7.5")
     turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
 
@@ -544,7 +569,7 @@ class PushType(StrEnum):
     family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
     without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
     Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
-    the last change wins). The others come with plan steps 7 and 8. Until then an item of those
+    the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id). The others come with plan steps 7 and 8. Until then an item of those
     types is rejected with not_implemented and NOT recorded, so a retry after the server update
     applies it."""
     survey = "survey"
@@ -568,14 +593,14 @@ class PushStatus(StrEnum):
 class PushItem(BaseModel):
     id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
     type: PushType
-    entity_id: uuid.UUID = Field(description="survey, family: the voter id; family_new: the Kutumb's id")
+    entity_id: uuid.UUID = Field(description="survey, family, visit: the voter id; family_new: the Kutumb's id")
     base_version: int = Field(ge=0, description=(
-        "survey: the version the phone last had; 0 = no survey yet. family_new, family: 0"))
+        "survey: the version the phone last had; 0 = no survey yet. family_new, family, visit: 0"))
     changed_at: datetime | None = Field(None, description="When the change was made on the phone")
     data: dict = Field(description=(
         "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
         "family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). "
-        "family: PUT /voters/{id}/family body (FamilyChange). "
+        "family: PUT /voters/{id}/family body (FamilyChange). visit: POST /voters/{id}/visits body (VisitIn). "
         "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
 
 
@@ -596,6 +621,7 @@ class PushResult(BaseModel):
     survey: Survey | None = Field(None, description=(
         "applied: the saved copy (new version); conflict: the server copy"))
     family: SyncFamily | None = Field(None, description="family_new, applied: the Kutumb as stored")
+    visit: Visit | None = Field(None, description="visit, applied: the visit as stored")
     family_member: SyncFamilyMember | None = Field(None, description=(
         "family, applied: the voter's membership as stored (family_id null = in no Kutumb; null when the "
         "voter was never in one)"))

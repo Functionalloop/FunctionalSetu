@@ -2340,6 +2340,114 @@
         }
       }
     },
+    "/api/v1/voters/{voter_id}/visits": {
+      "post": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "Record a visit (met, not home, revisit, shifted). A repeat id is stored once. Survey roles.",
+        "operationId": "add_visit",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Visit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sync/pull": {
       "get": {
         "tags": [
@@ -3075,124 +3183,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PartNote"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voters/{voter_id}/visits": {
-      "post": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "Record a visit (met, not home, revisit, shifted). A repeat id is stored once. Survey roles.",
-        "operationId": "add_visit",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VisitIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Visit"
                 }
               }
             }
@@ -16514,13 +16504,13 @@
             "type": "string",
             "format": "uuid",
             "title": "Entity Id",
-            "description": "survey, family: the voter id; family_new: the Kutumb's id"
+            "description": "survey, family, visit: the voter id; family_new: the Kutumb's id"
           },
           "base_version": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Base Version",
-            "description": "survey: the version the phone last had; 0 = no survey yet. family_new, family: 0"
+            "description": "survey: the version the phone last had; 0 = no survey yet. family_new, family, visit: 0"
           },
           "changed_at": {
             "anyOf": [
@@ -16539,7 +16529,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Data",
-            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). family: PUT /voters/{id}/family body (FamilyChange). Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
+            "description": "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. family_new: POST /families body (FamilyIn; `id` may be left out, it is entity_id). family: PUT /voters/{id}/family body (FamilyChange). visit: POST /voters/{id}/visits body (VisitIn). Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."
           }
         },
         "type": "object",
@@ -16636,6 +16626,17 @@
             ],
             "description": "family_new, applied: the Kutumb as stored"
           },
+          "visit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Visit"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "visit, applied: the visit as stored"
+          },
           "family_member": {
             "anyOf": [
               {
@@ -16688,7 +16689,7 @@
           "slip_event"
         ],
         "title": "PushType",
-        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
+        "description": "`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);\nvisit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);\nnew_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);\nfamily = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn\nwithout version (the booth; base_version = version); slip_event = SlipEventIn (voter).\nBuilt: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:\nthe last change wins), `visit` (7.3; base_version 0; data.id = the visit's id). The others come with plan steps 7 and 8. Until then an item of those\ntypes is rejected with not_implemented and NOT recorded, so a retry after the server update\napplies it."
       },
       "RationCard": {
         "type": "string",
@@ -18488,12 +18489,11 @@
           },
           "visits": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/Visit"
             },
             "type": "array",
             "title": "Visits",
-            "description": "Visit rows (schema Visit); from step 7.3"
+            "description": "Visits in the user's booths (7.3; first download: all; delta: new since `since`)"
           },
           "new_voters": {
             "items": {
@@ -19491,7 +19491,8 @@
                 "type": "null"
               }
             ],
-            "title": "Family Id"
+            "title": "Family Id",
+            "description": "The voter's Kutumb at the time of the visit"
           },
           "booth_id": {
             "type": "string",
@@ -19583,7 +19584,8 @@
           "lat",
           "lng"
         ],
-        "title": "Visit"
+        "title": "Visit",
+        "description": "One door-to-door visit (7.3). booth_id and house_no are the voter's at the time of the visit, so the\nwalk list can mark a whole house through any voter in it."
       },
       "VisitIn": {
         "properties": {
@@ -19612,7 +19614,7 @@
               }
             ],
             "title": "Revisit At",
-            "description": "outcome = revisit: when to come back"
+            "description": "Only with outcome = revisit: when to come back"
           },
           "note": {
             "anyOf": [
