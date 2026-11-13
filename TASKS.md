@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 40 / 99 done (40%)** `████████░░░░░░░░░░░░`
+**Overall: 41 / 99 done (41%)** `████████░░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -11,7 +11,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 5 – Android demo app | 16 / 16 | `██████████` |
 | Step 6 – Server | 8 / 8 | `██████████` |
 | Demo | 0 / 2 | `░░░░░░░░░░` |
-| Step 7 – Field screens | 4 / 13 | `███░░░░░░░` |
+| Step 7 – Field screens | 5 / 13 | `████░░░░░░` |
 | Step 8 – Polling day | 0 / 3 | `░░░░░░░░░░` |
 | Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
 | Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
@@ -70,13 +70,13 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **D.1** 24 Nov: freeze
 - [ ] **D.2** 25 Nov: demo script
 
-## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 4/13
+## Step 7 – Field screens · 26–27 Nov · branch `step7-field` — 5/13
 
 - [x] **7.13** Survey: influencer only · due 26 Nov · done 2026-11-13 · `18f27b7`
 - [x] **7.1** Kutumb Connect, made by hand · due 26 Nov · done 2026-11-13 · `3c731ec`
 - [x] **7.2** Kutumb Connect in sync · due 26 Nov · done 2026-11-13 · `06ecb0b`
 - [x] **7.3** Visits API · due 26 Nov · done 2026-11-13 · `5e65a64`
-- [ ] **7.4** Screens: Kutumb Connect, Walk list · due 26 Nov
+- [x] **7.4** Screens: Kutumb Connect, Walk list · due 26 Nov · done 2026-11-13 · `4a3ddea`
 - [ ] **7.5** Eligible but Not Registered · due 26 Nov
 - [ ] **7.6** Information Updation · due 27 Nov
 - [ ] **7.7** Voter slip · due 27 Nov
