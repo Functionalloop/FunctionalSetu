@@ -127,14 +127,17 @@ class KutumbViewModel @Inject constructor(
  * and its members, in one part. No head, nothing from house numbers. Booth agents only read it.
  */
 @Composable
-fun KutumbTab(voter: VoterEntity, canEdit: Boolean, onOpen: (String) -> Unit, vm: KutumbViewModel = hiltViewModel()) {
+fun KutumbTab(
+    voter: VoterEntity, canEdit: Boolean, onOpen: (String) -> Unit, onShare: (List<String>) -> Unit,
+    vm: KutumbViewModel = hiltViewModel(),
+) {
     val family by vm.family.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     val f = family
 
     when {
         adding && f != null && canEdit -> AddMember(vm, f, onDone = { adding = false; vm.stopSearch() })
-        f != null -> KutumbView(vm, voter, f, canEdit, onOpen, onAdd = { vm.startSearch(f.boothId); adding = true })
+        f != null -> KutumbView(vm, voter, f, canEdit, onOpen, onShare, onAdd = { vm.startSearch(f.boothId); adding = true })
         else -> NoKutumb(vm, voter, canEdit)
     }
 }
@@ -142,7 +145,7 @@ fun KutumbTab(voter: VoterEntity, canEdit: Boolean, onOpen: (String) -> Unit, vm
 @Composable
 private fun KutumbView(
     vm: KutumbViewModel, voter: VoterEntity, f: FamilyEntity, canEdit: Boolean,
-    onOpen: (String) -> Unit, onAdd: () -> Unit,
+    onOpen: (String) -> Unit, onShare: (List<String>) -> Unit, onAdd: () -> Unit,
 ) {
     val members by vm.members.collectAsStateWithLifecycle()
     var editing by rememberSaveable(f.id) { mutableStateOf(false) }
@@ -163,6 +166,10 @@ private fun KutumbView(
                         "Not sent yet".takeIf { f.pending }).joinToString(" · "),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // 7.12: slip or message to the members, 5 at a time (a larger Kutumb goes in two rounds)
+                if (members.isNotEmpty()) OutlinedButton(onClick = { onShare(members.map { it.id }) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Share on WhatsApp")
+                }
             }
             HorizontalDivider()
         }

@@ -99,6 +99,7 @@ class VoterViewModel @Inject constructor(
 @Composable
 fun VoterScreen(
     session: Session, onBack: () -> Unit, onOpen: (String) -> Unit, onSlip: (String) -> Unit,
+    onShare: (List<String>) -> Unit,
     vm: VoterViewModel = hiltViewModel(),
 ) {
     val voter by vm.voter.collectAsStateWithLifecycle()
@@ -125,7 +126,7 @@ fun VoterScreen(
             when (tab) {
                 0 -> DetailsTab(v, survey, areas, onSlip = { onSlip(v.id) })
                 1 -> SurveyScreen(vm, v, survey, readOnly = !session.canSurvey)
-                2 -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen)
+                2 -> KutumbTab(v, canEdit = session.canSurvey, onOpen = onOpen, onShare = onShare)
                 else -> HistoryTab()
             }
         }

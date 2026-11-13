@@ -17,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,13 +28,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.jansetu.app.data.local.ColorTagEntity
+import com.jansetu.app.ui.share.SHARE_MAX
 
 /**
  * Select many (7.8): long-press a voter in Search to start ticking; tap ticks and unticks. The bar
- * offers what can be done with the ticked voters. Share on WhatsApp (5 or fewer) comes with 7.12.
+ * offers what can be done with the ticked voters: a colour tag (any number) or Share on WhatsApp
+ * (7.12, only with 5 or fewer ticked).
  */
 @Composable
-fun SelectionBar(count: Int, shown: Int, canTag: Boolean, onSelectShown: () -> Unit, onTag: () -> Unit, onClose: () -> Unit) {
+fun SelectionBar(
+    count: Int, shown: Int, canTag: Boolean, onSelectShown: () -> Unit, onTag: () -> Unit, onShare: () -> Unit,
+    onClose: () -> Unit,
+) {
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, tonalElevation = 2.dp) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -41,8 +47,15 @@ fun SelectionBar(count: Int, shown: Int, canTag: Boolean, onSelectShown: () -> U
                 Text("$count selected", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 TextButton(onClick = onSelectShown) { Text("Select shown ($shown)") }
             }
-            if (canTag) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
-                Button(onClick = onTag, enabled = count > 0) { Text("Set colour tag") }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (count > SHARE_MAX) Text("Share: $SHARE_MAX at most", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = onShare, enabled = count in 1..SHARE_MAX) { Text("WhatsApp") }
+                if (canTag) Button(onClick = onTag, enabled = count > 0) { Text("Set colour tag") }
             }
         }
     }

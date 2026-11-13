@@ -125,7 +125,9 @@ class SearchViewModel @Inject constructor(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SearchScreen(onOpen: (String) -> Unit, canTag: Boolean, vm: SearchViewModel = hiltViewModel()) {
+fun SearchScreen(
+    onOpen: (String) -> Unit, onShare: (Set<String>) -> Unit, canTag: Boolean, vm: SearchViewModel = hiltViewModel(),
+) {
     val filter by vm.filter.collectAsStateWithLifecycle()
     val rows by vm.rows.collectAsStateWithLifecycle()
     val count by vm.count.collectAsStateWithLifecycle()
@@ -156,7 +158,7 @@ fun SearchScreen(onOpen: (String) -> Unit, canTag: Boolean, vm: SearchViewModel 
     Column(Modifier.fillMaxSize()) {
         if (selected != null) SelectionBar(
             selected.size, rows.size, canTag, onSelectShown = vm::selectShown, onTag = { tagging = true },
-            onClose = vm::stopSelecting,
+            onShare = { onShare(selected); vm.stopSelecting() }, onClose = vm::stopSelecting,
         )
         else Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(

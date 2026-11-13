@@ -47,6 +47,9 @@ import com.jansetu.app.ui.newvoter.NewVoterFormScreen
 import com.jansetu.app.ui.newvoter.NewVoterListScreen
 import com.jansetu.app.ui.slip.SlipScreen
 import com.jansetu.app.ui.search.SearchScreen
+import com.jansetu.app.ui.share.SHARE_ROUTE
+import com.jansetu.app.ui.share.ShareWhatsAppScreen
+import com.jansetu.app.ui.share.shareRoute
 import com.jansetu.app.ui.sync.SyncScreen
 import com.jansetu.app.ui.voter.VoterScreen
 import com.jansetu.app.ui.walklist.WalkListScreen
@@ -111,7 +114,9 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                     onSync = { nav.navigate("sync") }, onNewVoters = { nav.navigate("newvoters") },
                     onBirthdays = { nav.navigate("birthdays") })
             }
-            composable("search") { SearchScreen(onOpen = nav::openVoter, canTag = session.canSurvey) }
+            composable("search") {
+                SearchScreen(onOpen = nav::openVoter, onShare = { nav.navigate(shareRoute(it)) }, canTag = session.canSurvey)
+            }
             composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
@@ -133,7 +138,10 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter,
-                    onSlip = { nav.navigate("slip/$it") })
+                    onSlip = { nav.navigate("slip/$it") }, onShare = { nav.navigate(shareRoute(it)) })
+            }
+            composable(SHARE_ROUTE, arguments = listOf(navArgument("ids") { type = NavType.StringType })) {
+                ShareWhatsAppScreen(onBack = { nav.popBackStack() })
             }
             composable("slip/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 SlipScreen(onBack = { nav.popBackStack() })
