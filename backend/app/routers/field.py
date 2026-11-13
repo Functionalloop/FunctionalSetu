@@ -1,4 +1,4 @@
-"""Field work (plan step 7): families and walk list, visits, new voters, history, slips, birthdays.
+"""Field work (plan step 7): walk list, part notes, visits, new voters, history, slips, birthdays.
 
 Contract only (4.10): every route answers 501 until its task is built. See app/stubs.py.
 """
@@ -12,49 +12,21 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response, status
 
 from ..deps import Db, ReadyUser
-from ..schemas_field import (BirthdayPage, Family, FamilyChange, FamilyIn, FamilyPage, FamilyPatch, HistoryPage, NewVoter, NewVoterIn, NewVoterPage,
-                             NewVoterPatch, PartNote, PartNoteIn, SlipEventIn, Visit, VisitIn, VisitOutcome, VoterFamily, WalkListPage)
+from ..schemas_field import (BirthdayPage, HistoryPage, NewVoter, NewVoterIn, NewVoterPage, NewVoterPatch, PartNote,
+                             PartNoteIn, SlipEventIn, Visit, VisitIn, VisitOutcome, WalkListPage)
 from ..stubs import Cursor, Limit, Surveyor, not_built
 
 router = APIRouter(tags=["field work"])
 
 
-# --- families and walk list (7.2) ----------------------------------------------------------
-@router.get("/voters/{voter_id}/family", response_model=VoterFamily, summary="The voter's family and its members. All roles.")
-def get_voter_family(voter_id: uuid.UUID, conn: Db, user: ReadyUser) -> VoterFamily:
-    not_built("7.2")
-
-
-@router.put("/voters/{voter_id}/family", response_model=VoterFamily,
-            summary="Move the voter into a family (or a new one), or make them the head. Survey roles.")
-def set_voter_family(voter_id: uuid.UUID, body: FamilyChange, conn: Db, user: Surveyor) -> VoterFamily:
-    not_built("7.2")
-
-
+# --- walk list (7.2) ----------------------------------------------------------------------
+# The Kutumb Connect routes (7.1) are in families.py.
 @router.get("/families", response_model=WalkListPage,
             summary="Walk list: houses of a booth in house-number order, with the last visit. All roles.")
 def walk_list(conn: Db, user: ReadyUser, booth_id: uuid.UUID,
               outcome: Annotated[VisitOutcome | None, Query(description="only houses whose last visit was this")] = None,
               not_visited: bool = False, limit: Limit = 50, cursor: Cursor = None) -> WalkListPage:
     not_built("7.2")
-
-
-@router.post("/families", response_model=Family, status_code=status.HTTP_201_CREATED,
-             summary="Make a family by hand (free-text name) in a booth. A repeat id is stored once. Survey roles.")
-def create_family(body: FamilyIn, conn: Db, user: Surveyor) -> Family:
-    not_built("7.1")
-
-
-@router.patch("/families/{family_id}", response_model=Family, summary="Rename a family. Survey roles.")
-def rename_family(family_id: uuid.UUID, body: FamilyPatch, conn: Db, user: Surveyor) -> Family:
-    not_built("7.1")
-
-
-@router.get("/booths/{booth_id}/families", response_model=FamilyPage,
-            summary="The families made in a booth, by name. All roles.")
-def booth_families(booth_id: uuid.UUID, conn: Db, user: ReadyUser, limit: Limit = 50,
-                   cursor: Cursor = None) -> FamilyPage:
-    not_built("7.1")
 
 
 # --- part notes (7.11) ------------------------------------------------------------------------

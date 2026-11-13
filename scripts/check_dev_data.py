@@ -27,16 +27,19 @@ from app.config import get_settings  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
+from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.voters import list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
+from app.schemas_field import FamilyChange, FamilyIn  # noqa: E402
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
 from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
-LEFTOVER_TABLES = ("voters", "voter_surveys", "sync_mutations", "sync_conflicts", "devices", "users", "audit_log")
+LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "sync_mutations", "sync_conflicts",
+                   "devices", "users", "audit_log")
 failures: list[str] = []
 
 
@@ -201,6 +204,32 @@ def main() -> None:
             r2, ms2 = timed(lambda: push(conn, phone_admin, s_admin, batch))
             report(all(r.status.value == "applied" for r in r1), "push of 500 surveys applies", f"{ms1 / 1000:.1f} s")
             report(all(r.duplicate for r in r2), "same batch again: all duplicates, nothing applied", f"{ms2 / 1000:.1f} s")
+
+            # Kutumb Connect (7.1), as the demo surveyor in one of their parts
+            booth = conn.execute(text("SELECT g.id FROM app.user_area_assignments a JOIN app.geo_units g ON g.id = a.geo_unit_id "
+                                      "WHERE a.user_id = :u AND g.level = 'booth' ORDER BY g.path LIMIT 1"),
+                                 {"u": surveyor.user_id}).scalar()
+            members = list(conn.execute(text("SELECT id FROM app.voters WHERE booth_id = :b AND deleted_at IS NULL "
+                                             "ORDER BY serial_no LIMIT 6"), {"b": booth}).scalars())
+            fa, fb = uuid.uuid4(), uuid.uuid4()
+            write_new_family(conn, surveyor, s_srv, FamilyIn(id=fa, booth_id=booth, label="Check A"))
+            write_new_family(conn, surveyor, s_srv, FamilyIn(id=fb, booth_id=booth, label="Check B"))
+            versions = dict(conn.execute(text("SELECT voter_id, version FROM app.voter_surveys WHERE voter_id = ANY(:m)"),
+                                         {"m": members}).all())
+            _, ms = timed(lambda: [write_voter_family(conn, surveyor, s_srv, v, FamilyChange(family_id=fa))
+                                   for v in members[:5]])
+            write_voter_family(conn, surveyor, s_srv, members[0], FamilyChange(family_id=fb))  # moved
+            write_voter_family(conn, surveyor, s_srv, members[1], FamilyChange(leave_family=True))
+            fam = get_voter_family(members[2], conn, surveyor, s_srv).family
+            report(fam is not None and fam.member_ids == members[2:5], "Kutumb: add 5, move 1, take 1 out",
+                   f"{len(fam.member_ids) if fam else 0} members left, 5 adds in {ms:.0f} ms")
+            page, ms = timed(lambda: booth_families(booth, conn, surveyor, s_srv, 50, None))
+            report({f.label for f in page.items} >= {"Check A", "Check B"}, "Kutumbs of the part listed",
+                   f"{len(page.items)} on page 1, {ms:.0f} ms")
+            after_v = dict(conn.execute(text("SELECT voter_id, version FROM app.voter_surveys WHERE voter_id = ANY(:m)"),
+                                        {"m": members}).all())
+            report(after_v == versions, "Kutumb changes leave survey versions and rows alone",
+                   f"{len(versions)} surveyed of {len(members)}")
         finally:
             trans.rollback()
 

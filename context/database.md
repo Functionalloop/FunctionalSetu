@@ -1,6 +1,6 @@
 # Database
 
-Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
+Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`) and `003_kutumb_members.sql` (7.1, 13 Nov). Next: `004_client_changes_final.sql` (7.13), `005_change_requests.sql` (Step 14). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
 
 ## Roles
 
@@ -26,7 +26,7 @@ The API must never connect as owner or superuser. Passwords come from `deploy/.e
 Tenancy/auth: `tenants`, `users`, `devices`, `auth_sessions`, `user_area_assignments`, `karyakartas`, `platform_admins`.
 Geography: `geo_units` (levels local_body > ward > booth, `path` set by trigger).
 Roll: `voters`, `roll_versions`, `roll_part_versions`, `roll_import_rows`, `voter_roll_edits`, `voter_duplicate_pairs`, `voter_name_corrections`.
-Campaign: `voter_surveys`, `families`, `visits`, `voter_turnout`, `slip_events`, `new_voters`.
+Campaign: `voter_surveys`, `families`, `family_members` (003), `visits`, `voter_turnout`, `slip_events`, `new_voters`.
 Masters/settings: `castes`, `professions`, `color_tags`, `custom_field_labels`, `ui_labels`, `ui_label_overrides`, `tenant_settings`, `message_templates`, `saved_filters`, `files`, `terms_versions`, `app_releases`.
 Sync: `sync_mutations`, `sync_conflicts`. Admin: `announcements`, `announcement_reads`, `problem_reports`, `mobile_import_batches`, `mobile_import_rows`, `exports`, `daily_booth_stats`, `audit_log`.
 
@@ -51,6 +51,7 @@ python scripts/check_dev_data.py                          # end-of-step check on
 - Users in `naik` (11 Nov): only the four demo users from `create_demo_users.py` (demo.superadmin, demo.admin, demo.supervisor = wards of parts 1-2, demo.surveyor = booths of parts 1-2, 872 voters). All must change their temporary password at first login. **No real super admin yet**: create it with `create_super_admin.py` when the client names the person; switch the demo users off after the demo (`--remove`).
 - `--reset` before each rehearsal: new temporary passwords, sessions ended, demo phones back to pending.
 - 002 (12 Nov): white colour tag switched off in every workspace and no longer seeded; tables `positions`, `influencer_types` (placeholder entries from `app.seed_client_lists`, also run for existing workspaces), `part_notes` (one row per booth, `version`); survey columns for position, influencer type, self help group, ration card; `tenant_settings.polling_start_time` / `polling_end_time`.
+- 003 (13 Nov): `family_members` (PK `voter_id` = one Kutumb at most; `family_id` NULL = taken out, the row stays so a delta pull sees it; touch, audit, RLS). `voter_surveys.family_id` and `families.head_voter_id` stay in the schema **unused**: membership in `voter_surveys` would raise the survey version (false 409s) and create survey rows.
 - Not imported (decided): the old VoterappDB data. `scripts/import_legacy.py` is not run; `import_roll_parts.py` reuses its helpers.
 - Import leaves: no Marathi names, no `voter_surveys` rows (first survey save creates it), no `families`.
 - Re-running an import skips voters already present (EPIC, or booth + serial).

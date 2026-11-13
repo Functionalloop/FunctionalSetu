@@ -50,6 +50,8 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ## Not built yet / open
 
+- Kutumb Connect in sync (7.2): pull `families` (by booth in scope) and `family_members` rows by `sync_xid` (`family_id` null = taken out; nothing is deleted); push `family_new` → `write_new_family`, `family` → `write_voter_family` (`routers/families.py`). Membership is not a survey field, so it never makes a survey conflict.
+
 - `devices.last_pull_watermark` is not written: `devices` has an audit trigger, so a write per pull = an audit row per phone per sync. Decide when the admin needs "last synced" (maybe from `auth_sessions.last_seen_at`).
 - Nothing records that a blocked phone finished wiping (plan gap table: phone reports it on `/devices/me`; not decided).
 

@@ -25,7 +25,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/errors.py` | `ApiError(status, code, message)`; one JSON shape for all errors; `ERROR_RESPONSES` for OpenAPI |
 | `app/security.py` | Argon2id hashing, JWT access token (15 min), refresh token helpers |
 | `app/schemas.py` | All Pydantic request/response models, `Role` enum |
-| `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py` |
+| `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `sync.py`, `app_version.py`; stubs in `field.py`, `misc.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
 
@@ -84,6 +84,11 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `PUT /voters/{voter_id}/survey` | `SURVEY_ROLES` (booth agent 403). PUT replaces every editable field (left out = cleared), except `location`: left out = previous kept, given = `location_captured_at` now. `version` 0 = first save (INSERT … ON CONFLICT DO NOTHING); else `UPDATE … WHERE version = :v` (trigger bumps it). Zero rows → 409 `version_conflict` with `error.current` = server copy (null if none). Caste / profession / colour tag must be active entries of the workspace, else 422 |
 | `GET /sync/pull` | first download and delta (`since`), blocked phone gets `wipe: true`; see `context/sync.md`. Endpoint-table flag `wipe_on_block`. Settings load via `app/workspace_settings.py` (shared with `/me`) |
 | `POST /sync/push` | surveys only (4.8); per-item results, retry-safe; see `context/sync.md`. Survey writes go through `write_survey` in `routers/voters.py` (shared with PUT) |
+| `POST /families` | Kutumb Connect (7.1), `SURVEY_ROLES`. Free-text `label` (trimmed, 1–200) in one **booth** (a ward or another area: 404). Phone-made id; a repeat returns the stored Kutumb (first name kept, 201). An id taken by a record the user cannot see: 409 `id_in_use` |
+| `PATCH /families/{id}` | rename, `SURVEY_ROLES` |
+| `GET /booths/{id}/families` | all roles; the booth's Kutumbs by `lower(label)`, id; cursor `[sort_name, id]`. Not a booth / outside area: 404 |
+| `GET /voters/{id}/family` | all roles; `{"family": Family | null}` |
+| `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
 
@@ -92,6 +97,8 @@ Client's final list (12 Nov evening, `docs/change_log.md`): task 7.13 takes `is_
 Survey, client changes (12 Nov, 5.14): `is_important` + `position_id`, `is_influencer` + `influencer_type_id`, `in_self_help_group` + `self_help_group_name` (200), `ration_card` (`AAY` / `PHH` / `NPHH`). Each second field only with its yes (422, and a CHECK in the database). Positions and influencer types are lists like castes (active entries of the workspace, else 422) and ride in the pull's `lists`. Adding a field to `SurveyFields` adds it to PUT, push, pull and the conflict diff by itself; the column must exist with the same name. Enum values go to SQL as `.value` (`_db_value`).
 
 Errors: `ApiError(..., extra={...})` adds keys inside `error`; `ErrorBody.current` documents the 409 server copy.
+
+Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.booth_id` → `geo_units.path` in scope), deleted ones never. `member_ids` = members in the user's scope, removed voters left out, roll order. Members live in `app.family_members` (see `database.md`), never in `voter_surveys`: membership must not raise the survey version. `write_new_family` / `write_voter_family` in `routers/families.py` are what push (7.2) will call. No head: `Family` has no `head_voter_id`. `GET /families` (walk list) is still a stub in `field.py`.
 
 `q` rules: up to 5 words, every word must match `voters.search_text` (names mr/en, EPIC, house; lowercase `LIKE`, wildcards escaped). An ASCII number also matches `serial_no` exactly, and `mobile_1/2` when 4+ digits. Real roll (11 Nov): paging all 31,871 voters at 200/page, slowest page 61 ms; searches 10–32 ms.
 

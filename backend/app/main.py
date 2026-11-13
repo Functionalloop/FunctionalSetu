@@ -8,7 +8,8 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import admin, app_version, auth, devices, field, geo, health, me, misc, reports, rolls, sync, turnout, voters
+from .routers import (admin, app_version, auth, devices, families, field, geo, health, me, misc, reports, rolls, sync,
+                      turnout, voters)
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -41,6 +42,7 @@ each refresh returns a new refresh token and the old one stops working.
 | 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |
 | 422 | `validation_error` (with `details`), `weak_password` | |
 | 409 | `version_conflict` (with `current` = the server copy) | stale `version` |
+| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
@@ -74,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(devices.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(families.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(app_version.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented

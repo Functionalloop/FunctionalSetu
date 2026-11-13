@@ -9,8 +9,9 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from enum import StrEnum
+from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from .schemas import MOBILE_PATTERN, Gender, Location, UserSummary
 
@@ -20,6 +21,10 @@ class Page(BaseModel):
 
 
 # --- families and walk list (7.1, 7.2) ------------------------------------------------
+# Kutumb name: spaces at the ends are dropped; blank is refused.
+KutumbName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
 class FamilySource(StrEnum):
     roll_import = "roll_import"
     manual = "manual"
@@ -27,46 +32,44 @@ class FamilySource(StrEnum):
 
 
 class Family(BaseModel):
+    """A Kutumb (Kutumb Connect): made by hand by a surveyor, in one booth, with no head (client, 12 Nov)."""
     id: uuid.UUID
     ward_id: uuid.UUID
     booth_id: uuid.UUID | None
-    house_no: str | None
-    label: str | None = Field(description="Family name, typed by the surveyor (families are made by hand, client 12 Nov)")
-    head_voter_id: uuid.UUID | None
+    house_no: str | None = Field(description="Not set on hand-made Kutumbs")
+    label: str | None = Field(description="Kutumb name, free text typed by the surveyor (often the name of the "
+                                          "head of the family)")
     source: FamilySource
-    member_ids: list[uuid.UUID] = Field(description="Voters in this family")
+    member_ids: list[uuid.UUID] = Field(description="Voters in this Kutumb, in roll order")
     updated_at: datetime
 
 
 class FamilyChange(BaseModel):
-    """PUT /voters/{id}/family and push type `family`. Exactly one of family_id / new_family_id,
-    or leave_family = true with neither (takes the voter out of their family)."""
-    family_id: uuid.UUID | None = Field(None, description="Move the voter into this existing family")
-    new_family_id: uuid.UUID | None = Field(None, description="Start a new family with this phone-made id")
-    new_family_label: str | None = Field(None, max_length=200)
-    make_head: bool = Field(False, description="Make this voter the head of the family")
-    leave_family: bool = Field(False, description="Take the voter out of their family (added 12 Nov)")
+    """PUT /voters/{id}/family and push type `family`: family_id puts the voter in that Kutumb (moving them
+    out of any other), or leave_family = true alone takes them out. A Kutumb is made with POST /families.
+    There is no head (13 Nov): unknown fields such as make_head are refused (422)."""
+    model_config = ConfigDict(extra="forbid")
+
+    family_id: uuid.UUID | None = Field(None, description="Put the voter in this Kutumb (same booth as the voter)")
+    leave_family: bool = Field(False, description="Take the voter out of their Kutumb")
 
     @model_validator(mode="after")
     def _one(self) -> FamilyChange:
-        if self.leave_family:
-            if self.family_id or self.new_family_id or self.make_head:
-                raise ValueError("leave_family goes alone: no family_id, new_family_id or make_head")
-        elif (self.family_id is None) == (self.new_family_id is None):
-            raise ValueError("give exactly one of family_id or new_family_id")
+        if self.leave_family == (self.family_id is not None):
+            raise ValueError("give family_id, or leave_family = true alone")
         return self
 
 
 class FamilyIn(BaseModel):
-    """POST /families and push type `family_new` (entity_id = the family id): a family made by hand."""
-    id: uuid.UUID = Field(description="Made by the phone; a repeat with the same id is stored once")
-    booth_id: uuid.UUID = Field(description="The booth (part) the family belongs to")
-    label: str = Field(min_length=1, max_length=200, description="Family name, free text")
+    """POST /families and push type `family_new` (entity_id = the family id): a Kutumb made by hand."""
+    id: uuid.UUID = Field(description="Made by the phone; a repeat with the same id is stored once (first name kept)")
+    booth_id: uuid.UUID = Field(description="The booth (part) the Kutumb belongs to")
+    label: KutumbName = Field(description="Kutumb name, free text")
 
 
 class FamilyPatch(BaseModel):
     """PATCH /families/{id}: rename."""
-    label: str = Field(min_length=1, max_length=200)
+    label: KutumbName
 
 
 class FamilyPage(Page):

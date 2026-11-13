@@ -117,8 +117,8 @@ The Android app does most of this from its local copy and sends changes through 
 | `GET /voters` | Search and filter: `q`, ward, booth, age, gender, colour tag, survey status, caste, profession, has mobile, important, voted. | All |
 | `GET /voters/{id}` | Roll details plus survey. | All |
 | `PUT /voters/{id}/survey` | Save survey: mobiles, caste, profession, colour tag, residence check, date of birth, notes, custom fields, important voter + position, influencer + type, self help group + name, ration card, location. Needs `version`. | Surveyor |
-| `GET /voters/{id}/family` | Family members. | All |
-| `PUT /voters/{id}/family` | Move the voter into a family, take them out, or set the family head. | Surveyor |
+| `GET /voters/{id}/family` | The voter's Kutumb and its members. | All |
+| `PUT /voters/{id}/family` | Put the voter in a Kutumb of their booth (moving them out of any other), or take them out. No head (12 Nov). | Surveyor |
 | `GET /voters/{id}/history` | Every change: surveys, notes, visits, roll edits, voted marks. | All |
 | `POST /voters/{id}/visits` | Record a visit: met, not home, revisit, shifted, with location. | Surveyor |
 | `GET /voters/{id}/slip` | Voter slip as an image or PDF. | All |

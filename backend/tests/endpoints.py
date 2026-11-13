@@ -12,7 +12,7 @@ Row fields:
   target       kind of record named by the path parameter, if any (see KINDS)
   lists        kind of record returned in `items` (list isolation is checked)
   area_params  query parameters that take an area id (404 outside the user's area)
-  body         JSON body to send
+  body         JSON body to send, or a function (world) -> body when it needs the shared data
   works        False: skip the "allowed role succeeds" check (covered in the endpoint's own tests)
   fresh_login  the call ends the session (logout): use a new login for the success check
   wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
@@ -45,7 +45,7 @@ class Endpoint:
     target: str | None = None
     lists: str | None = None
     area_params: tuple[str, ...] = ()
-    body: dict[str, Any] | None = None
+    body: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None
     works: bool = True
     fresh_login: bool = False
     wipe_on_block: bool = False
@@ -79,18 +79,20 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("POST", "/sync/push", body={"items": []}),  # per-item roles: test_sync_push.py
     Endpoint("PUT", "/voters/{voter_id}/survey", roles=SURVEY_ROLES, target="voter",
              body={"version": 0, "notes": "rule check"}),
+    # Kutumb Connect (7.1); behaviour and the booth list's isolation: test_families.py
+    Endpoint("POST", "/families", roles=SURVEY_ROLES,
+             body=lambda w: {"id": str(uuid.uuid4()), "booth_id": str(w.a.booths[0]), "label": "Rule check"}),
+    Endpoint("PATCH", "/families/{family_id}", roles=SURVEY_ROLES, target="family", body={"label": "Renamed"}),
+    Endpoint("GET", "/booths/{booth_id}/families", target="booth"),
+    Endpoint("GET", "/voters/{voter_id}/family", target="voter"),
+    Endpoint("PUT", "/voters/{voter_id}/family", roles=SURVEY_ROLES, target="voter", body={"leave_family": True}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # sync conflicts (7.10; who resolves: gap-table proposal)
     ("GET", "/sync/conflicts", SURVEY_ROLES, "ready"),
     ("POST", "/sync/conflicts/{conflict_id}/resolve", SURVEY_ROLES, "ready"),
     # field work (7)
-    ("GET", "/voters/{voter_id}/family", ALL, "ready"),
-    ("PUT", "/voters/{voter_id}/family", SURVEY_ROLES, "ready"),
     ("GET", "/families", ALL, "ready"),
-    ("POST", "/families", SURVEY_ROLES, "ready"),
-    ("PATCH", "/families/{family_id}", SURVEY_ROLES, "ready"),
-    ("GET", "/booths/{booth_id}/families", ALL, "ready"),
     ("GET", "/booths/{booth_id}/note", ALL, "ready"),
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
     ("POST", "/voters/{voter_id}/visits", SURVEY_ROLES, "ready"),
@@ -218,12 +220,34 @@ def _device_state(world, device_id: uuid.UUID):
 
 
 def _voter_state(world, voter_id: uuid.UUID):
-    """The voter's survey row (None until the first save)."""
-    return world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
-                              (voter_id,)).fetchone()
+    """The voter's survey row (None until the first save) and Kutumb row (None until first put in one)."""
+    return (world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
+                               (voter_id,)).fetchone(),
+            world.conn.execute("SELECT family_id, updated_at FROM app.family_members WHERE voter_id = %s",
+                               (voter_id,)).fetchone())
+
+
+def _make_family(world, where: str) -> uuid.UUID:
+    """A hand-made Kutumb in that place's booth."""
+    tenant, _, ward, booth = world.place(where)
+    fid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.families (id, tenant_id, ward_id, booth_id, label, source)
+           VALUES (%s, %s, %s, %s, 'Rule Kutumb', 'manual')""", (fid, tenant, ward, booth))
+    return fid
+
+
+def _family_state(world, family_id: uuid.UUID):
+    return world.conn.execute("SELECT label, updated_at FROM app.families WHERE id = %s", (family_id,)).fetchone()
+
+
+def _booth(world, where: str) -> uuid.UUID:
+    return world.place(where)[3]
 
 
 KINDS: dict[str, Kind] = {
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
+    "family": Kind(_make_family, _family_state),
+    "booth": Kind(_booth),
 }

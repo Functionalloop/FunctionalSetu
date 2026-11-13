@@ -101,12 +101,16 @@ def fill_path(ep: Endpoint, target_id=None) -> str:
     return re.sub(r"\{([^}]+)\}", lambda m: PATH_SAMPLES.get(m.group(1), str(uuid.uuid4())), ep.path)
 
 
+def body(world: World, ep: Endpoint):
+    return ep.body(world) if callable(ep.body) else ep.body
+
+
 def call(world: World, ep: Endpoint, token: dict | None, target_id=None, params=None, raw_auth=None):
     headers = {"Authorization": raw_auth} if raw_auth else (bearer(token) if token else {})
     if params is None and ep.stub:
         params = QUERY_SAMPLES.get(ep.path)
     return world.client.request(ep.method, API_PREFIX + fill_path(ep, target_id), headers=headers, params=params,
-                                json=ep.body)
+                                json=body(world, ep))
 
 
 def assert_error(r, status: int, code: str | None = None) -> None:
@@ -248,7 +252,7 @@ def test_other_area_is_404(world, ep, role):
 @pytest.mark.parametrize("ep", params(lambda e: e.target))
 def test_malformed_id_is_422(world, ep):
     r = world.client.request(ep.method, API_PREFIX + re.sub(r"\{[^}]+\}", "not-a-uuid", ep.path),
-                             headers=bearer(world.tokens[Role.super_admin]), json=ep.body)
+                             headers=bearer(world.tokens[Role.super_admin]), json=body(world, ep))
     assert_error(r, 422, "validation_error")
 
 
