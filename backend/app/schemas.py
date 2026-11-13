@@ -588,6 +588,15 @@ class PartNote(BaseModel):
     updated_by: uuid.UUID | None
 
 
+class TurnoutMark(BaseModel):
+    """A voter's voted mark (polling day, 8.1). One per voter; an undone mark stays with is_voted false."""
+    voter_id: uuid.UUID
+    is_voted: bool = Field(description="false = the mark was undone")
+    marked_by: uuid.UUID
+    marked_at: datetime
+    source: str = Field(description="single, bulk_typed, booth_list or admin")
+
+
 class SyncPage(BaseModel):
     """One page of a sync pull. If `wipe` is true, delete all local data and log out; nothing else
     in the page applies. Otherwise save every row it holds (insert or replace by id; a voter with
@@ -624,7 +633,9 @@ class SyncPage(BaseModel):
     part_notes: list[PartNote] = Field(default_factory=list, description=(
         "7.11: the shared notes of the user's parts (first download: all; delta: changed since `since`). "
         "Replace by booth_id"))
-    turnout: list[dict] = Field(default_factory=list, description="TurnoutMark rows; from step 8.1")
+    turnout: list[TurnoutMark] = Field(default_factory=list, description=(
+        "8.1: voted marks of voters in the user's area; polling-day roles only (a surveyor's pull has none). "
+        "First download: voted ones; delta: changed since `since`, is_voted false = undone. Replace by voter_id"))
 
 
 # --- sync push ---------------------------------------------------------------------
@@ -633,18 +644,19 @@ MAX_PUSH_ITEMS = 500
 
 class PushType(StrEnum):
     """`data` per type (entity_id in brackets): survey = SurveyIn without version (voter);
-    visit = VisitIn (voter); voted = TurnoutMarkIn (any id); unvoted = {} (voter);
-    new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch (new voter);
-    family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note = PartNoteIn
-    without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
-    Built: `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
+    visit = VisitIn (voter); voted = TurnoutMarkIn (the mark request's id; data.id may be left out);
+    unvoted = {} (voter); new_voter = NewVoterIn (the new voter's id); new_voter_update = NewVoterPatch
+    (new voter); family = FamilyChange (voter); family_new = FamilyIn (the family's id); part_note =
+    PartNoteIn without version (the booth; base_version = version); slip_event = SlipEventIn (voter).
+    `survey`, `family_new` and `family` (7.2; base_version 0, membership has no version:
     the last change wins), `visit` (7.3; base_version 0; data.id = the visit's id), `new_voter`
     (7.5; base_version 0; a repeat id is stored once) and `new_voter_update` (7.5; base_version = the
     version the phone last had; stale: conflict with the server copy), `slip_event` (7.7; base_version 0;
-    data.id = the event's id, stored once; all roles) and `part_note` (7.11; base_version = the note's
-    version, 0 for none; stale and different: conflict with the server copy, no sync_conflicts row). The others come with plan steps 7 and 8. Until then an item of those
-    types is rejected with not_implemented and NOT recorded, so a retry after the server update
-    applies it."""
+    data.id = the event's id, stored once; all roles), `part_note` (7.11; base_version = the note's
+    version, 0 for none; stale and different: conflict with the server copy, no sync_conflicts row),
+    `voted` and `unvoted` (8.1; base_version 0; polling-day roles; a voter already marked stays as it was,
+    a mark id sent again never marks again). A type the server does not know yet is rejected with
+    not_implemented and NOT recorded, so a retry after the server update applies it."""
     survey = "survey"
     visit = "visit"
     voted = "voted"
@@ -667,11 +679,11 @@ class PushItem(BaseModel):
     id: uuid.UUID = Field(description="Made by the phone for this outbox item; a retry sends the same id")
     type: PushType
     entity_id: uuid.UUID = Field(description=(
-        "survey, family, visit, slip_event: the voter id; family_new: the Kutumb's id; new_voter, new_voter_update: "
-        "the new voter's id"))
+        "survey, family, visit, slip_event, unvoted: the voter id; family_new: the Kutumb's id; new_voter, "
+        "new_voter_update: the new voter's id; voted: the mark request's id (TurnoutMarkIn.id)"))
     base_version: int = Field(ge=0, description=(
         "survey: the version the phone last had; 0 = no survey yet. new_voter_update: the version the phone "
-        "last had (1 or more). family_new, family, visit, new_voter, slip_event: 0"))
+        "last had (1 or more). family_new, family, visit, new_voter, slip_event, voted, unvoted: 0"))
     changed_at: datetime | None = Field(None, description="When the change was made on the phone")
     data: dict = Field(description=(
         "survey: the same body as PUT /voters/{id}/survey (SurveyIn) without `version`. "
@@ -680,6 +692,7 @@ class PushItem(BaseModel):
         "new_voter: POST /new-voters body (NewVoterIn; `id` may be left out, it is entity_id). "
         "new_voter_update: PATCH /new-voters/{id} body (NewVoterPatch) without `version`. "
         "slip_event: POST /voters/{id}/slip-events body (SlipEventIn). "
+        "voted: POST /turnout/marks body (TurnoutMarkIn; `id` may be left out, it is entity_id). unvoted: {}. "
         "Checked per item: an invalid item is rejected on its own, the rest of the batch still applies."))
 
 
@@ -708,6 +721,9 @@ class PushResult(BaseModel):
         "voter was never in one)"))
     part_note: PartNote | None = Field(None, description=(
         "part_note: applied: the saved note (new version); conflict: the server copy"))
+    turnout: list[TurnoutMark] = Field(default_factory=list, description=(
+        "voted, unvoted, applied: the current marks of the item's voters as stored (replace by voter_id; "
+        "none for a voter that was never marked)"))
     conflict_fields: list[str] = Field(default_factory=list, description="conflict: fields that differ")
 
 

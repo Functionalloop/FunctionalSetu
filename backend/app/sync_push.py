@@ -12,6 +12,8 @@ Per item, inside a SAVEPOINT:
      new_voter / new_voter_update (7.5): POST / PATCH /new-voters; an update with a stale version is a
      conflict like the survey's (sync_conflicts rows, entity_type new_voter).
      slip_event (7.7): POST /voters/{id}/slip-events, all roles; an event id sent again is stored once.
+     voted / unvoted (8.1): POST /turnout/marks and DELETE /turnout/marks/{voter_id}, polling-day roles; a
+     voter already marked stays as it was, a mark id sent again never marks again (routers/turnout.py).
   4. Record the result in sync_mutations (INSERT ... ON CONFLICT DO NOTHING). If another request
      recorded the same id first (a retry racing the original), undo this item's savepoint and
      return that stored result instead, so the change is applied exactly once.
@@ -26,24 +28,26 @@ from typing import Any
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
-from .deps import SURVEY_ROLES, Principal, check_roles
+from .deps import POLLING_ROLES, SURVEY_ROLES, Principal, check_roles
 from .errors import ApiError
 from .routers.families import write_new_family, write_voter_family
 from .routers.new_voters import new_voter_in_scope, read_new_voter, write_new_voter, write_new_voter_update
 from .routers.part_notes import read_part_note, write_part_note
 from .routers.slips import write_slip_event
+from .routers.turnout import mark_targets, read_marks, undo_mark, write_marks
 from .routers.visits import read_visit, write_visit
 from .routers.voters import check_survey_references, read_survey, voter_in_scope, write_survey
 from .schemas import (NewVoter, NewVoterFields, PushError, PushItem, PushResult, PushStatus, Survey, SurveyFields,
                       SurveyIn, SyncFamily, SyncFamilyMember)
-from .schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, SlipEventIn, VisitIn
+from .schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, SlipEventIn,
+                            TurnoutMarkIn, VisitIn)
 from .scope import Scope
 from .sync_pull import FAMILY_COLS, MEMBER_COLS
 
 # PushType -> sync_mutations entity_type (and sync_conflicts for surveys)
 ENTITY = {"survey": "voter_survey", "family_new": "family", "family": "family_member", "visit": "visit",
           "new_voter": "new_voter", "new_voter_update": "new_voter", "slip_event": "slip_event",
-          "part_note": "part_note"}
+          "part_note": "part_note", "voted": "voter_turnout", "unvoted": "voter_turnout"}
 
 
 class _Rejected(Exception):
@@ -64,7 +68,7 @@ def _stored(conn: Connection, user: Principal, item: PushItem) -> Any:
     """), {"d": user.device_id, "id": item.id}).mappings().first()
 
 
-def _replay(conn: Connection, item: PushItem, prev: Any) -> PushResult:
+def _replay(conn: Connection, scope: Scope, item: PushItem, prev: Any) -> PushResult:
     status = PushStatus(prev["status"])
     error = None
     if status == PushStatus.rejected:
@@ -72,11 +76,11 @@ def _replay(conn: Connection, item: PushItem, prev: Any) -> PushResult:
         error = PushError(code=code, message=message)
     result = PushResult(id=item.id, status=status, duplicate=True, error=error)
     if status != PushStatus.rejected:  # the current server copy
-        _attach(conn, item, result)
+        _attach(conn, scope, item, result)
     return result
 
 
-def _attach(conn: Connection, item: PushItem, result: PushResult) -> None:
+def _attach(conn: Connection, scope: Scope, item: PushItem, result: PushResult) -> None:
     if item.type.value == "survey":
         result.survey = read_survey(conn, item.entity_id)
     elif item.type.value == "family_new":
@@ -90,6 +94,14 @@ def _attach(conn: Connection, item: PushItem, result: PushResult) -> None:
         pass  # nothing comes back: the phone keeps no copy of slip events
     elif item.type.value == "part_note":
         result.part_note = read_part_note(conn, item.entity_id)
+    elif item.type.value == "voted":
+        result.turnout = _voted_marks(conn, scope, item)
+    elif item.type.value == "unvoted":
+        try:
+            voter_in_scope(conn, scope, item.entity_id)
+            result.turnout = read_marks(conn, [item.entity_id])
+        except ApiError:  # the area changed since: send nothing back
+            pass
     else:
         result.family_member = _member_row(conn, item.entity_id)
 
@@ -109,7 +121,7 @@ def _member_row(conn: Connection, voter_id) -> SyncFamilyMember | None:
 def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
     prev = _stored(conn, user, item)
     if prev is not None:
-        return _replay(conn, item, prev)
+        return _replay(conn, scope, item, prev)
     if item.type.value not in ENTITY:  # in the contract, not built yet: not recorded, so a later retry applies
         return PushResult(id=item.id, status=PushStatus.rejected, duplicate=False,
                           error=PushError(code="not_implemented",
@@ -134,7 +146,7 @@ def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> Pus
                "error": f"{result.error.code}: {result.error.message}" if result.error else None}).first()
         if recorded is None:  # the same id was recorded by a request running at the same time
             savepoint.rollback()
-            return _replay(conn, item, _stored(conn, user, item))
+            return _replay(conn, scope, item, _stored(conn, user, item))
         savepoint.commit()
         return result
     except BaseException:
@@ -144,8 +156,10 @@ def _one(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> Pus
 
 
 def _operation(item: PushItem) -> str:
-    if item.type.value in ("family_new", "visit", "new_voter", "slip_event"):
+    if item.type.value in ("family_new", "visit", "new_voter", "slip_event", "voted"):
         return "insert"
+    if item.type.value == "unvoted":
+        return "delete"
     if item.type.value == "new_voter_update":
         return "update"
     if item.type.value == "family":
@@ -153,9 +167,9 @@ def _operation(item: PushItem) -> str:
     return "insert" if item.base_version == 0 else "update"
 
 
-def _check_role(user: Principal) -> None:
+def _check_role(user: Principal, roles=SURVEY_ROLES) -> None:
     try:
-        check_roles(user, SURVEY_ROLES)
+        check_roles(user, roles)
     except ApiError as e:
         raise _Rejected(e.code, e.message) from None
 
@@ -305,9 +319,45 @@ def _apply_part_note(conn: Connection, user: Principal, scope: Scope, item: Push
                       conflict_fields=["note"])
 
 
+def _mark_body(item: PushItem) -> TurnoutMarkIn:
+    if str(item.data.get("id", item.entity_id)) != str(item.entity_id):
+        raise _Rejected("validation_error", "data.id: must be the same as entity_id (the mark request's id)")
+    return _parse(TurnoutMarkIn, **{**item.data, "id": item.entity_id})
+
+
+def _voted_marks(conn: Connection, scope: Scope, item: PushItem) -> list:
+    """The current marks of a `voted` item's voters (for a repeat: they may have changed since)."""
+    try:
+        ids, _ = mark_targets(conn, scope, _mark_body(item))
+    except (_Rejected, ApiError):  # the area changed since: send nothing back
+        return []
+    return read_marks(conn, ids)
+
+
+def _apply_voted(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
+    _check_role(user, POLLING_ROLES)  # surveyors do not mark voted
+    body = _mark_body(item)
+    try:
+        done = write_marks(conn, user, scope, body)
+    except ApiError as e:
+        raise _Rejected(e.code, e.message) from None
+    return PushResult(id=item.id, status=PushStatus.applied, duplicate=False,
+                      turnout=read_marks(conn, done.marked + done.already))
+
+
+def _apply_unvoted(conn: Connection, user: Principal, scope: Scope, item: PushItem) -> PushResult:
+    _check_role(user, POLLING_ROLES)
+    try:
+        undo_mark(conn, user, scope, item.entity_id)
+    except ApiError as e:
+        raise _Rejected(e.code, e.message) from None
+    return PushResult(id=item.id, status=PushStatus.applied, duplicate=False,
+                      turnout=read_marks(conn, [item.entity_id]))
+
+
 APPLY = {"survey": _apply_survey, "family_new": _apply_family_new, "family": _apply_family, "visit": _apply_visit,
          "new_voter": _apply_new_voter, "new_voter_update": _apply_new_voter_update, "slip_event": _apply_slip_event,
-         "part_note": _apply_part_note}
+         "part_note": _apply_part_note, "voted": _apply_voted, "unvoted": _apply_unvoted}
 
 
 def _differing_fields(body: SurveyIn, server: Survey | None) -> dict[str, tuple[Any, Any]]:

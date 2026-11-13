@@ -36,12 +36,13 @@ from app.routers.misc import list_announcements, mark_read, report_problem  # no
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
 from app.routers.part_notes import write_part_note  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
+from app.routers.turnout import turnout_summary, undo_mark, write_marks  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
 from app.schemas_field import ConflictStatus  # noqa: E402
 from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, ProblemReportIn,  # noqa: E402
-                               SlipEventIn, VisitIn)
+                               SlipEventIn, TurnoutMarkIn, VisitIn)
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
@@ -49,7 +50,7 @@ from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
-                   "announcements", "announcement_reads", "problem_reports", "part_notes",
+                   "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations",
                    "sync_conflicts",
                    "devices", "users", "audit_log")
@@ -399,6 +400,29 @@ def main() -> None:
                     break
             report(saved is not None and saved.version == old + 1 and stale is None and seen == [booth],
                    "part note saved, stale save refused, in the delta pull", f"{ms:.0f} ms")
+
+            # Polling day (8.1): a whole part marked by serials, one undone, the same request again marks
+            # nothing; the summary and the supervisor's delta pull agree
+            w_turn = current_watermark(conn)
+            in_part = conn.execute(text("SELECT count(*) FROM app.voters WHERE booth_id = :b AND deleted_at IS NULL "
+                                        "AND roll_status = 'active'"), {"b": booth}).scalar()
+            req = TurnoutMarkIn(id=uuid.uuid4(), booth_id=booth, serials="1-2000", source="bulk_typed")
+            done, ms = timed(lambda: write_marks(conn, supervisor, s_sup, req))
+            undo_mark(conn, supervisor, s_sup, done.marked[0])
+            again = write_marks(conn, supervisor, s_sup, req)
+            summary, ms_sum = timed(lambda: turnout_summary(conn, admin, s_admin, None, None))
+            part = next(b for b in summary.booths if b.booth_id == booth)
+            marks, cursor = {}, None
+            while True:
+                page = pull_page(conn, s_sup, w_turn, cursor, 1000)
+                marks.update({m.voter_id: m.is_voted for m in page.turnout})
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+            report(len(done.marked) == in_part and again.marked == done.marked and part.voted == in_part - 1
+                   and len(marks) == in_part and sum(marks.values()) == in_part - 1,
+                   "whole part marked by serials, one undone, repeat marks nothing; summary and pull agree",
+                   f"{in_part} voters {ms:.0f} ms, summary of {len(summary.booths)} parts {ms_sum:.0f} ms")
         finally:
             trans.rollback()
 

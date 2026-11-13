@@ -21,6 +21,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
   - `new_voters` (7.5): Eligible but Not Registered whose part (or Village Panchayat when no part) is in the scope; **survey roles only** (a booth agent's pull has none: `pull_page(..., survey_role=)`). First: not deleted; delta: changed since W. Replace by id.
   - `visits` (7.3): visits whose booth is in the scope (first: all; delta: new since W). Not deleted ones only (there is no delete).
   - `members` (7.2): `family_members` rows (`voter_id`, `family_id`, `updated_at`) of non-removed voters in the area. First: only voters in a Kutumb; delta: changed rows, `family_id` null = taken out. Replace by `voter_id`.
+  - `turnout` (8.1): `voter_turnout` rows (`TurnoutMark`: voter_id, is_voted, marked_by, marked_at, source) of non-removed voters in the area; **polling roles only** (a surveyor's pull has none: `pull_page(..., polling_role=)`). First: voted ones; delta: changed since W, `is_voted` false = undone. Replace by `voter_id`.
   - `gone` (delta only): ids of voters changed since W that are now **outside** the area (moved booth, area switched off for them). Ids only, never the row.
 - Only phases with rows are visited: page 1 counts them and the cursor carries the list. Idle delta = 1 request; a few changes = page 1 + one page per phase with rows.
 - Cursor = `[phases_left, last_id, W', since]` (`app/paging.py`); `since` rides in the cursor, so a `since` sent with a cursor is ignored.
@@ -30,7 +31,7 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 ## `POST /sync/push` (built 4.8)
 
-- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey`, `family_new`, `family`, `visit`, `new_voter`, `new_voter_update`; others `not_implemented`), `entity_id` (voter id; `family_new`: the Kutumb id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
+- Body `{"items": [...]}`, max 500, applied in order. Item: `id` (phone-made, the same on every retry), `type` (`survey`, `family_new`, `family`, `visit`, `new_voter`, `new_voter_update`, `slip_event`, `part_note`, `voted`, `unvoted`; an unknown one `not_implemented`), `entity_id` (voter id; `family_new`: the Kutumb id), `base_version` (0 = no survey yet), `changed_at`, `data` = the `PUT /voters/{id}/survey` body without `version` (a `version` inside `data` is ignored).
 - Result per item, same order: `applied` (`survey` = saved copy with the new version), `conflict` (`survey` = server copy, `conflict_fields`), `rejected` (`error.code`: `forbidden_role`, `validation_error`, `not_found`, ...). `duplicate: true` = this id was seen before; the stored status is returned and nothing is applied again.
 - **One bad item never fails the batch** (the outbox would stick): `data` is validated per item. Only a broken envelope (bad `id`, unknown `type`, > 500 items) is a 422 for the whole request.
 - Retry safety, two layers: (1) look up `sync_mutations (device_id, client_mutation_id)` first; (2) each item runs in a SAVEPOINT and records its result with `INSERT ... ON CONFLICT DO NOTHING` at the end; if a parallel request recorded the id first, the savepoint is rolled back and the stored result returned. Test `test_parallel_retries_apply_once` fails without layer 2.
@@ -48,6 +49,13 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 
 - `part_note` (7.11): `entity_id` = the booth, `data` = `{note}`, `base_version` = the note's version (0 = none yet), survey roles. Stale and different: `conflict` with `part_note` = the server copy and `conflict_fields` `["note"]`, **no `sync_conflicts` row** (that table takes surveys, new voters and Kutumbs only), so the phone decides it alone (keep mine = send again on the server's version). Stale but the same text: `applied`. Pull: phase `part_notes` (all roles, notes of the booths in the area; first: all; delta: changed), `SyncPage.part_notes`, replace by `booth_id`.
 - `slip_event`: `entity_id` = the voter, `data` = `POST /voters/{id}/slip-events` body (`{id, channel, at}`), `base_version` 0, **all roles** (booth agents too). The event id makes it safe to resend under a new outbox id. Result: no record (`applied` only). `at` later than the server clock is stored as now.
+
+### Voted marks (8.1)
+
+- `voted`: `entity_id` = the mark request's id, `data` = `POST /turnout/marks` body (`id` may be left out; if given it must equal `entity_id`), `base_version` 0, polling roles (a surveyor's item is `rejected` `forbidden_role`). One item may mark many voters (by ids or booth + serials); one voter outside the area rejects the whole item (`not_found`). The mark id makes it safe to resend under a new outbox id: voters it marked are never marked again, even after an undo.
+- `unvoted`: `entity_id` = the voter, `data` = `{}`, `base_version` 0, polling roles.
+- Result `turnout` = the current marks of the item's voters (also on a `duplicate`), replace by `voter_id`. A voter someone else marked first comes back with their `marked_by`.
+- No conflicts: a voter is voted or not; the last change wins (mark after undo, undo after mark).
 
 ### Visit items (7.3)
 
@@ -70,7 +78,8 @@ One endpoint, two modes: no `since` = first download; `since=W` = delta pull.
 ## Real roll (11 Nov, dev DB, server time only)
 
 - First download, admin, whole AC: 31,871 voters, 34 pages of 1000, 1.3 s, slowest page 66 ms, **24.9 MB JSON uncompressed**. One ward: 685 voters, 0.6 MB.
-- Push: 500 survey items 3.3 s (6.6 ms/item); the same 500 again as retries 0.8 s, nothing written. If polling day needs faster bulk marks, batch the SQL per type instead of per item.
+- Push: 500 survey items 3.3 s (6.6 ms/item); the same 500 again as retries 0.8 s, nothing written.
+- Voted marks (14 Nov): one `voted` item for a whole part (~600 voters) ~120 ms (one SQL insert; an audit row per voter). Marking all 31,424 voters on the current roll as 50 requests: 6 s. Delta pull of 31,424 marks: 33 pages, 0.45 s.
 - Delta: nothing changed 1 page / 0.02 s; 100 voters changed 2 pages / 0.02 s; `since=1` (everything, like after a roll import) 31,871 voters in 33 pages / ~1 s.
 
 ## Not built yet / open

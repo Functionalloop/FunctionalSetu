@@ -6,15 +6,16 @@ the phone sends the same shape online (REST) and offline (push).
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from .schemas import (MOBILE_PATTERN, Form6Status, Gender, Location, NewVoter, NewVoterFields,  # noqa: F401
-                      PartNote, UserSummary, Visit, VisitOutcome)  # (re-exported)
+                      PartNote, TurnoutMark, UserSummary, Visit, VisitOutcome)  # (re-exported)
 
 
 class Page(BaseModel):
@@ -193,14 +194,52 @@ class TurnoutSource(StrEnum):
     booth_list = "booth_list"
 
 
+MAX_MARKS = 2000  # voters in one mark request (a part has about 1,500 at most)
+_SERIAL_PART = re.compile(r"^(\d{1,5})(?:-(\d{1,5}))?$")
+
+
+def parse_serials(text: str) -> list[int]:
+    """'12, 15, 18-25' -> [12, 15, 18, ..., 25]: sorted, each once. Commas or spaces between parts.
+    ValueError on anything else, a serial 0, a range written backwards, or more than MAX_MARKS serials."""
+    joined = re.sub(r"\s*-\s*", "-", text.strip())  # "18 - 25" -> "18-25"
+    parts = [p for p in re.split(r"[,\s]+", joined) if p]
+    if not parts:
+        raise ValueError("no serial numbers")
+    out: set[int] = set()
+    for part in parts:
+        m = _SERIAL_PART.match(part)
+        if m is None:
+            raise ValueError(f"'{part}' is not a serial number or a range like 18-25")
+        lo = int(m.group(1))
+        hi = int(m.group(2)) if m.group(2) else lo
+        if lo < 1 or hi < lo:
+            raise ValueError(f"'{part}': serials start at 1 and a range goes from low to high")
+        if hi - lo + 1 + len(out) > MAX_MARKS:
+            raise ValueError(f"at most {MAX_MARKS} serials at a time")
+        out.update(range(lo, hi + 1))
+    return sorted(out)
+
+
 class TurnoutMarkIn(BaseModel):
     """POST /turnout/marks and push type `voted`. Either voter_ids, or booth_id + serials ("12, 15, 18-25")."""
-    id: uuid.UUID = Field(description="Made by the phone; a repeat with the same id is applied once")
-    voter_ids: list[uuid.UUID] = Field(default_factory=list, max_length=2000)
+    id: uuid.UUID = Field(description=(
+        "Made by the client for this request. Sent again (a retry), it never marks again, not even a voter "
+        "whose mark was undone since; those voters are reported as `marked` again"))
+    voter_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_MARKS)
     booth_id: uuid.UUID | None = None
-    serials: str | None = Field(None, max_length=2000, examples=["12, 15, 18-25"])
+    serials: str | None = Field(None, max_length=2000, examples=["12, 15, 18-25"], description=(
+        "Serial numbers of the part (booth): numbers and ranges, separated by commas or spaces; "
+        f"at most {MAX_MARKS} voters"))
     source: TurnoutSource = TurnoutSource.single
-    marked_at: datetime | None = None
+    marked_at: datetime | None = Field(None, description=(
+        "When it was marked on the phone (offline marks); later than the server clock = now. Left out = now"))
+
+    @field_validator("serials")
+    @classmethod
+    def _serials(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_serials(v)
+        return v
 
     @model_validator(mode="after")
     def _target(self) -> TurnoutMarkIn:
@@ -210,17 +249,9 @@ class TurnoutMarkIn(BaseModel):
 
 
 class TurnoutMarkResult(BaseModel):
-    marked: list[uuid.UUID] = Field(description="Newly marked as voted")
+    marked: list[uuid.UUID] = Field(description="Marked as voted by this request (a repeat of the request lists them again)")
     already: list[uuid.UUID] = Field(description="Were already marked (kept as they were)")
     not_found_serials: list[int] = Field(default_factory=list, description="Serials with no voter in the booth")
-
-
-class TurnoutMark(BaseModel):
-    voter_id: uuid.UUID
-    is_voted: bool = Field(description="false = the mark was undone")
-    marked_by: uuid.UUID
-    marked_at: datetime
-    source: str
 
 
 class TurnoutBooth(BaseModel):

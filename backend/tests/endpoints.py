@@ -131,16 +131,17 @@ ENDPOINTS: list[Endpoint] = [
     # voter slips (7.7); behaviour: test_slips.py
     Endpoint("POST", "/voters/{voter_id}/slip-events", target="voter",
              body=lambda w: {"id": str(uuid.uuid4()), "channel": "whatsapp", "at": "2026-11-13T10:00:00Z"}),
+    # polling day (8.1): not surveyors; behaviour: test_turnout.py. Serial 1 may have no voter (not_found_serials).
+    Endpoint("GET", "/turnout/summary", roles=POLLING_ROLES, area_params=("ward_id", "booth_id")),
+    Endpoint("POST", "/turnout/marks", roles=POLLING_ROLES,
+             body=lambda w: {"id": str(uuid.uuid4()), "booth_id": str(w.a.booths[0]), "serials": "1"}),
+    Endpoint("DELETE", "/turnout/marks/{voter_id}", roles=POLLING_ROLES, target="voter"),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
     ("GET", "/families", ALL, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
-    # polling day (8.1): not surveyors
-    ("GET", "/turnout/summary", POLLING_ROLES, "ready"),
-    ("POST", "/turnout/marks", POLLING_ROLES, "ready"),
-    ("DELETE", "/turnout/marks/{voter_id}", POLLING_ROLES, "ready"),
     # admin (9)
     ("GET", "/users", ADMINS, "ready"),
     ("POST", "/users", ADMINS, "ready"),
@@ -247,13 +248,15 @@ def _device_state(world, device_id: uuid.UUID):
 
 
 def _voter_state(world, voter_id: uuid.UUID):
-    """The voter's survey row (None until the first save), Kutumb row (None until first put in one) and
-    number of visits."""
+    """The voter's survey row (None until the first save), Kutumb row (None until first put in one),
+    number of visits and voted mark (None until marked)."""
     return (world.conn.execute("SELECT version, notes, updated_at FROM app.voter_surveys WHERE voter_id = %s",
                                (voter_id,)).fetchone(),
             world.conn.execute("SELECT family_id, updated_at FROM app.family_members WHERE voter_id = %s",
                                (voter_id,)).fetchone(),
-            world.conn.execute("SELECT count(*) FROM app.visits WHERE voter_id = %s", (voter_id,)).fetchone()[0])
+            world.conn.execute("SELECT count(*) FROM app.visits WHERE voter_id = %s", (voter_id,)).fetchone()[0],
+            world.conn.execute("SELECT is_voted, updated_at FROM app.voter_turnout WHERE voter_id = %s",
+                               (voter_id,)).fetchone())
 
 
 def _make_family(world, where: str) -> uuid.UUID:
