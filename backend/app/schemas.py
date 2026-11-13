@@ -253,11 +253,10 @@ class SurveyFields(BaseModel):
     extra_info_3: str | None = Field(None, max_length=500)
     extra_info_4: str | None = Field(None, max_length=500)
     extra_info_5: str | None = Field(None, max_length=500)
-    # Client changes of 12 Nov (SRS 1.1)
-    is_important: bool = Field(False, description="Important voter")
-    position_id: uuid.UUID | None = Field(None, description="From the positions list; only with is_important")
+    # Client changes of 12 Nov (SRS 1.1); no Important voter field (7.13)
     is_influencer: bool = False
-    influencer_type_id: uuid.UUID | None = Field(None, description="From the influencer types list; only with is_influencer")
+    influencer_type_id: uuid.UUID | None = Field(None, description=(
+        "From the influencer types list (the client's 11 entries); only with is_influencer"))
     in_self_help_group: bool = Field(False, description="Member of a self help group")
     self_help_group_name: str | None = Field(None, max_length=200, description="Only with in_self_help_group")
     ration_card: RationCard | None = None
@@ -269,10 +268,25 @@ class Location(BaseModel):
     accuracy_m: float | None = Field(None, ge=0)
 
 
+# Taken out of the survey on 12 Nov (task 7.13). An app that still sends them is out of date: 422, so
+# the worker updates instead of the value being dropped without a word.
+REMOVED_SURVEY_FIELDS = ("is_important", "position_id")
+
+
 class SurveyIn(SurveyFields):
     version: int = Field(ge=0, description="The survey version you last saw; 0 if the voter had no survey yet")
     location: Location | None = Field(None, description=(
         "Where the phone was when the survey was saved. Left out: the previous location is kept."))
+
+    @model_validator(mode="before")
+    @classmethod
+    def _removed(cls, data):
+        if isinstance(data, dict):
+            sent = [f for f in REMOVED_SURVEY_FIELDS if f in data]
+            if sent:
+                raise ValueError(f"{', '.join(sent)}: removed from the survey (no Important voter field); "
+                                 "update the app")
+        return data
 
     @model_validator(mode="after")
     def _check(self) -> SurveyIn:
@@ -282,8 +296,6 @@ class SurveyIn(SurveyFields):
             raise ValueError("new_address_* needs has_new_address = true")
         if self.dob and not (date(1900, 1, 1) <= self.dob <= date.today()):
             raise ValueError("dob must be between 1900-01-01 and today")
-        if self.position_id and not self.is_important:
-            raise ValueError("position_id needs is_important = true")
         if self.influencer_type_id and not self.is_influencer:
             raise ValueError("influencer_type_id needs is_influencer = true")
         if self.self_help_group_name and not self.in_self_help_group:
@@ -432,7 +444,7 @@ class SyncVoter(BaseModel):
 
 
 class NamedListEntry(BaseModel):
-    """An entry of a simple list: caste, profession, position or influencer type."""
+    """An entry of a simple list: caste, profession or influencer type."""
     id: uuid.UUID
     name_mr: str
     name_en: str | None
@@ -466,7 +478,6 @@ class SyncLists(BaseModel):
     professions: list[NamedListEntry]
     color_tags: list[ColorTag]
     custom_field_labels: list[CustomFieldLabel]
-    positions: list[NamedListEntry] = Field(description="Positions of important voters")
     influencer_types: list[NamedListEntry]
 
 

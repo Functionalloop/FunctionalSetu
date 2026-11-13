@@ -1,6 +1,6 @@
 # Database
 
-Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`) and `003_kutumb_members.sql` (7.1, 13 Nov). Next: `004_client_changes_final.sql` (7.13), `005_change_requests.sql` (Step 14). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
+Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`) `003_kutumb_members.sql` (7.1, 13 Nov) and `004_client_changes_final.sql` (7.13, 13 Nov). Next: `005_change_requests.sql` (Step 14). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
 
 ## Roles
 
@@ -51,6 +51,7 @@ python scripts/check_dev_data.py                          # end-of-step check on
 - Users in `naik` (11 Nov): only the four demo users from `create_demo_users.py` (demo.superadmin, demo.admin, demo.supervisor = wards of parts 1-2, demo.surveyor = booths of parts 1-2, 872 voters). All must change their temporary password at first login. **No real super admin yet**: create it with `create_super_admin.py` when the client names the person; switch the demo users off after the demo (`--remove`).
 - `--reset` before each rehearsal: new temporary passwords, sessions ended, demo phones back to pending.
 - 002 (12 Nov): white colour tag switched off in every workspace and no longer seeded; tables `positions`, `influencer_types` (placeholder entries from `app.seed_client_lists`, also run for existing workspaces), `part_notes` (one row per booth, `version`); survey columns for position, influencer type, self help group, ration card; `tenant_settings.polling_start_time` / `polling_end_time`.
+- 004 (13 Nov): `positions` and `voter_surveys.position_id` dropped; `voter_surveys.is_important` kept, unused (comment on the column). `app.seed_client_lists` now gives the client's 11 influencer types (`ON CONFLICT (tenant_id, name_mr) DO UPDATE`, so re-running it is safe); the 002 placeholders are deleted, or switched off where a survey uses one ("Social worker" became "Social Worker"). Dev DB `naik` after 004: 11 active, 1 inactive (a rehearsal survey uses it).
 - 003 (13 Nov): `family_members` (PK `voter_id` = one Kutumb at most; `family_id` NULL = taken out, the row stays so a delta pull sees it; touch, audit, RLS). `voter_surveys.family_id` and `families.head_voter_id` stay in the schema **unused**: membership in `voter_surveys` would raise the survey version (false 409s) and create survey rows.
 - Not imported (decided): the old VoterappDB data. `scripts/import_legacy.py` is not run; `import_roll_parts.py` reuses its helpers.
 - Import leaves: no Marathi names, no `voter_surveys` rows (first survey save creates it), no `families`.

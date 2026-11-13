@@ -61,8 +61,9 @@ class OutboxRepository @Inject constructor(private val local: LocalDb) {
 
 /**
  * The PUT /voters/{id}/survey body without `version` (SurveyIn). The server replaces every field,
- * so every field the phone knows is sent. A detail is sent only with its yes (the server refuses a
- * position without "important", and so on). `location` only when taken at this save.
+ * so every field the phone knows is sent. A detail is sent only with its yes (the server refuses an
+ * influencer type without "influencer", and so on). `location` only when taken at this save.
+ * Never `is_important` or `position_id`: removed in 7.13, the server refuses an item that has them.
  */
 fun surveyPushData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
     put("mobile_1", s.mobile1)
@@ -82,8 +83,6 @@ fun surveyPushData(s: SurveyEntity, fix: Fix?): JsonObject = buildJsonObject {
     put("extra_info_3", s.extraInfo3)
     put("extra_info_4", s.extraInfo4)
     put("extra_info_5", s.extraInfo5)
-    put("is_important", s.isImportant)
-    put("position_id", s.positionId.takeIf { s.isImportant })
     put("is_influencer", s.isInfluencer)
     put("influencer_type_id", s.influencerTypeId.takeIf { s.isInfluencer })
     put("in_self_help_group", s.inSelfHelpGroup)

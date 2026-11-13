@@ -72,6 +72,8 @@ android {
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     testOptions { unitTests.isReturnDefaultValues = true }
+    // Room's exported schemas, for MigrationTest (7.13)
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
 }
 
 ksp {
@@ -120,4 +122,5 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.okhttp.mockwebserver)
+    androidTestImplementation(libs.room.testing)
 }

@@ -1,5 +1,6 @@
-"""Client changes of 12 Nov (task 5.14): new survey fields, the two new lists, no white colour tag,
-the Important voters filter, part notes table and polling time. Fake data only."""
+"""Client changes of 12 Nov: survey fields (5.14), the final list (7.13: no Important voter field and no
+positions; the client's 11 influencer types; Influencer filter), no white colour tag, part notes table and
+polling time. Fake data only."""
 
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ def ws(make_workspace, owner_conn):
         return owner_conn.execute(f"SELECT id FROM app.{table} WHERE tenant_id = %s ORDER BY sort_order LIMIT 1",
                                   (w.tenant,)).fetchone()[0]
 
-    w.position, w.influencer_type = first("positions"), first("influencer_types")
+    w.influencer_type = first("influencer_types")
     return w
 
 
@@ -45,14 +46,26 @@ def save(client, ws, headers, voter=0, **body):
 
 
 # --- lists and colour tags ------------------------------------------------------------
-def test_new_workspace_has_no_white_tag_and_has_placeholder_lists(ws, owner_conn):
+CLIENT_INFLUENCERS = ["Sarpanch", "Panch Member", "Up Sarpanch", "ZP Member", "Ex. ZP Member", "MLA", "Ex. MLA",
+                      "NGO", "Social Worker", "News Reporter", "Social Media Influencer"]
+
+
+def test_new_workspace_has_no_white_tag_and_the_clients_influencer_list(ws, owner_conn):
     codes = [r[0] for r in owner_conn.execute(
         "SELECT code FROM app.color_tags WHERE tenant_id = %s ORDER BY sort_order", (ws.tenant,))]
     assert codes == ["green", "red", "yellow"]
-    for table in ("positions", "influencer_types"):
-        n = owner_conn.execute(f"SELECT count(*) FROM app.{table} WHERE tenant_id = %s AND is_active",
-                               (ws.tenant,)).fetchone()[0]
-        assert n >= 5, table
+    names = [r[0] for r in owner_conn.execute(
+        "SELECT name_en FROM app.influencer_types WHERE tenant_id = %s AND is_active ORDER BY sort_order",
+        (ws.tenant,))]
+    assert names == CLIENT_INFLUENCERS
+
+
+def test_positions_are_gone_from_the_database(owner_conn):
+    assert owner_conn.execute("SELECT to_regclass('app.positions')").fetchone()[0] is None
+    cols = {r[0] for r in owner_conn.execute(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'app' "
+        "AND table_name = 'voter_surveys'")}
+    assert "position_id" not in cols and "is_important" in cols  # kept, no longer used
 
 
 def test_white_tag_of_an_old_workspace_is_switched_off(ws, owner_conn, client, surveyor):
@@ -64,17 +77,16 @@ def test_white_tag_of_an_old_workspace_is_switched_off(ws, owner_conn, client, s
     assert r.status_code == 422 and "color_tag_id" in r.json()["error"]["message"]
 
 
-def test_pull_sends_the_two_new_lists(client, ws, surveyor):
+def test_pull_sends_the_influencer_list_and_no_positions(client, ws, surveyor):
     lists = client.get(f"{API}/sync/pull", headers=surveyor).json()["lists"]
-    assert str(ws.position) in [e["id"] for e in lists["positions"]]
-    assert str(ws.influencer_type) in [e["id"] for e in lists["influencer_types"]]
+    assert "positions" not in lists
+    assert [e["name_en"] for e in lists["influencer_types"] if e["is_active"]] == CLIENT_INFLUENCERS
     assert "white" not in [t["code"] for t in lists["color_tags"]]
 
 
 # --- survey fields --------------------------------------------------------------------
 def test_new_fields_round_trip(client, ws, surveyor):
-    body = {"is_important": True, "position_id": str(ws.position), "is_influencer": True,
-            "influencer_type_id": str(ws.influencer_type), "in_self_help_group": True,
+    body = {"is_influencer": True, "influencer_type_id": str(ws.influencer_type), "in_self_help_group": True,
             "self_help_group_name": "Fake Mahila Gat", "ration_card": "PHH"}
     r = save(client, ws, surveyor, **body)
     assert r.status_code == 200, r.text
@@ -85,12 +97,15 @@ def test_new_fields_round_trip(client, ws, surveyor):
     # PUT replaces everything: leaving the fields out clears them.
     r = client.put(f"{API}/voters/{ws.voters[0]}/survey", headers=surveyor, json={"version": 1})
     s = r.json()
-    assert s["is_important"] is False and s["position_id"] is None and s["ration_card"] is None
+    assert s["is_influencer"] is False and s["influencer_type_id"] is None and s["ration_card"] is None
+    assert "is_important" not in s and "position_id" not in s
     assert s["in_self_help_group"] is False and s["self_help_group_name"] is None
 
 
 @pytest.mark.parametrize("body", [
-    {"position_id": "POS"},                                   # position without "important"
+    {"is_important": True},                                   # removed field (7.13)
+    {"is_important": False},
+    {"position_id": None},
     {"influencer_type_id": "INF"},                            # type without "influencer"
     {"self_help_group_name": "Fake Gat"},                     # group name without "self help group"
     {"ration_card": "APL"},                                   # only AAY, PHH, NPHH
@@ -98,17 +113,18 @@ def test_new_fields_round_trip(client, ws, surveyor):
     {"in_self_help_group": True, "self_help_group_name": "x" * 201},
 ])
 def test_bad_new_fields_are_422(client, ws, surveyor, body):
-    body = {k: (str(ws.position) if v == "POS" else str(ws.influencer_type) if v == "INF" else v)
-            for k, v in body.items()}
+    body = {k: (str(ws.influencer_type) if v == "INF" else v) for k, v in body.items()}
     r = save(client, ws, surveyor, **body)
     assert r.status_code == 422, r.text
+    if "is_important" in body or "position_id" in body:
+        assert "update the app" in r.text
 
 
 def test_list_entry_of_another_workspace_or_inactive_is_422(client, ws, surveyor, make_workspace, owner_conn):
     other = make_workspace("cc-other")
-    foreign = owner_conn.execute("SELECT id FROM app.positions WHERE tenant_id = %s LIMIT 1",
+    foreign = owner_conn.execute("SELECT id FROM app.influencer_types WHERE tenant_id = %s LIMIT 1",
                                  (other.tenant,)).fetchone()[0]
-    assert save(client, ws, surveyor, is_important=True, position_id=str(foreign)).status_code == 422
+    assert save(client, ws, surveyor, is_influencer=True, influencer_type_id=str(foreign)).status_code == 422
     owner_conn.execute("UPDATE app.influencer_types SET is_active = false WHERE id = %s", (ws.influencer_type,))
     r = save(client, ws, surveyor, is_influencer=True, influencer_type_id=str(ws.influencer_type))
     assert r.status_code == 422
@@ -116,36 +132,44 @@ def test_list_entry_of_another_workspace_or_inactive_is_422(client, ws, surveyor
 
 def test_push_takes_the_new_fields(client, ws, surveyor):
     item = {"id": str(uuid.uuid4()), "type": "survey", "entity_id": str(ws.voters[1]), "base_version": 0,
-            "data": {"is_important": True, "position_id": str(ws.position), "ration_card": "AAY"}}
+            "data": {"is_influencer": True, "influencer_type_id": str(ws.influencer_type), "ration_card": "AAY"}}
     res = client.post(f"{API}/sync/push", headers=surveyor, json={"items": [item]}).json()["results"][0]
     assert res["status"] == "applied", res
-    assert res["survey"]["position_id"] == str(ws.position) and res["survey"]["ration_card"] == "AAY"
+    assert res["survey"]["influencer_type_id"] == str(ws.influencer_type) and res["survey"]["ration_card"] == "AAY"
 
-    bad = {**item, "id": str(uuid.uuid4()), "entity_id": str(ws.voters[2]), "data": {"position_id": str(ws.position)}}
+    # An out-of-date app still sending the Important voter field: that item is refused.
+    bad = {**item, "id": str(uuid.uuid4()), "entity_id": str(ws.voters[2]), "data": {"is_important": False}}
     res = client.post(f"{API}/sync/push", headers=surveyor, json={"items": [bad]}).json()["results"][0]
     assert res["status"] == "rejected" and res["error"]["code"] == "validation_error"
 
 
-def test_database_refuses_a_position_without_important(ws, owner_conn):
+def test_database_refuses_a_type_without_influencer(ws, owner_conn):
     # The API checks it first; the database keeps it true for imports and scripts too.
     with pytest.raises(Exception, match="check"):
         owner_conn.execute(
-            "INSERT INTO app.voter_surveys (tenant_id, voter_id, position_id) VALUES (%s, %s, %s)",
-            (ws.tenant, ws.voters[0], ws.position))
+            "INSERT INTO app.voter_surveys (tenant_id, voter_id, influencer_type_id) VALUES (%s, %s, %s)",
+            (ws.tenant, ws.voters[0], ws.influencer_type))
 
 
-# --- Important voters filter ------------------------------------------------------------
-def test_important_filter(client, ws, surveyor):
-    assert save(client, ws, surveyor, voter=0, is_important=True).status_code == 200
-    assert save(client, ws, surveyor, voter=1, is_important=False).status_code == 200
+# --- Influencer filter (7.13) ---------------------------------------------------------------
+def test_influencer_filter_matches_a_direct_query(client, ws, surveyor, owner_conn):
+    second = owner_conn.execute("SELECT id FROM app.influencer_types WHERE tenant_id = %s AND id <> %s LIMIT 1",
+                                (ws.tenant, ws.influencer_type)).fetchone()[0]
+    assert save(client, ws, surveyor, voter=0, is_influencer=True,
+                influencer_type_id=str(ws.influencer_type)).status_code == 200
+    assert save(client, ws, surveyor, voter=1, is_influencer=True, influencer_type_id=str(second)).status_code == 200
+    assert save(client, ws, surveyor, voter=2, is_influencer=False).status_code == 200
 
     def found(**params):
         r = client.get(f"{API}/voters", headers=surveyor, params=params)
         assert r.status_code == 200, r.text
         return [uuid.UUID(v["id"]) for v in r.json()["items"]]
 
-    assert found(important="true") == [ws.voters[0]]
-    assert found(important="false") == [ws.voters[1], ws.voters[2]]  # voter 3 has no survey at all
+    direct = [r[0] for r in owner_conn.execute(
+        "SELECT voter_id FROM app.voter_surveys WHERE tenant_id = %s AND is_influencer", (ws.tenant,))]
+    assert sorted(found(influencer="true")) == sorted(direct) == sorted(ws.voters[:2])
+    assert found(influencer="false") == [ws.voters[2]]
+    assert found(influencer_type_id=str(second)) == [ws.voters[1]]
     assert len(found()) == 3
 
 

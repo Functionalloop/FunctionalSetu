@@ -90,7 +90,6 @@ class VoterViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     val castes = db.lists().entries("caste")
     val professions = db.lists().entries("profession")
-    val positions = db.lists().entries("position")
     val influencerTypes = db.lists().entries("influencer_type")
     val colorTags = db.lists().colorTags()
 }

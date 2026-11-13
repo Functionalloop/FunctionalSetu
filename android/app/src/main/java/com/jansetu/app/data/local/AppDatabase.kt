@@ -1,9 +1,16 @@
 package com.jansetu.app.data.local
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DeleteColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.AutoMigrationSpec
+import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import javax.inject.Inject
@@ -15,8 +22,9 @@ import javax.inject.Singleton
         ListEntryEntity::class, ColorTagEntity::class, CustomFieldLabelEntity::class,
         OutboxEntity::class, SyncStateEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 2, to = 3, spec = Migration2To3::class)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun voters(): VoterDao
@@ -27,6 +35,34 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "jansetu.db"
+    }
+}
+
+/**
+ * Version 3 (7.13, client approved the app flow 13 Nov): no Important voter field and no positions list.
+ * Room rebuilds `surveys` without the two columns, keeping every row (pending and conflict flags too).
+ * Unsent outbox items were stored as JSON with `is_important` / `position_id`, which the server now
+ * refuses (and a refused item is dropped): the keys are taken out here so those surveys still go up.
+ */
+@DeleteColumn.Entries(
+    DeleteColumn(tableName = "surveys", columnName = "is_important"),
+    DeleteColumn(tableName = "surveys", columnName = "position_id"),
+)
+class Migration2To3 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DELETE FROM list_entries WHERE kind = 'position'")
+        val fixed = mutableListOf<Pair<String, String>>()
+        db.query("SELECT id, data FROM outbox WHERE type = 'survey'").use { c ->
+            while (c.moveToNext()) {
+                val data = Json.parseToJsonElement(c.getString(1)).jsonObject
+                if (REMOVED.any { it in data }) fixed += c.getString(0) to JsonObject(data - REMOVED).toString()
+            }
+        }
+        fixed.forEach { (id, data) -> db.execSQL("UPDATE outbox SET data = ? WHERE id = ?", arrayOf(data, id)) }
+    }
+
+    companion object {
+        val REMOVED = setOf("is_important", "position_id")
     }
 }
 
@@ -61,7 +97,8 @@ class LocalDb @Inject constructor(
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(passphrase))
             // Version 2 (12 Nov, client's survey fields): no phone held real data on version 1, so its
-            // file is dropped and downloaded again. From version 2 on, write real migrations.
+            // file is dropped and downloaded again. From version 2 on, real migrations only (2 -> 3 above):
+            // a destructive one would delete unsent changes.
             .fallbackToDestructiveMigrationFrom(1)
             .addCallback(object : RoomDatabase.Callback() {
                 // Every page read is decrypted; a bigger cache keeps search pages decrypted while typing.

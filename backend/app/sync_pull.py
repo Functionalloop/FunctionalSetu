@@ -53,7 +53,7 @@ def _changed(alias: str, since: str | None) -> str:
 
 
 def load_lists(conn: Connection, since: str | None = None) -> SyncLists:
-    """Castes, professions, colour tags, custom field labels, positions and influencer types
+    """Castes, professions, colour tags, custom field labels and influencer types
     (RLS: this workspace), inactive included.
     With `since`: only entries changed since then."""
     p = {"since": since}
@@ -69,8 +69,6 @@ def load_lists(conn: Connection, since: str | None = None) -> SyncLists:
         custom_field_labels=[CustomFieldLabel(**r) for r in _rows(
             conn, f"SELECT field_key::text AS field_key, label_mr, label_en, label_hi, is_enabled "
                   f"FROM app.custom_field_labels WHERE {ch} ORDER BY field_key", p)],
-        positions=[NamedListEntry(**r) for r in _rows(
-            conn, f"SELECT {_NAMED} FROM app.positions WHERE {ch} ORDER BY sort_order, name_mr", p)],
         influencer_types=[NamedListEntry(**r) for r in _rows(
             conn, f"SELECT {_NAMED} FROM app.influencer_types WHERE {ch} ORDER BY sort_order, name_mr", p)],
     )

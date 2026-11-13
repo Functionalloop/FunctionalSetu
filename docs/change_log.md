@@ -6,6 +6,10 @@ Every change the client asked for after the SRS, and what was decided. Newest li
 - **Replaces** = takes the place of an earlier note or of something already built.
 - **Change request** = not in SRS 1.1. Built only after the client approves the updated app flow; time and cost are agreed separately (SRS, "Change requests").
 
+## 13 Nov 2026: app flow approved
+
+The client approved the updated app flow and wireframes (`docs/app_flow_v2.pdf`) on 13 Nov. Task 7.13 (influencer only, no Important voter field) is built. The change requests (Step 14) still wait for the time and cost (open item 6 below).
+
 ## 13 Nov 2026: server provider (developer's change)
 
 Not asked by the client. SRS 1.1 ("Platform, hosting and security") says a KVM 4 VPS with 200 GB NVMe in an India region; the server is now a Bluehost VPS. The SRS text is not edited. The client was told on 13 Nov; work goes on without waiting for a written answer.

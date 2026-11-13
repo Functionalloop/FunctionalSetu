@@ -65,7 +65,8 @@ def list_voters(
     caste_id: uuid.UUID | None = None,
     profession_id: uuid.UUID | None = None,
     has_mobile: bool | None = None,
-    important: Annotated[bool | None, Query(description="true: important voters only; false: the others")] = None,
+    influencer: Annotated[bool | None, Query(description="true: influencers only; false: the others")] = None,
+    influencer_type_id: uuid.UUID | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: str | None = None,
 ) -> VoterPage:
@@ -96,7 +97,8 @@ def list_voters(
               "gender": ("v.gender = CAST(:gender AS app.gender)", gender),
               "color_tag_id": ("s.color_tag_id = :color_tag_id", color_tag_id),
               "caste_id": ("s.caste_id = :caste_id", caste_id),
-              "profession_id": ("s.profession_id = :profession_id", profession_id)}
+              "profession_id": ("s.profession_id = :profession_id", profession_id),
+              "influencer_type_id": ("s.influencer_type_id = :influencer_type_id", influencer_type_id)}
     for key, (sql, value) in simple.items():
         if value is not None:
             where.append(sql)
@@ -106,8 +108,8 @@ def list_voters(
         where.append(("" if survey_status == SurveyStatus.surveyed else "NOT ") + "coalesce(s.is_surveyed, false)")
     if has_mobile is not None:
         where.append("s.mobile_1 IS " + ("NOT NULL" if has_mobile else "NULL"))
-    if important is not None:
-        where.append(("" if important else "NOT ") + "coalesce(s.is_important, false)")
+    if influencer is not None:
+        where.append(("" if influencer else "NOT ") + "coalesce(s.is_influencer, false)")
 
     if cursor:
         params.update(_decode_cursor(cursor))
@@ -157,10 +159,10 @@ def read_survey(conn: Connection, voter_id: uuid.UUID) -> Survey | None:
 
 
 def check_survey_references(conn: Connection, body: SurveyIn) -> None:
-    """Caste, profession, colour tag, position and influencer type must be active entries of this
+    """Caste, profession, colour tag and influencer type must be active entries of this
     workspace (RLS), else 422."""
     for field, table in (("caste_id", "castes"), ("profession_id", "professions"), ("color_tag_id", "color_tags"),
-                         ("position_id", "positions"), ("influencer_type_id", "influencer_types")):
+                         ("influencer_type_id", "influencer_types")):
         value = getattr(body, field)
         if value is not None and not conn.execute(
                 text(f"SELECT EXISTS (SELECT 1 FROM app.{table} WHERE id = :id AND is_active)"), {"id": value}).scalar():

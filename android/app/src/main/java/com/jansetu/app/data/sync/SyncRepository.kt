@@ -131,7 +131,7 @@ class SyncRepository @Inject constructor(
         page.lists?.let { l ->
             db.lists().upsertEntries(
                 l.castes.map { it.toEntity("caste") } + l.professions.map { it.toEntity("profession") } +
-                    l.positions.map { it.toEntity("position") } + l.influencerTypes.map { it.toEntity("influencer_type") },
+                    l.influencerTypes.map { it.toEntity("influencer_type") },
             )
             db.lists().upsertColorTags(l.colorTags.map { it.toEntity() })
             db.lists().upsertLabels(l.customFieldLabels.map { it.toEntity() })

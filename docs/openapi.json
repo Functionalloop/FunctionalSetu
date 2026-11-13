@@ -1193,7 +1193,7 @@
             }
           },
           {
-            "name": "important",
+            "name": "influencer",
             "in": "query",
             "required": false,
             "schema": {
@@ -1205,10 +1205,27 @@
                   "type": "null"
                 }
               ],
-              "description": "true: important voters only; false: the others",
-              "title": "Important"
+              "description": "true: influencers only; false: the others",
+              "title": "Influencer"
             },
-            "description": "true: important voters only; false: the others"
+            "description": "true: influencers only; false: the others"
+          },
+          {
+            "name": "influencer_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Influencer Type Id"
+            }
           },
           {
             "name": "limit",
@@ -15721,7 +15738,7 @@
           "is_active"
         ],
         "title": "NamedListEntry",
-        "description": "An entry of a simple list: caste, profession, position or influencer type."
+        "description": "An entry of a simple list: caste, profession or influencer type."
       },
       "NewVoter": {
         "properties": {
@@ -17563,25 +17580,6 @@
             ],
             "title": "Extra Info 5"
           },
-          "is_important": {
-            "type": "boolean",
-            "title": "Is Important",
-            "description": "Important voter",
-            "default": false
-          },
-          "position_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position Id",
-            "description": "From the positions list; only with is_important"
-          },
           "is_influencer": {
             "type": "boolean",
             "title": "Is Influencer",
@@ -17598,7 +17596,7 @@
               }
             ],
             "title": "Influencer Type Id",
-            "description": "From the influencer types list; only with is_influencer"
+            "description": "From the influencer types list (the client's 11 entries); only with is_influencer"
           },
           "in_self_help_group": {
             "type": "boolean",
@@ -17939,25 +17937,6 @@
             ],
             "title": "Extra Info 5"
           },
-          "is_important": {
-            "type": "boolean",
-            "title": "Is Important",
-            "description": "Important voter",
-            "default": false
-          },
-          "position_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position Id",
-            "description": "From the positions list; only with is_important"
-          },
           "is_influencer": {
             "type": "boolean",
             "title": "Is Influencer",
@@ -17974,7 +17953,7 @@
               }
             ],
             "title": "Influencer Type Id",
-            "description": "From the influencer types list; only with is_influencer"
+            "description": "From the influencer types list (the client's 11 entries); only with is_influencer"
           },
           "in_self_help_group": {
             "type": "boolean",
@@ -18205,14 +18184,6 @@
             "type": "array",
             "title": "Custom Field Labels"
           },
-          "positions": {
-            "items": {
-              "$ref": "#/components/schemas/NamedListEntry"
-            },
-            "type": "array",
-            "title": "Positions",
-            "description": "Positions of important voters"
-          },
           "influencer_types": {
             "items": {
               "$ref": "#/components/schemas/NamedListEntry"
@@ -18227,7 +18198,6 @@
           "professions",
           "color_tags",
           "custom_field_labels",
-          "positions",
           "influencer_types"
         ],
         "title": "SyncLists"

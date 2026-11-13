@@ -65,7 +65,7 @@ data class VoterEntity(
  * The phone's copy of a voter's survey. [version] is the last version the server confirmed
  * (0 = none yet); a local save keeps it and sets [pending] until the push result arrives.
  */
-@Entity(tableName = "surveys", indices = [Index("color_tag_id"), Index("is_surveyed"), Index("is_important")])
+@Entity(tableName = "surveys", indices = [Index("color_tag_id"), Index("is_surveyed"), Index("is_influencer")])
 data class SurveyEntity(
     @PrimaryKey @ColumnInfo(name = "voter_id") val voterId: String,
     @ColumnInfo(name = "mobile_1") val mobile1: String? = null,
@@ -85,9 +85,7 @@ data class SurveyEntity(
     @ColumnInfo(name = "extra_info_3") val extraInfo3: String? = null,
     @ColumnInfo(name = "extra_info_4") val extraInfo4: String? = null,
     @ColumnInfo(name = "extra_info_5") val extraInfo5: String? = null,
-    // Client changes of 12 Nov (SRS 1.1)
-    @ColumnInfo(name = "is_important") val isImportant: Boolean = false,
-    @ColumnInfo(name = "position_id") val positionId: String? = null,
+    // Client changes of 12 Nov (SRS 1.1); no Important voter field or position since 7.13 (database version 3)
     @ColumnInfo(name = "is_influencer") val isInfluencer: Boolean = false,
     @ColumnInfo(name = "influencer_type_id") val influencerTypeId: String? = null,
     @ColumnInfo(name = "in_self_help_group") val inSelfHelpGroup: Boolean = false,
@@ -108,7 +106,7 @@ data class SurveyEntity(
     val conflict: Boolean = false,
 )
 
-/** Simple lists: kind = "caste" | "profession" | "position" | "influencer_type". */
+/** Simple lists: kind = "caste" | "profession" | "influencer_type". */
 @Entity(tableName = "list_entries", indices = [Index("kind")])
 data class ListEntryEntity(
     @PrimaryKey val id: String,

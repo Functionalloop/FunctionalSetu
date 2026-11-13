@@ -220,7 +220,7 @@ def test_nothing_changed_sends_no_rows(client, area):
     assert d.ids("voters") == d.ids("surveys", "voter_id") == d.gone == []
     assert d.first["areas"] == [] and d.first["settings"] is None
     assert d.first["lists"] == {"castes": [], "professions": [], "color_tags": [], "custom_field_labels": [],
-                                "positions": [], "influencer_types": []}
+                                "influencer_types": []}
     assert set(map(uuid.UUID, d.first["area_ids"])) == {area.ward, *area.booths, area.section}
     assert len(d.pages) == 1  # an idle sync is one request
 

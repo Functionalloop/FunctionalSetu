@@ -15,11 +15,11 @@ data class VoterFilter(
     val colorTagId: String? = null,
     /** true = surveyed, false = not surveyed, null = both. */
     val surveyed: Boolean? = null,
-    /** true = important voters only (client, 12 Nov); null = everyone. */
-    val important: Boolean? = null,
+    /** true = influencers only (client, 12 Nov; replaced the Important filter in 7.13); null = everyone. */
+    val influencer: Boolean? = null,
 ) {
     val activeFilterCount: Int
-        get() = listOf(wardId, boothId, ageMin ?: ageMax, gender, colorTagId, surveyed, important).count { it != null }
+        get() = listOf(wardId, boothId, ageMin ?: ageMax, gender, colorTagId, surveyed, influencer).count { it != null }
 }
 
 /** One line of a result list. */
@@ -97,7 +97,7 @@ object VoterQuery {
         f.gender?.let { w += "v.gender = ?"; a += it }
         f.colorTagId?.let { w += "s.color_tag_id = ?"; a += it }
         f.surveyed?.let { w += if (it) "coalesce(s.is_surveyed, 0) = 1" else "coalesce(s.is_surveyed, 0) = 0" }
-        f.important?.let { w += if (it) "coalesce(s.is_important, 0) = 1" else "coalesce(s.is_important, 0) = 0" }
+        f.influencer?.let { w += if (it) "coalesce(s.is_influencer, 0) = 1" else "coalesce(s.is_influencer, 0) = 0" }
         return (if (w.isEmpty()) "1" else w.joinToString(" AND ")) to a
     }
 }

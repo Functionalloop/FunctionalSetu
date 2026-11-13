@@ -5,35 +5,34 @@ import com.jansetu.app.data.surveyPushData
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 5.16: the client's survey fields of 12 Nov, from the form to the push item. */
+/** 5.16 and 7.13: the client's survey fields of 12 Nov, from the form to the push item. */
 class SurveyFormTest {
     private val stored = SurveyEntity(
-        voterId = "v1", isImportant = true, positionId = "pos-1", isInfluencer = true, influencerTypeId = "inf-1",
+        voterId = "v1", isInfluencer = true, influencerTypeId = "inf-1",
         inSelfHelpGroup = true, selfHelpGroupName = "Fake Gat", rationCard = "PHH", extraInfo1 = "kept",
     )
 
     @Test fun formReadsTheStoredCopy() {
         val f = SurveyForm.of(stored)
-        assertEquals(true, f.isImportant)
-        assertEquals("pos-1", f.positionId)
+        assertEquals(true, f.isInfluencer)
         assertEquals("inf-1", f.influencerTypeId)
         assertEquals("Fake Gat", f.selfHelpGroupName)
         assertEquals("PHH", f.rationCard)
     }
 
-    @Test fun switchingImportantOffClearsThePositionInTheSavedItem() {
-        val f = SurveyForm.of(stored).copy(isImportant = false)
-        val saved = f.applyTo(stored)
-        assertEquals(false, saved.isImportant)
-        assertNull(saved.positionId)
+    @Test fun switchingInfluencerOffClearsTheTypeInTheSavedItem() {
+        val saved = SurveyForm.of(stored).copy(isInfluencer = false).applyTo(stored)
+        assertEquals(false, saved.isInfluencer)
+        assertNull(saved.influencerTypeId)
 
         val data = surveyPushData(saved, null)
-        assertEquals("false", data["is_important"]!!.jsonPrimitive.content)
-        assertEquals(JsonNull, data["position_id"])
+        assertEquals("false", data["is_influencer"]!!.jsonPrimitive.content)
+        assertEquals(JsonNull, data["influencer_type_id"])
     }
 
     @Test fun eachDetailGoesOnlyWithItsYes() {
@@ -41,16 +40,21 @@ class SurveyFormTest {
         assertNull(saved.influencerTypeId)
         assertNull(saved.selfHelpGroupName)
         // Even if a stale row still held them, the push data never sends a detail without its yes.
-        val data = surveyPushData(stored.copy(isImportant = false, isInfluencer = false, inSelfHelpGroup = false), null)
-        assertEquals(JsonNull, data["position_id"])
+        val data = surveyPushData(stored.copy(isInfluencer = false, inSelfHelpGroup = false), null)
         assertEquals(JsonNull, data["influencer_type_id"])
         assertEquals(JsonNull, data["self_help_group_name"])
+    }
+
+    @Test fun pushDataNeverHasTheRemovedImportantFields() {
+        // 7.13: the server refuses an item with is_important or position_id.
+        val data = surveyPushData(SurveyForm.of(stored).applyTo(stored), null)
+        assertFalse("is_important" in data)
+        assertFalse("position_id" in data)
     }
 
     @Test fun keptValuesAndRationCardGoInThePushData() {
         val saved = SurveyForm.of(stored).applyTo(stored)
         val data = surveyPushData(saved, null)
-        assertEquals("pos-1", data["position_id"]!!.jsonPrimitive.content)
         assertEquals("inf-1", data["influencer_type_id"]!!.jsonPrimitive.content)
         assertEquals("Fake Gat", data["self_help_group_name"]!!.jsonPrimitive.content)
         assertEquals("PHH", data["ration_card"]!!.jsonPrimitive.content)

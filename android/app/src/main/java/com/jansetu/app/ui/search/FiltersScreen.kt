@@ -106,10 +106,10 @@ fun FiltersScreen(db: AppDatabase, initial: VoterFilter, onApply: (VoterFilter) 
                     }
                 }
 
-                Text("Important voters", style = MaterialTheme.typography.titleSmall)
+                Text("Influencers", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(f.important == true, { f = f.copy(important = if (f.important == true) null else true) },
-                        { Text("Important only") })
+                    FilterChip(f.influencer == true, { f = f.copy(influencer = if (f.influencer == true) null else true) },
+                        { Text("Influencers only") })
                 }
 
                 Text("Survey", style = MaterialTheme.typography.titleSmall)

@@ -115,7 +115,7 @@ Not created yet:      backend/app/worker.py, portal/ (teammate)
 - **Step 4 done (11 Nov):** area scope and role lists, area tree, voter search / detail / survey, admin phone list, sync pull (first + delta + wipe) and push for surveys, demo users (`scripts/create_demo_users.py`), the full contract (82 more endpoints answer 501 until built), generic endpoint checks, per-runner test databases. 1,131 tests; `scripts/check_dev_data.py` all pass.
 - **Step 5 done (12 Nov):** Android demo app (`android/`, see `context/android.md`): login, phone approval, first download, offline search and filters, voter details with call / WhatsApp / SMS, survey with the client's fields of 12 Nov, outbox sync. Migration `002_client_changes.sql`. Rehearsed on two real phones (Android 15 and 16). 1,178 backend tests; `check_dev_data.py` all pass.
 - **Step 6 done (13 Nov):** Bluehost VPS live at `https://myjansetu.com` (Caddy HTTPS, api, db; SSH key only, ufw), nightly backup + restore with the transaction counter moved, the real roll on the server, `GET /app/version` and APK download, release key (outside the repo) and APK 0.1.0 published, Phones screen in the app (approve / block) + `approve_phone.py`, laptop fallback (debug build: server address on the Login screen; `scripts/fallback.ps1`). See `context/deploy.md`. 1,204 backend tests; `check_dev_data.py` all pass.
-- **Step 7 started (13 Nov, branch `step7-field`):** 7.1 Kutumb Connect API (members in `family_members`, migration 003). 7.13 waits for the client. 1,249 backend tests.
+- **Step 7 started (13 Nov, branch `step7-field`):** 7.1 Kutumb Connect API (members in `family_members`, migration 003); 7.13 influencer only (migration 004, phone database version 3). 1,252 backend tests.
 - **Next:** Demo (24–25 Nov), then the 501 stubs (steps 7–11); the web portal is planned later (the teammate may not deliver it); see `docs/plan.md`.
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
@@ -124,8 +124,8 @@ What the import left for later steps: one booth per part, no Marathi voter names
 
 The client changed the scope twice on 12 Nov. The evening list (`docs/client_changes_12nov.pdf`) replaces the morning one where they differ. Every item and its decision is in `docs/change_log.md`; the tasks are in `docs/plan.md`. In short:
 
-- **Waiting for the client:** the updated app flow and wireframes (`docs/app_flow_v2.pdf`, source `docs/app_flow/`) must be approved before task 7.13 and Step 14 start. Step 6 and the other SRS 1.1 work go on.
-- **Survey:** no white colour tag; influencer yes / no + the client's 11 entries; self help group + name; ration card (AAY / PHH / NPHH); an Influencer filter. **No Important voter field and no positions list**: what 5.14–5.16 built for them is removed in task 7.13 (migration `004_client_changes_final.sql`). No two-wheeler or mandal/group field.
+- **App flow approved (13 Nov):** `docs/app_flow_v2.pdf` (source `docs/app_flow/`). 7.13 is built. Step 14 still waits for the time and cost of the change requests.
+- **Survey:** no white colour tag; influencer yes / no + the client's 11 entries; self help group + name; ration card (AAY / PHH / NPHH); an Influencer filter. **No Important voter field and no positions list**: what 5.14–5.16 built for them was removed in task 7.13 (migration `004_client_changes_final.sql`, 13 Nov; `voter_surveys.is_important` stays as an unused column). No two-wheeler or mandal/group field.
 - **Kutumb Connect** (the name for Family everywhere): made by hand by surveyors, free-text name, no head. Do not group voters by house number (no `scripts/build_families.py`), although the client's PDF says automatic: I decided this on 12 Nov and the app flow asks the client to confirm. The walk list still goes by house number.
 - **WhatsApp to at most 5 voters** at a time through the phone's own WhatsApp. No bulk message screen, no bulk SMS, nothing of it on the portal.
 - **Names:** History tab = "Information Updation"; New voter / Not registered = "Eligible but Not Registered"; Roll update = "Matching Engine" (its own menu item). API paths keep their names.
@@ -135,7 +135,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - **Change requests (Step 14, only after approval):** Village Panchayat level, surname search, eight reports at three levels with Excel / PDF / CSV, Matching Engine results and report, Know My Constituency (admin and super admin; "core staff" = super admin).
 - **Goa, not Maharashtra:** AC 2 is in Goa. Area levels are Constituency → Village Panchayat or Municipal Council → Part. No gat, gan or Panchayat Samiti; ZP = Zilla Panchayat. The `ward` level in the schema and API is the Village Panchayat.
 - **Scanned roll PDFs are in scope** (Step 13, after the demo): OCR with free tools on our own machines; see `context/roll_ocr.md`.
-- Migrations: `002_client_changes.sql` and `003_kutumb_members.sql` (7.1, 13 Nov) are applied (do not edit them); 7.13 adds `004_client_changes_final.sql`; all of Step 14 goes into one `005_change_requests.sql`.
+- Migrations: `002_client_changes.sql`, `003_kutumb_members.sql` (7.1) and `004_client_changes_final.sql` (7.13) are applied (do not edit them); all of Step 14 goes into one `005_change_requests.sql`.
 
 ## Open questions with client
 

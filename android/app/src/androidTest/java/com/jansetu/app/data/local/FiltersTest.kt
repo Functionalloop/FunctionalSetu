@@ -26,7 +26,7 @@ class FiltersTest {
         local.wipe()
         local.db.lists().upsertColorTags(listOf(ColorTagEntity(red, "red", "#E53935", "लाल", "Red", false, 1, true)))
         // 600 voters: every third one in ward 2 / booth 2; every fourth surveyed, every eighth tagged red,
-        // every twelfth important.
+        // every twelfth an influencer.
         val voters = (0 until 600).map { i ->
             val v = FakeVoters.voter(i)
             if (i % 3 == 0) v.copy(wardId = ward2, boothId = booth2) else v
@@ -34,7 +34,7 @@ class FiltersTest {
         local.db.voters().savePulledVoters(voters, emptyList())
         local.db.voters().savePulledSurveys(voters.filterIndexed { i, _ -> i % 4 == 0 }.mapIndexed { n, v ->
             SurveyEntity(voterId = v.id, isSurveyed = true, version = 1, colorTagId = if (n % 2 == 0) red else null,
-                isImportant = n % 3 == 0)
+                isInfluencer = n % 3 == 0)
         })
     }
 
@@ -64,7 +64,7 @@ class FiltersTest {
         same(VoterFilter(colorTagId = red), "s.color_tag_id = ?", red)
         same(VoterFilter(surveyed = true), "s.is_surveyed = 1")
         same(VoterFilter(surveyed = false), "s.voter_id IS NULL OR s.is_surveyed = 0")
-        same(VoterFilter(important = true), "s.is_important = 1")
+        same(VoterFilter(influencer = true), "s.is_influencer = 1")
     }
 
     @Test fun twoTogether() {
@@ -73,7 +73,7 @@ class FiltersTest {
         same(VoterFilter(ageMin = 30, ageMax = 60, colorTagId = red), "v.age BETWEEN 30 AND 60 AND s.color_tag_id = ?", red)
         same(VoterFilter(gender = "F", surveyed = false), "v.gender = 'F' AND (s.voter_id IS NULL OR s.is_surveyed = 0)")
         same(VoterFilter(q = "patil", wardId = ward2), "v.last_name_en = 'Patil' AND v.ward_id = ?", ward2)
-        same(VoterFilter(important = true, boothId = booth2), "s.is_important = 1 AND v.booth_id = ?", booth2)
+        same(VoterFilter(influencer = true, boothId = booth2), "s.is_influencer = 1 AND v.booth_id = ?", booth2)
     }
 
     @Test fun totalInTheListEqualsTheCount() = runBlocking {
