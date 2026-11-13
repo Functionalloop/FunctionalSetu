@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import admin, auth, devices, field, geo, health, me, misc, reports, rolls, sync, turnout, voters
+from .routers import admin, app_version, auth, devices, field, geo, health, me, misc, reports, rolls, sync, turnout, voters
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(geo.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(voters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(sync.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(app_version.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
     for planned in (field, misc, turnout, admin, rolls, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})

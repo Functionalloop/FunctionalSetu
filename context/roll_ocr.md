@@ -30,7 +30,7 @@ Reading election office roll PDFs into the import CSV. Tasks: Step 13 in `docs/p
 | Two readers, 1 core | 20–35 s | 10–18 min | |
 | Two readers, laptop, 6 workers + GPU | 3–6 s | 2–3 min | 1.5–2.5 h |
 
-30–35 lakh voters ≈ 1.1–1.25 lakh pages ≈ 600–1,200 core-hours. Not on the live KVM 4 during field work. Review time costs more than CPU: 1% to review at 33 lakh = 33,000 rows.
+30–35 lakh voters ≈ 1.1–1.25 lakh pages ≈ 600–1,200 core-hours. Not on the live server during field work. Review time costs more than CPU: 1% to review at 33 lakh = 33,000 rows.
 
 ## Pitfalls
 

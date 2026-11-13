@@ -1,10 +1,10 @@
 # JANSETU – project guide for Claude Code
 
-JANSETU is a voter data management platform: an offline-first Android app for field workers, a web admin portal, and one backend + PostgreSQL database on a single Hostinger KVM 4 server.
+JANSETU is a voter data management platform: an offline-first Android app for field workers, a web admin portal, and one backend + PostgreSQL database on a single Bluehost VPS (4 vCPU, 16 GB RAM).
 
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
 - **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
-- **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The KVM 4 server is bought around 20 Nov; if it is late, the demo runs from my laptop.
+- **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The server is a Bluehost VPS (changed from the Hostinger KVM 4 on 13 Nov, see `docs/change_log.md`); if it is not ready, the demo runs from my laptop.
 - **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is committed on its step branch (not only when merged), run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
 ## Source of truth (read before big changes)
@@ -49,7 +49,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 2. **No outside paid services.** No OTP or SMS gateway, no WhatsApp API, no Firebase, no cloud storage, no Redis or Celery. Calls, WhatsApp and SMS use the phone's own apps (Android intents).
 3. **No Play Store.** The APK is downloaded from our server; the app checks `GET /api/v1/app/version`.
 4. **Android 8.0 minimum** (minSdk 26).
-5. **Everything runs on one KVM 4** (4 vCPU, 16 GB RAM, 200 GB NVMe) with Docker Compose.
+5. **Everything runs on one VPS** (Bluehost: 4 vCPU, 16 GB DDR5, 100 GB NVMe, Ubuntu 24.04 LTS, no India region) with Docker Compose. SSH keys only, no password login.
 6. **Never commit secrets.** `.env` is git-ignored; keep `.env.example` up to date.
 
 ## Stack
@@ -59,7 +59,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 - **Database:** PostgreSQL 16. Migrations are plain numbered SQL files in `db/migrations/`, applied in order by `scripts/migrate.py`, which records them in a table.
 - **Android:** Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit + OkHttp, Room + SQLCipher (FTS for search), WorkManager for sync, Android Keystore for the DB key.
 - **Portal (teammate):** React + TypeScript + Vite static build, TanStack Query, API types generated from `openapi.json`.
-- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night, plus a Hostinger snapshot if the plan includes one.
+- **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night (task 12.5; Bluehost has no snapshots on this plan).
 
 ## How the database must be used
 
@@ -95,24 +95,27 @@ docs/                 SRS, API contract, screen flow, openapi.json, plan.md, leg
 db/migrations/        001_jansetu_schema.sql, 002_..., ...
 db/seed/              seed.py (fake sample data only, workspace "demo")
 backend/              FastAPI app (app/, tests/), pyproject.toml
-scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, export_openapi.py, tasks.py,
-                      check_dev_data.py (end-of-step check on the real roll),
+scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, approve_phone.py, export_openapi.py, tasks.py,
+                      backup.sh, restore.sh (+ sql/ helpers), publish_apk.py,
+                      check_dev_data.py (end-of-step check on the real roll), fallback.ps1 (laptop fallback, 6.6),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
-deploy/               docker-compose.dev.yml, .env.example
+deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example,
+                      README.md (server setup and commands), server_setup.sh, make_env.sh
+backend/Dockerfile    API image (build context = repo root, allow-list in .dockerignore)
 jansetu-private/      real roll files (git-ignored, never committed)
 android/              Android app (Kotlin, Compose)
-Not created yet:      backend/app/worker.py, scripts/backup.sh, portal/ (teammate),
-                      deploy/docker-compose.yml, deploy/Caddyfile
+Not created yet:      backend/app/worker.py, portal/ (teammate)
 ```
 
-## Build status (12 Nov 2026)
+## Build status (13 Nov 2026)
 
 - **Step 1 done:** dev database (Docker, port 5442), `scripts/migrate.py`, fake seed.
 - **Step 2 done:** 51 official roll part files imported with `scripts/import_roll_parts.py` (31,871 voters, AC 2, workspace `naik`). The old VoterappDB data will NOT be imported (client decision); `import_legacy.py` is not run.
 - **Step 3 done:** FastAPI skeleton; auth (login, refresh, logout, change-password; Argon2id; JWT 15 min; rotating refresh token in `auth_sessions`; lockout after 5 wrong tries); `/me`, `/health`, `/devices/me`, `POST /devices/{id}/approve` and `/block`; error format; `scripts/create_super_admin.py`; `openapi.json` with an export check; separate `jansetu_test` database with a name guard. 40 tests pass.
 - **Step 4 done (11 Nov):** area scope and role lists, area tree, voter search / detail / survey, admin phone list, sync pull (first + delta + wipe) and push for surveys, demo users (`scripts/create_demo_users.py`), the full contract (82 more endpoints answer 501 until built), generic endpoint checks, per-runner test databases. 1,131 tests; `scripts/check_dev_data.py` all pass.
 - **Step 5 done (12 Nov):** Android demo app (`android/`, see `context/android.md`): login, phone approval, first download, offline search and filters, voter details with call / WhatsApp / SMS, survey with the client's fields of 12 Nov, outbox sync. Migration `002_client_changes.sql`. Rehearsed on two real phones (Android 15 and 16). 1,178 backend tests; `check_dev_data.py` all pass.
-- **Next:** step 6 (server, APK download) and filling in the 501 stubs (steps 7–11); see `docs/plan.md`.
+- **Step 6 done (13 Nov):** Bluehost VPS live at `https://myjansetu.com` (Caddy HTTPS, api, db; SSH key only, ufw), nightly backup + restore with the transaction counter moved, the real roll on the server, `GET /app/version` and APK download, release key (outside the repo) and APK 0.1.0 published, Phones screen in the app (approve / block) + `approve_phone.py`, laptop fallback (debug build: server address on the Login screen; `scripts/fallback.ps1`). See `context/deploy.md`. 1,204 backend tests; `check_dev_data.py` all pass.
+- **Next:** Demo (24–25 Nov), then the 501 stubs (steps 7–11); the web portal is planned later (the teammate may not deliver it); see `docs/plan.md`.
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
 
@@ -140,6 +143,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - 50 wards (one per part) are a guess; the client will send which parts belong to which Village Panchayat (task 14.1). AC 2 of Goa is Pernem (SC).
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
 - The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
+- The server is outside India and has 100 GB, not the SRS's India region and 200 GB (`docs/change_log.md`, 13 Nov). The client was told on 13 Nov; work does not wait for a written answer.
 
 Nothing outside the SRS and the client's changes of 12 Nov (`docs/change_log.md`) is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
 

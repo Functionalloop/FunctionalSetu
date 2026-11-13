@@ -61,6 +61,7 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/health", level="public"),
     Endpoint("POST", "/auth/login", level="public"),
     Endpoint("POST", "/auth/refresh", level="public"),
+    Endpoint("GET", "/app/version", level="public"),  # test_app_version.py
     Endpoint("POST", "/auth/logout", level="current", fresh_login=True),
     Endpoint("POST", "/auth/change-password", level="active", works=False),  # test_auth.py
     Endpoint("GET", "/me"),
@@ -100,8 +101,7 @@ ENDPOINTS: list[Endpoint] = [
     ("POST", "/voters/{voter_id}/slip-events", ALL, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     ("GET", "/birthdays", ALL, "ready"),
-    # More menu, app version (6.3, 7.9)
-    ("GET", "/app/version", ALL, "public"),
+    # More menu (7.9)
     ("GET", "/terms/current", ALL, "public"),
     ("POST", "/terms/accept", ALL, "active"),
     ("GET", "/announcements", ALL, "ready"),

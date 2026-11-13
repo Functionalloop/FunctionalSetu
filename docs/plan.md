@@ -1,6 +1,6 @@
 # JANSETU – plan to final delivery
 
-Written 11 Nov 2026; changed 12 Nov, twice, for the client's changes (see "Client changes of 12 Nov" and `docs/change_log.md`). Scope is `docs/01_srs.md` version 1.1 plus the change requests in Step 14, which are built only after the client approves the updated app flow (`docs/app_flow_v2.pdf`).
+Written 11 Nov 2026; changed 12 Nov, twice, for the client's changes (see "Client changes of 12 Nov" and `docs/change_log.md`), and 13 Nov (Bluehost server, task 6.7, audit of Step 6). The dates on the tasks are the latest dates: on 13 Nov the work is about a week ahead, and a step starts as soon as the one before it is merged. Scope is `docs/01_srs.md` version 1.1 plus the change requests in Step 14, which are built only after the client approves the updated app flow (`docs/app_flow_v2.pdf`).
 
 | Date | Milestone | What must work |
 |---|---|---|
@@ -65,25 +65,29 @@ Portal (teammate): nothing from this step.
 
 ## Step 6 – Server · 19–23 Nov · branch `step6-server`
 
-Goal: the API on the KVM 4 with HTTPS, and a laptop fallback that has been tried.
+Goal: the API on the Bluehost VPS with HTTPS, and a laptop fallback that has been tried.
 
-- [ ] **6.1 Production containers,** tried on the laptop first: `caddy`, `api`, `db`. Files: `backend/Dockerfile`, `deploy/docker-compose.yml`, `deploy/Caddyfile`, `deploy/.env.example`. Test: `docker compose up` on the laptop, `/api/v1/health` answers through Caddy. (19 Nov)
-- [ ] **6.2 Nightly backup.** `pg_dump` at night, 14 days kept. Files: `scripts/backup.sh`, `scripts/restore.sh`. Test: on the laptop, restore a dump into a scratch database and compare row counts. (19 Nov)
-- [ ] **6.3 APK download and `GET /app/version`.** Caddy serves the APK; a script adds the `app_releases` row. Files: `app/routers/app_version.py`, `scripts/publish_apk.py`, `tests/test_app_version.py`. Test: the endpoint returns the newest row without a token. (20 Nov)
-- [ ] **6.4 Server setup** when the KVM 4 arrives: Ubuntu LTS, SSH keys only, firewall open for 22, 80, 443, Docker, domain pointed, compose up, HTTPS working. Check whether the Hostinger plan includes snapshots and switch them on if it does. Files: `deploy/README.md` (the exact commands). Test: `https://<domain>/api/v1/health` from a phone on mobile data. (20–21 Nov)
-- [ ] **6.5 Data on the server.** Migrations, super admin, then I copy the dev database over SSH myself. Test: voter count on the server is 31,871. (21 Nov)
-- [ ] **6.6 Laptop fallback.** Phone and laptop on one hotspot; the debug build lets me type the server address. Test: full demo flow against the laptop. Do this even if the server arrives on time. (22 Nov)
+- [x] **6.1 Production containers,** tried on the laptop first: `caddy`, `api`, `db`. Files: `backend/Dockerfile`, `deploy/docker-compose.yml`, `deploy/Caddyfile`, `deploy/.env.example`. Test: `docker compose up` on the laptop, `/api/v1/health` answers through Caddy. (19 Nov)
+- [x] **6.2 Nightly backup.** `pg_dump` at night, 14 days kept. Files: `scripts/backup.sh`, `scripts/restore.sh`. Test: on the laptop, restore a dump into a scratch database and compare row counts. (19 Nov)
+- [x] **6.3 APK download and `GET /app/version`.** Caddy serves the APK; a script adds the `app_releases` row. Files: `app/routers/app_version.py`, `scripts/publish_apk.py`, `tests/test_app_version.py`. Test: the endpoint returns the newest row without a token. (20 Nov)
+- [x] **6.4 Server setup** on the Bluehost VPS (4 vCPU, 16 GB, 100 GB NVMe, Ubuntu 24.04 LTS; replaces the Hostinger KVM 4, 13 Nov): SSH key "FunctionalServer" only, no password login, firewall open for 22, 80, 443, Docker, domain pointed, compose up, HTTPS working. Check whether the Bluehost plan includes snapshots and switch them on if it does. Files: `deploy/README.md` (the exact commands). Test: `https://<domain>/api/v1/health` from a phone on mobile data. (20–21 Nov)
+- [x] **6.5 Data on the server.** I copy a dump of the dev database (the real roll) to the server over SSH; it is restored with `restore.sh --live` (api stopped; this also moves the transaction counter), then `migrate.py` for the role passwords. A super admin made before the restore would be replaced by it, so the users are dealt with afterwards: the copy brings the dev logins with it (13 Nov: 4 users, 3 approved phones, 11 sessions, 3 rehearsal surveys), so on the server the super admin and the demo users get new temporary passwords (`create_super_admin.py --reset`, added 13 Nov; `create_demo_users.py --reset`), phones go back to pending, and the sessions and rehearsal surveys are removed. The admin's phone for the demo is approved with `scripts/approve_phone.py` (6.8). Do the pending server reboot first, and copy one dump back to the laptop afterwards (no backup leaves the server until 12.5). The client was told on 13 Nov that the server is outside India; the copy does not wait for their written answer. Files: `deploy/README.md`, `context/deploy.md`. Test: voter count on the server is 31,871; a dev password no longer logs in; a pull with an old dev watermark still returns later changes. (21 Nov)
+- [x] **6.6 Laptop fallback.** Phone and laptop on one hotspot; the debug build lets me type the server address. Test: full demo flow against the laptop. Do this even if the server arrives on time. (22 Nov)
+- [x] **6.7 Release keystore and first published APK.** Added 13 Nov: the demo starts by installing the APK from the server, and no task made the signing key. Make the release keystore (`.jks` outside the repo) and `android/keystore.properties` (git-ignored); keep two offline copies of the key and its passwords (e.g. a pen drive in the office and a password manager), never on the server: a lost key means phones cannot update without uninstalling, which deletes unsent surveys. Set `jansetu.releaseApiUrl` to `https://myjansetu.com`, build with `assembleRelease`, publish with `publish_apk.py`. Files: `android/gradle.properties`, `context/android.md`, `context/deploy.md`. Test: a phone on mobile data downloads the APK from `apk_url`, installs it and logs in against the server. (23 Nov)
+- [x] **6.8 Phones screen in the app** (added 13 Nov: the teammate may not deliver the portal, so the demo must not need it). The phone-approval part of 9.6, built early: More > Phones for admin and super admin, lists Waiting / Approved / Blocked / All from `GET /devices`, Approve, Block with an optional reason (not your own phone), the Waiting list checks again every 10 s. The first admin phone has nobody to approve it, so `scripts/approve_phone.py` approves it on the server (admin or super admin, waiting phones only). Files: `A/ui/admin/PhonesScreen.kt`, `A/data/remote/`, `scripts/approve_phone.py`, `tests/test_approve_phone.py`. Test: on two real phones over the laptop API, the admin's phone approved by the script, then the surveyor's waiting phone approved from the admin's Phones screen moves on by itself and downloads its parts. (13 Nov)
 
 Done when: the phone syncs with the server over HTTPS, and with the laptop when the server is switched off.
 
-Portal (teammate): gives me the static build folder; Caddy serves it at the domain root after the demo (subtask 9.9).
+Portal: not needed for the demo (decided 13 Nov). The teammate may not deliver it; the web portal is planned later (9.9 and a portal plan still to be written).
 
 ## Demo · 24–25 Nov
 
 - [ ] **24 Nov: freeze.** No new features. Run the script twice on the demo phone and once on the laptop fallback. Charge the phone, install the final APK, check the server.
-- [ ] **25 Nov: demo script.** Install the APK from the server → log in with a temporary password → set a new password → "waiting for approval" → admin approves → first download → search by name, EPIC and house → open a voter → airplane mode → save a survey → internet back → sync → the change is on the server.
+- [ ] **25 Nov: demo script.** Install the APK from the server → log in with a temporary password → set a new password → "waiting for approval" → the admin approves it on their phone (More > Phones) → first download → search by name, EPIC and house → open a voter → airplane mode → save a survey → internet back → sync → Sync now on the admin's phone shows the change.
 
 Not in the demo: Marathi search (the roll has no Marathi names yet). Say so before the client asks.
+
+Decided 13 Nov: no portal at the demo. "Admin approves" is done on the admin's phone (More > Phones, 6.8), and "the change is on the server" is shown by the admin's phone after Sync now. The admin's own phone is approved once on the server with `scripts/approve_phone.py` before the demo.
 
 ## Step 7 – Field screens · 26–27 Nov · branch `step7-field`
 
@@ -125,10 +129,10 @@ Goal: an admin can run the workspace from the phone and the portal.
 - [ ] **9.3 Constituencies:** `GET/POST/PATCH /constituencies` (limit 5, super admin). Files: `app/routers/constituencies.py`, `tests/test_constituencies.py`. (28 Nov)
 - [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also the influencer list), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (28 Nov)
 - [ ] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (29 Nov)
-- [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** Files: `A/ui/admin/users/`. Test: approve a waiting phone from the app. (29 Nov)
+- [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** The phone list with approve and block is already built (6.8, `A/ui/admin/PhonesScreen.kt`); Users & devices adds the users and links each to their phones. Files: `A/ui/admin/users/`. Test: a new user made on the phone logs in on a second phone and is approved from the first. (29 Nov)
 - [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list).** Files: `A/ui/admin/settings/`. (29 Nov)
 - [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (29 Nov)
-- [ ] **9.9 Portal files on the server.** Caddy serves the teammate's build. Files: `deploy/Caddyfile`. Test: the portal login page loads from the domain. (29 Nov)
+- [ ] **9.9 Portal files on the server.** Caddy serves the portal's static build at the domain root from `deploy/portal/` (git-ignored, copied like the APK), `index.html` as the fallback for the portal's own routes; same origin as the API, so no CORS entry. Who builds the portal and what it holds is planned later (13 Nov: the teammate may not deliver it). Files: `deploy/Caddyfile`, `deploy/docker-compose.yml`. Test: the portal login page loads from the domain; `/api/v1/health` and the APK download still work. (29 Nov)
 
 Portal (teammate): users, assignments, phones, constituencies, election settings, lists, announcements, activity log, worker activity.
 
@@ -154,7 +158,7 @@ Goal: charts and printed lists; then hand over the working APK.
 - [ ] **11.1 Reports:** `GET /reports/survey-progress`, `/colour-tags`, `/demographics`, `/turnout`. Files: `app/routers/reports.py`, `tests/test_reports.py`. Test: totals equal direct counts; a supervisor gets only own wards. (30 Nov)
 - [ ] **11.2 Exports:** `POST /exports`, `GET /exports/{id}`, `.../download`; the worker writes Excel and PDF. Files: `app/routers/exports.py`, `app/export_jobs.py`, `tests/test_exports.py`. Test: an Excel export of a filter has the same rows as `GET /voters` with that filter. (30 Nov)
 - [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (30 Nov)
-- [ ] **11.4 Working APK.** Signed release build on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
+- [ ] **11.4 Working APK.** Signed release build (key from 6.7) on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
 
 Portal (teammate): reports, charts, exports. The client's eight reports at three levels are Step 14.
 
@@ -165,9 +169,9 @@ Goal: what the SRS promises for final delivery.
 - [ ] **12.2 `GET /voters/{id}/slip`** from the server, for the portal. Files: `app/routers/slips.py`. (3 Dec)
 - [ ] **12.3 Fixes from client testing.** The client reports within 3 working days of 30 Nov, so by 3 Dec. One session per group of fixes. (3–10 Dec)
 - [ ] **12.4 Load test: 200 users syncing at once** on the server, in a fake workspace. Files: `scripts/loadtest.py`, results in `docs/load_test.md`. Pass mark: no errors and 95% of sync calls under 3 seconds (my figure; the SRS gives none). (5–6 Dec)
-- [ ] **12.5 Backups stored away from the server,** and a restore test. An office computer pulls the newest dump over SSH every night (and at next start if it was off) and keeps 14 days; the Hostinger snapshot is the second copy if the plan includes one. The copy holds real voter data, so it stays in a folder only I can open. Files: `scripts/pull_backup.ps1` (or `.sh`, to match the office computer), `scripts/backup.sh`, `docs/handover.md`. Test: last night's dump, taken from the office computer, restored into a scratch database; counts match. (7 Dec)
+- [ ] **12.5 Backups stored away from the server,** and a restore test. An office computer pulls the newest dump over SSH every night (and at next start if it was off) and keeps 14 days, and warns when the newest dump on the server is more than a day old (nothing else notices a failed backup). Bluehost has no snapshots on this plan (checked 13 Nov), so this is the only copy away from the server; until it runs, I copy a dump to the laptop by hand after 6.5 and after each day of client testing. The copy holds real voter data, so it stays in a folder only I can open. Files: `scripts/pull_backup.ps1` (or `.sh`, to match the office computer), `scripts/backup.sh`, `docs/handover.md`. Test: last night's dump, taken from the office computer, restored into a scratch database; counts match. (7 Dec)
 - [ ] **12.6 Isolation check.** Every endpoint in `openapi.json` has its other-workspace and other-area test. Files: `tests/test_coverage_of_isolation.py`. (8 Dec)
-- [ ] **12.7 Server check.** New secrets, CORS only for the portal domain, API docs page off or admin only, disk and log size. Files: `deploy/`. (9 Dec)
+- [ ] **12.7 Server check.** New secrets, CORS only for the portal domain, API docs page off or admin only (`/api/v1/docs` and `/api/v1/openapi.json` are public since 6.4), demo users switched off (`create_demo_users.py --remove`) and rehearsal surveys gone, kernel updates and reboots (unattended upgrades do not reboot by themselves), disk and log size. Files: `deploy/`. (9 Dec)
 - [ ] **12.8 Handover notes.** Server access, deploy, backup and restore, new workspace and admin, publishing an APK, known limits. Files: `docs/handover.md`. (10–11 Dec)
 - [ ] **12.9 Admin training** with the client, using the notes. (12–14 Dec)
 - [ ] **12.11 Android 8 check.** Moved from 5.1: install the release APK on an Android 8 phone or emulator and run the demo script. The SRS promises Android 8.0 or newer. Test: the demo script passes on Android 8.0. (4 Dec)
@@ -256,7 +260,7 @@ Open with the client (asked in the app flow): Kutumb Connect by hand; WhatsApp t
 
 1. **All 42 screens by 30 Nov.** 10 are done by the demo; the other 32, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone, because the portal covers the same work.
 2. **Marathi names and search.** The roll has English names only and the SRS excludes automatic conversion. The app will be built and tested for Marathi with fake data, but real Marathi names need a Marathi roll from the client.
-3. **Server around 20 Nov.** Five days before the demo, and a domain must be bought and pointed first. Subtask 6.6 is the fallback.
+3. **Server.** Running since 13 Nov at `https://myjansetu.com` (Bluehost, not the KVM 4 of the SRS, and not in India: the client was told on 13 Nov, see `docs/change_log.md`). Subtask 6.6 is still the fallback for the demo.
 4. **Scanned roll PDFs (Step 13).** The election office PDFs have no text, only 115 dpi page images, so they need OCR. 99% on names is not certain at that resolution; EPIC and age are easier. Maharashtra is not being built now. The answer key was made with an AI tool, so its own errors must be told apart from OCR errors. Step 13 adds about 8 sessions in 1–9 Dec on top of Step 12; 13.7 and 13.9 slip first. 13.1 measures before anything more is promised. The SRS promises the reading and the review list, not an accuracy figure.
 5. **Roll matching and review.** The SRS describes the result, not the rules for "clear" and "uncertain" matches. I will use: same EPIC = clear; same booth, serial and similar name = clear; anything else similar = uncertain.
 6. **PDF lists in Marathi.** Devanagari needs a PDF tool that shapes the letters correctly; to be tried in 11.2 before promising a layout.
@@ -286,7 +290,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 | Conflicts | The screen lets the worker choose "keep mine / keep server"; the API document says supervisor. | **In the contract (4.10), task 7.10:** worker resolves own conflicts, supervisor any in the area (confirm with the client). |
 | History tab | `audit_log` is not synced to the phone. | History needs internet; the SRS does not promise it offline. |
 | Blocked phone | Nothing records that the phone finished wiping. | The phone reports it on its next `/devices/me` call. |
-| Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer, plus a Hostinger snapshot if the plan includes one (6.4, 12.5). |
+| Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer (12.5). Bluehost has no snapshots on this plan (checked 13 Nov). |
 | Terms of use | The table is empty. | **Decided:** the text comes from the client. |
 | Public website pages (portal) | No content or page list anywhere. | **Decided:** content comes from the client. None by 1 Dec = the pages are dropped. |
 | Roll file format for import | The SRS names file types, not columns. | Use the columns of the 51 part files until a sample arrives. |

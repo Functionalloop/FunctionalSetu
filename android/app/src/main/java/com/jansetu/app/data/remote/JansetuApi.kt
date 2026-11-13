@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /** Base URL ends in /api/v1/ (BuildConfig.API_URL). */
@@ -15,6 +16,16 @@ interface JansetuApi {
 
     @GET("devices/me") suspend fun myDevice(): DeviceDetail
     @GET("app/version") suspend fun appVersion(): AppVersion
+
+    // Admin and super admin: phones of their own constituency (super admin: all)
+    @GET("devices")
+    suspend fun devices(
+        @Query("status") status: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): DevicePage
+    @POST("devices/{id}/approve") suspend fun approveDevice(@Path("id") id: String): AdminDevice
+    @POST("devices/{id}/block") suspend fun blockDevice(@Path("id") id: String, @Body body: BlockDeviceRequest): AdminDevice
 
     @GET("sync/pull")
     suspend fun pull(

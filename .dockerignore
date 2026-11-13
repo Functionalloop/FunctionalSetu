@@ -1,0 +1,12 @@
+# Allow-list: the build context holds only what the API image needs.
+# Everything else (jansetu-private/ with the real roll, deploy/.env, .venv,
+# android/, docs/, backups) never reaches Docker.
+*
+!backend/pyproject.toml
+!backend/constraints.txt
+!backend/app/
+!db/
+!scripts/
+
+**/__pycache__
+**/*.pyc

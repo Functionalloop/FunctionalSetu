@@ -2,7 +2,7 @@
 
 Nov 11, 2026 · @Functionalloop
 
-JANSETU runs as one FastAPI backend on PostgreSQL 16, used by a Kotlin Android app and a React web portal, all on the single KVM 4 server.
+JANSETU runs as one FastAPI backend on PostgreSQL 16, used by a Kotlin Android app and a React web portal, all on one VPS (Bluehost since 13 Nov; the SRS says KVM 4).
 
 ## Tech stack
 
@@ -27,7 +27,7 @@ The APK is served by Caddy from the server and the app checks `app_releases` for
 Android app (Room+SQLCipher) ──HTTPS /api/v1──┐
 Web portal (static React)    ──HTTPS /api/v1──┤
                                               ▼
-KVM 4 server (Docker Compose)
+VPS (Docker Compose)
   Caddy ── HTTPS, serves portal files + APK, proxies /api → API
   API (FastAPI) ── PostgreSQL 16 (schema app, RLS)
   Worker (Python) ── job rows in PostgreSQL (imports, exports)
@@ -69,7 +69,7 @@ The API contract comes first, so the app and the portal can be built at the same
 3. **Portal starts (teammate):** generates typed client code from the OpenAPI file and builds screens against the local API or mocked responses.
 4. **API features (you):** fill endpoints in this order: login and devices, sync, voters and surveys, polling day, admin, roll import, reports.
 5. **Android app (you):** local database and search first, then login, sync, survey, polling day, admin screens.
-6. **Server:** when the KVM 4 is ready, `docker compose up` and point both clients at the domain.
+6. **Server:** when the VPS is ready, `docker compose up` and point both clients at the domain.
 
 **Rule for changes:** any endpoint change goes into the OpenAPI file first and is told to the teammate the same day. Breaking changes need a new field or endpoint, not a silent change.
 

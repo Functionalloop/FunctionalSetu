@@ -1,0 +1,120 @@
+# JANSETU production stack: caddy (HTTPS) -> api -> db. Same file on the server and
+# on the laptop (fallback, plan 6.6); only deploy/.env differs. From the repo root:
+#
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#   docker compose -f deploy/docker-compose.yml run --rm ops python scripts/migrate.py
+#   docker compose -f deploy/docker-compose.yml run --rm ops python scripts/create_super_admin.py ...
+#
+# The dev database (docker-compose.dev.yml, project jansetu-dev) is separate:
+# different project name, different volume, so both can run on the laptop.
+# APK files: deploy/apk/ (git-ignored *.apk), served at /download/ (6.3).
+# Not here yet: worker (no backend/app/worker.py yet), portal (9.9).
+name: jansetu
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"    # 100 GB disk: cap container logs
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-jansetu}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    # Sized for the 16 GB server; the laptop sets smaller values in deploy/.env.
+    command: >
+      postgres
+      -c shared_buffers=${PG_SHARED_BUFFERS:-4GB}
+      -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-10GB}
+      -c work_mem=${PG_WORK_MEM:-16MB}
+      -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-512MB}
+      -c max_connections=100
+      -c log_min_duration_statement=1000
+    shm_size: 1g
+    # No host port: only the api and ops containers reach the database.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: jansetu-api:latest
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-jansetu}
+      JANSETU_APP_PASSWORD: ${JANSETU_APP_PASSWORD:?set JANSETU_APP_PASSWORD in deploy/.env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in deploy/.env}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-15}
+      REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-30}
+      LOGIN_MAX_FAILURES: ${LOGIN_MAX_FAILURES:-5}
+      LOGIN_LOCK_MINUTES: ${LOGIN_LOCK_MINUTES:-15}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Connections: API_WORKERS x DB_POOL_SIZE x 2 (overflow) must stay well under 100.
+      WEB_CONCURRENCY: ${API_WORKERS:-3}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+    logging: *logging
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
+      DOMAIN: ${DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apk:/srv/apk:ro                # APK files, served at /download/ (6.3)
+      - caddy_data:/data               # certificates: keep this volume
+      - caddy_config:/config
+    depends_on:
+      - api
+    logging: *logging
+
+  # One-off jobs with the superuser / owner passwords, which the running api never gets.
+  # Started only by `docker compose run --rm ops ...`.
+  ops:
+    image: jansetu-api:latest
+    profiles: ["ops"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-jansetu}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      JANSETU_OWNER_PASSWORD: ${JANSETU_OWNER_PASSWORD:?set JANSETU_OWNER_PASSWORD in deploy/.env}
+      JANSETU_APP_PASSWORD: ${JANSETU_APP_PASSWORD:?set JANSETU_APP_PASSWORD in deploy/.env}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./apk:/srv/jansetu/deploy/apk:ro   # for scripts/publish_apk.py (reads and hashes the APK)
+    command: ["python", "scripts/migrate.py", "--status"]
+    logging: *logging
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

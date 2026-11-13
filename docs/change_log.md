@@ -6,6 +6,19 @@ Every change the client asked for after the SRS, and what was decided. Newest li
 - **Replaces** = takes the place of an earlier note or of something already built.
 - **Change request** = not in SRS 1.1. Built only after the client approves the updated app flow; time and cost are agreed separately (SRS, "Change requests").
 
+## 13 Nov 2026: server provider (developer's change)
+
+Not asked by the client. SRS 1.1 ("Platform, hosting and security") says a KVM 4 VPS with 200 GB NVMe in an India region; the server is now a Bluehost VPS. The SRS text is not edited. The client was told on 13 Nov; work goes on without waiting for a written answer.
+
+| SRS 1.1 | Now | Status |
+|---|---|---|
+| KVM 4, 4 vCPU, 16 GB RAM | Bluehost VPS, 4 vCPU, 16 GB DDR5 | Same size |
+| 200 GB NVMe | 100 GB NVMe | Less. Enough for AC 2 (database and 14 nightly dumps are a few GB); tight only for the 10–11 constituency case the SRS already puts out of scope |
+| India region | No India region offered | **Client told 13 Nov:** voter data is stored outside India, and the phones are a little slower to sync (more distance) |
+| Ubuntu Server LTS | Ubuntu 24.04 LTS | Same |
+| Year-one hosting in the price | Monthly, ₹1,504 | Billing between developer and client to be confirmed |
+| – | SSH key "FunctionalServer" only, no password login | Same as plan 6.4 |
+
 ## 12 Nov 2026 (evening): client's final list
 
 Source: `docs/client_changes_12nov.pdf` ("App Flow Modifications & Additional Functional Requirements", 40 items), with the developer's answers of 12 Nov. It replaces the earlier notes of the same day wherever they differ. The client wants an updated app flow to approve before development goes on: `docs/app_flow_v2.pdf`.

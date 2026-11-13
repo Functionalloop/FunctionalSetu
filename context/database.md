@@ -38,6 +38,8 @@ python scripts/migrate.py [--status]                      # apply pending migrat
 python db/seed/seed.py                                    # FAKE data, workspace "demo" (stops if it exists)
 python scripts/import_roll_parts.py --parts "DIR/S05A02P*.csv" [--dry-run] [--tenant-code naik] [--errors PATH]
 python scripts/create_super_admin.py --username X --name "Full Name"   # prints a one-time temp password
+python scripts/create_super_admin.py --username X --reset              # existing super admin: new temp password, sessions ended, phones pending
+python scripts/approve_phone.py --username X                       # first admin phone (nobody can approve it in the app yet)
 python scripts/create_demo_users.py [--parts 1,2] [--reset | --remove]  # demo.* users; passwords -> jansetu-private/demo_users.txt
 python scripts/export_openapi.py                          # rewrites docs/openapi.json
 python scripts/check_dev_data.py                          # end-of-step check on the real roll (read-only / rolled back)
@@ -56,6 +58,7 @@ python scripts/check_dev_data.py                          # end-of-step check on
 ## Pitfalls
 
 - Real voter data: show counts and shapes only, never names, EPICs or mobiles. Import error files go to `../jansetu-private/`.
+- `migrate.py` hashes migrations with CRLF read as LF (13 Nov): git on Windows checks files out with CRLF (`core.autocrlf`), which changed the SHA-256 of 002 on the laptop. `.gitattributes` now keeps `*.sql` and `*.sh` LF everywhere. Test: `tests/test_migrate_digest.py`.
 - `migrate.py`: a file with its own `BEGIN/COMMIT` (like 001) runs as written; any other file runs in one transaction with its record. Prefer the second form from 002 on.
 - A new migration must start with `SET LOCAL ROLE jansetu_owner;` (as 002 does): migrate.py connects as the superuser, and only objects owned by `jansetu_owner` get the default grants to `jansetu_app`. New tables also need their `touch_row` / `audit_changes` triggers and the RLS policy (002's loop).
 - Port 5442 is used so it does not clash with other local PostgreSQL containers.
