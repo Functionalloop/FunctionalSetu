@@ -12,7 +12,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"   # JDK 21; the P
 ./gradlew connectedDebugAndroidTest          # device tests (database, search speed, sync) on a running emulator/phone
 ```
 
-- `local.properties` (git-ignored): `sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk` (forward slashes: `\t` in a properties file is a tab), and for a real phone on Wi-Fi `jansetu.debugApiUrl=http://<laptop LAN IP>:8000/api/v1/` (then run uvicorn with `--host 0.0.0.0`).
+- `local.properties` (git-ignored): `sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk` (forward slashes: `	` in a properties file is a tab). Since 6.6 a real phone does not need `jansetu.debugApiUrl` there: the debug Login screen has **Server > Change** (type e.g. `192.168.1.7:8000`; `ServerSetting`, own prefs file, survives logout; `ServerAddressInterceptor` rewrites every call). The release build ignores it and always uses `jansetu.releaseApiUrl`.
 - Emulator reaches the laptop's API as `http://10.0.2.2:8000/api/v1/` (debug default). Run the API from `backend/` with the repo `.venv`: `../.venv/Scripts/python -m uvicorn app.main:app --port 8000`.
 - Release build: `jansetu.releaseApiUrl` in `gradle.properties` is a placeholder until the domain exists (step 6). Signing: copy `keystore.properties.example` to `keystore.properties` (git-ignored), keep the `.jks` outside the repo. Without it the release APK is unsigned. The real release key is made in 6.7 (plan); keep its offline copies, a lost key blocks updates.
 
@@ -63,6 +63,13 @@ Done: wrong password shows the server message; Set password; Waiting screen move
 - A surveyor's phone has only its booths (no ward row), so the Ward line and the Ward filter are empty for a surveyor.
 - Driving the emulator with adb: Gboard opens a stylus tutorial on the first text field (`adb shell settings put secure stylus_handwriting_enabled 0`); an open keyboard moves buttons, so close it (`input keyevent 4`) and read bounds from `uiautomator dump`. `demo_users.txt` gets a new block on every `--reset`: take the last line per user. Quote passwords for the device shell (`adb shell "input text '...'"`) and never put them where an error can echo them.
 - No screenshots of voter screens (they show real names); use filtered UI dumps.
+
+## Laptop fallback (6.6, 13 Nov)
+
+- Laptop: `powershell -ExecutionPolicy Bypass -File scriptsallback.ps1 [-ResetDemoUsers]` (dev database + API on 0.0.0.0:8000, prints the addresses; warns when Windows calls the network Public, which blocks the phones). Phone: debug build, Login > Server > Change.
+- Checked 13 Nov on both phones over the laptop's Wi-Fi with the address typed: admin login + `approve_phone.py`, first download 31,871 in 51 s; surveyor approved from the admin's Phones screen, moved on in 16 s, 872 voters; search answers offline; survey saved with the laptop API stopped (Not sent yet 1), sent after the API came back; admin's Sync now: Surveyed 4 → 5. The hotspot itself (laptop Mobile hotspot = `192.168.137.1`) is the same path with another address; try it once before the demo.
+- The fallback uses the laptop's data and passwords (`jansetu-private/demo_users.txt`), not the server's; nothing done on it reaches the server.
+- Never print UI dumps of voter screens: filter dumps to an allow-list of labels and counts (13 Nov: a loose filter showed names in the session log).
 
 ## Real phones (12 Nov) on the laptop's Wi-Fi: vivo I2207 (Android 15, demo.surveyor), Samsung M35 (Android 16, demo.supervisor, wireless debugging)
 

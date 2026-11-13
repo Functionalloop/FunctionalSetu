@@ -1,6 +1,7 @@
 package com.jansetu.app.di
 
 import com.jansetu.app.BuildConfig
+import com.jansetu.app.data.ServerSetting
 import com.jansetu.app.data.SessionStore
 import com.jansetu.app.data.remote.ApiFactory
 import com.jansetu.app.data.remote.JansetuApi
@@ -18,6 +19,7 @@ object AppModule {
     fun sessionEvents(): SessionEvents = SessionEvents()
 
     @Provides @Singleton
-    fun api(store: SessionStore, events: SessionEvents): JansetuApi =
-        ApiFactory.create(BuildConfig.API_URL, store, events, debug = BuildConfig.DEBUG)
+    fun api(store: SessionStore, events: SessionEvents, server: ServerSetting): JansetuApi =
+        ApiFactory.create(BuildConfig.API_URL, store, events, debug = BuildConfig.DEBUG,
+                          server = if (server.canChange) ({ server.current.value }) else null)
 }

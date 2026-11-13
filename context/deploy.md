@@ -81,6 +81,11 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - `SITE_ADDRESS`, `HTTP_PORT`, `HTTPS_PORT`, `PG_*`, `API_WORKERS`, `DB_POOL_SIZE`: production stack, see above.
 - `DOMAIN`, `ACME_EMAIL`: for Caddy. Caddy gets the HTTPS certificate from Let's Encrypt itself; there is no SSL key to paste. The domain's A record must point at the server before `compose up`, and ports 80 and 443 must be open.
 
+## Laptop fallback (6.6)
+
+- If the server is down at the demo: `scriptsallback.ps1` on the laptop, phones with the **debug** build type the laptop's address on the Login screen (details: `context/android.md`, Laptop fallback). The release APK from the server cannot change its address; keep the debug APK installed on the demo phones as the spare.
+- The production compose stack on the laptop (`SITE_ADDRESS=localhost`) is not used for the fallback: its HTTPS certificate is Caddy's own, which phones do not trust.
+
 ## Pitfalls
 
 - `ops` runs with `--rm`: a script that writes a file inside the container (`create_demo_users.py` writes `jansetu-private/demo_users.txt` and never prints passwords) loses it. Mount a private folder: `run --rm -v /var/backups/jansetu/users:/srv/jansetu/jansetu-private ops ...` (folder owned by uid 10001, mode 700), copy the file off with `sudo cat`, then delete the folder.
