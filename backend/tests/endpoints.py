@@ -106,6 +106,12 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"version": 1, **_new_voter_body(w), "form6_status": "applied"}),
     # Information Updation (7.6); behaviour: test_history.py
     Endpoint("GET", "/voters/{voter_id}/history", target="voter"),
+    # More menu (7.9); behaviour: test_misc.py. No terms text in the test database: 404 (own tests load one).
+    Endpoint("GET", "/terms/current", level="public", works=False),
+    Endpoint("POST", "/terms/accept", level="active", body={"version": 1}, works=False),
+    Endpoint("GET", "/announcements", lists="announcement"),
+    Endpoint("POST", "/announcements/{announcement_id}/read", target="announcement"),
+    Endpoint("POST", "/problem-reports", level="active", body={"body": "Rule check"}),
     # birthdays (7.8); behaviour: test_birthdays.py
     Endpoint("GET", "/birthdays", lists="voter_birthday", area_params=("booth_id",), item_id="voter_id",
              query={"date_from": "2026-01-01", "date_to": "2026-12-31"}),
@@ -123,11 +129,6 @@ ENDPOINTS: list[Endpoint] = [
     ("PUT", "/booths/{booth_id}/note", SURVEY_ROLES, "ready"),
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
-    ("GET", "/terms/current", ALL, "public"),
-    ("POST", "/terms/accept", ALL, "active"),
-    ("GET", "/announcements", ALL, "ready"),
-    ("POST", "/announcements/{announcement_id}/read", ALL, "ready"),
-    ("POST", "/problem-reports", ALL, "active"),
     # polling day (8.1): not surveyors
     ("GET", "/turnout/summary", POLLING_ROLES, "ready"),
     ("POST", "/turnout/marks", POLLING_ROLES, "ready"),
@@ -286,6 +287,21 @@ def _make_voter_birthday(world, where: str) -> uuid.UUID:
     return vid
 
 
+def _make_announcement(world, where: str) -> uuid.UUID:
+    """An announcement for that place's booth, by the workspace's super admin."""
+    tenant, _, _, booth = world.place(where)
+    ws = world.a if tenant == world.a.tenant else world.b
+    aid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.announcements (id, tenant_id, body, audience_geo_id, created_by)
+                          VALUES (%s, %s, 'Rule notice', %s, %s)""", (aid, tenant, booth, ws.users["boss"]))
+    return aid
+
+
+def _announcement_state(world, announcement_id: uuid.UUID):
+    return world.conn.execute("SELECT count(*) FROM app.announcement_reads WHERE announcement_id = %s",
+                              (announcement_id,)).fetchone()
+
+
 def _booth(world, where: str) -> uuid.UUID:
     return world.place(where)[3]
 
@@ -297,4 +313,5 @@ KINDS: dict[str, Kind] = {
     "booth": Kind(_booth),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
     "voter_birthday": Kind(_make_voter_birthday),
+    "announcement": Kind(_make_announcement, _announcement_state),
 }

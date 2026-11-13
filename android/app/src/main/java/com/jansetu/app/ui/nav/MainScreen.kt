@@ -30,11 +30,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jansetu.app.data.Session
+import com.jansetu.app.data.UpdateChecker
 import com.jansetu.app.data.local.LocalDb
+import com.jansetu.app.data.sync.SyncKeys
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.jansetu.app.ui.admin.PhonesScreen
 import com.jansetu.app.ui.home.HomeScreen
 import com.jansetu.app.ui.birthdays.BirthdaysScreen
 import com.jansetu.app.ui.home.MoreScreen
+import com.jansetu.app.ui.more.AnnouncementsScreen
+import com.jansetu.app.ui.more.ChangePasswordScreen
+import com.jansetu.app.ui.more.HelpScreen
+import com.jansetu.app.ui.more.TermsScreen
 import com.jansetu.app.ui.newvoter.NewVoterFormScreen
 import com.jansetu.app.ui.newvoter.NewVoterListScreen
 import com.jansetu.app.ui.slip.SlipScreen
@@ -56,8 +64,12 @@ private val TABS = listOf(
 )
 
 @HiltViewModel
-class MainViewModel @Inject constructor(local: LocalDb) : ViewModel() {
+class MainViewModel @Inject constructor(local: LocalDb, updates: UpdateChecker) : ViewModel() {
     val problems = local.db.outbox().problems()
+
+    init { // the workspace's minimum app version comes with the pull settings (7.9)
+        viewModelScope.launch { local.db.syncState().flow(SyncKeys.SETTINGS).collect { updates.noteSettings(it) } }
+    }
 }
 
 fun NavHostController.openVoter(id: String) = navigate("voter/$id")
@@ -103,8 +115,14 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
             composable("sync") { SyncScreen(onOpen = nav::openVoter) }
-            composable("more") { MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
-                    onBirthdays = { nav.navigate("birthdays") }) }
+            composable("more") {
+                MoreScreen(session, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
+                    onBirthdays = { nav.navigate("birthdays") }, onOpen = { nav.navigate(it) })
+            }
+            composable("announcements") { AnnouncementsScreen(onBack = { nav.popBackStack() }) }
+            composable("terms") { TermsScreen(onBack = { nav.popBackStack() }) }
+            composable("help") { HelpScreen(onBack = { nav.popBackStack() }) }
+            composable("password") { ChangePasswordScreen(onBack = { nav.popBackStack() }) }
             composable("newvoters") {
                 NewVoterListScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate("newvoter/$it") },
                     onAdd = { nav.navigate("newvoter/new") })

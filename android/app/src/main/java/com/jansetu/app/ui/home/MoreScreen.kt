@@ -31,6 +31,11 @@ import com.jansetu.app.data.Session
 import com.jansetu.app.ui.newvoter.ENR_TITLE
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PHONE_ADMIN_ROLES
@@ -48,6 +53,8 @@ class MoreViewModel @Inject constructor(private val repo: SessionRepository, loc
 @Composable
 fun MoreScreen(
     session: Session, onPhones: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
+    /** Opens a More page by route: announcements, terms, help, password (7.9). */
+    onOpen: (String) -> Unit,
     vm: MoreViewModel = hiltViewModel(),
 ) {
     val unsent by vm.unsent.collectAsStateWithLifecycle(0)
@@ -85,6 +92,10 @@ fun MoreScreen(
             )
             HorizontalDivider()
         }
+        MoreItem("Announcements", "Notices from your admins (needs internet)", Icons.Default.Campaign) { onOpen("announcements") }
+        MoreItem("Change password", "Needs internet", Icons.Default.Lock) { onOpen("password") }
+        MoreItem("Help", "How sync works; report a problem", Icons.AutoMirrored.Filled.Help) { onOpen("help") }
+        MoreItem("Terms of use", "Read and accept (needs internet)", Icons.Default.Description) { onOpen("terms") }
         ListItem(
             headlineContent = { Text("About") },
             supportingContent = { Text("JANSETU ${BuildConfig.VERSION_NAME}") },
@@ -112,4 +123,15 @@ fun MoreScreen(
         confirmButton = { TextButton(onClick = { confirm = false; vm.logout() }) { Text("Log out") } },
         dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
     )
+}
+
+@Composable
+private fun MoreItem(title: String, detail: String, icon: ImageVector, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(detail) },
+        leadingContent = { Icon(icon, null) },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+    HorizontalDivider()
 }

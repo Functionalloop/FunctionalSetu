@@ -31,12 +31,14 @@ from app.errors import ApiError  # noqa: E402
 from app.routers.birthdays import birthdays  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
+from app.routers.misc import list_announcements, mark_read, report_problem  # noqa: E402
 from app.routers.new_voters import list_new_voters, update_new_voter, write_new_voter  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
-from app.schemas_field import FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, SlipEventIn, VisitIn  # noqa: E402
+from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, ProblemReportIn,  # noqa: E402
+                               SlipEventIn, VisitIn)
 from app.scope import load_scope  # noqa: E402
 from app.sync_pull import current_watermark, pull_page  # noqa: E402
 from app.sync_push import push  # noqa: E402
@@ -44,6 +46,7 @@ from create_super_admin import connect_owner  # noqa: E402
 
 SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
+                   "announcements", "announcement_reads", "problem_reports",
                    "sync_mutations",
                    "sync_conflicts",
                    "devices", "users", "audit_log")
@@ -343,6 +346,21 @@ def main() -> None:
                                        "WHERE s.dob IS NOT NULL AND v.deleted_at IS NULL")).scalar()
             report(seen == direct, "birthdays over a whole year = voters with a date of birth",
                    f"{seen} in {pages} pages, first page {ms:.0f} ms")
+
+            # More menu (7.9): a notice for everyone reaches the surveyor, read twice = one row; a problem report
+            aid = uuid.uuid4()
+            conn.execute(text("INSERT INTO app.announcements (id, tenant_id, body, created_by) "
+                              "VALUES (:id, app.current_tenant_id(), 'Check notice', :u)"), {"id": aid, "u": admin.user_id})
+            listed, ms = timed(lambda: list_announcements(conn, surveyor, s_srv, 50, None))
+            mark_read(conn, surveyor, s_srv, aid)
+            mark_read(conn, surveyor, s_srv, aid)
+            reads = conn.execute(text("SELECT count(*) FROM app.announcement_reads WHERE announcement_id = :a"),
+                                 {"a": aid}).scalar()
+            report(listed.items[:1] and listed.items[0].id == aid and reads == 1,
+                   "new announcement listed first for the surveyor; read twice = one row", f"{ms:.0f} ms")
+            report_problem(ProblemReportIn(body="Check report", app_version_code=1), conn, surveyor)
+            n = conn.execute(text("SELECT count(*) FROM app.problem_reports WHERE body = 'Check report'")).scalar()
+            report(n == 1, "problem report stored")
         finally:
             trans.rollback()
 

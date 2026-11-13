@@ -41,6 +41,15 @@ interface JansetuApi {
     suspend fun history(@Path("id") voterId: String, @Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): HistoryPage
 
     @PATCH("families/{id}") suspend fun renameFamily(@Path("id") id: String, @Body body: FamilyPatch): SyncFamily
+
+    // More menu (7.9)
+    @GET("me") suspend fun me(): Me
+    @GET("terms/current") suspend fun terms(): Terms
+    @POST("terms/accept") suspend fun acceptTerms(@Body body: TermsAccept): Response<Unit>
+    @GET("announcements")
+    suspend fun announcements(@Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): AnnouncementPage
+    @POST("announcements/{id}/read") suspend fun readAnnouncement(@Path("id") id: String): Response<Unit>
+    @POST("problem-reports") suspend fun reportProblem(@Body body: ProblemReportIn): Response<Unit>
 }
 
 /**

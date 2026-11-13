@@ -359,3 +359,43 @@ data class AdminDevice(
 data class DevicePage(val items: List<AdminDevice>, @SerialName("next_cursor") val nextCursor: String? = null)
 
 @Serializable data class BlockDeviceRequest(val reason: String? = null)
+
+// --- More menu (7.9) ---
+
+@Serializable
+data class Terms(
+    val version: Int,
+    @SerialName("body_mr") val bodyMr: String,
+    @SerialName("body_en") val bodyEn: String,
+    @SerialName("published_at") val publishedAt: String,
+)
+
+@Serializable data class TermsAccept(val version: Int)
+
+/** GET /me: only what the app reads. */
+@Serializable data class MeUserTerms(@SerialName("terms_version") val termsVersion: Int? = null)
+@Serializable data class Me(val user: MeUserTerms)
+
+@Serializable
+data class Announcement(
+    val id: String,
+    val body: String,
+    @SerialName("audience_geo_id") val audienceGeoId: String? = null,
+    @SerialName("created_by") val createdBy: UserSummary,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("expires_at") val expiresAt: String? = null,
+    @SerialName("is_read") val isRead: Boolean,
+)
+
+@Serializable
+data class AnnouncementPage(
+    val items: List<Announcement>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class ProblemReportIn(
+    val body: String,
+    @SerialName("app_version_code") val appVersionCode: Int?,
+    @SerialName("phone_model") val phoneModel: String?,
+)

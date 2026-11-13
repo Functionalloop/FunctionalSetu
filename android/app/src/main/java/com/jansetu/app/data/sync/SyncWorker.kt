@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jansetu.app.data.SessionStore
+import com.jansetu.app.data.UpdateChecker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.sync.withLock
@@ -18,11 +19,13 @@ class SyncWorker @AssistedInject constructor(
     private val sync: SyncRepository,
     private val store: SessionStore,
     private val wipe: WipeHandler,
+    private val updates: UpdateChecker,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val session = store.session.value ?: return Result.failure()
         if (!session.firstSyncDone || session.deviceStatus == "pending") return Result.success()
+        if (updates.required.value != null) return Result.success() // too old: send nothing until updated (7.9)
         val outcome = sync.lock.withLock { sync.syncNow() }
         return when (outcome) {
             SyncOutcome.Done -> Result.success()
