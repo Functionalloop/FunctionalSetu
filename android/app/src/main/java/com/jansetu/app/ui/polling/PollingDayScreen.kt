@@ -80,6 +80,8 @@ class PollingDayViewModel @Inject constructor(local: LocalDb, private val schedu
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val lastSync = db.syncState().flow(SyncKeys.LAST_SYNC_AT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val lastError = db.syncState().flow(SyncKeys.LAST_ERROR)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun pick(boothId: String) {
         picked.value = boothId
@@ -108,6 +110,7 @@ fun PollingDayScreen(
     val hours by vm.hours.collectAsStateWithLifecycle()
     val unsent by vm.unsent.collectAsStateWithLifecycle()
     val lastSync by vm.lastSync.collectAsStateWithLifecycle()
+    val lastError by vm.lastError.collectAsStateWithLifecycle()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -150,6 +153,7 @@ fun PollingDayScreen(
                 "$unsent change(s) not sent yet. They go up by themselves when there is internet.",
                 color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium,
             )
+            lastError?.let { Text("Last sync: $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             OutlinedButton(onClick = vm::syncNow, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Sync, null); Text("  Sync now")
             }

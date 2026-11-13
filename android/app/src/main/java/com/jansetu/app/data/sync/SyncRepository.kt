@@ -3,6 +3,7 @@ package com.jansetu.app.data.sync
 import androidx.room.withTransaction
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.local.OutboxEntity
+import com.jansetu.app.data.local.OutboxDao
 import com.jansetu.app.data.local.SyncStateEntity
 import com.jansetu.app.data.remote.ApiJson
 import com.jansetu.app.data.remote.ApiResult
@@ -61,8 +62,18 @@ class SyncRepository @Inject constructor(
     suspend fun syncNow(onProgress: suspend (done: Int, total: Int?) -> Unit = { _, _ -> }): SyncOutcome {
         val pushed = push()
         if (pushed != SyncOutcome.Done) return record(pushed)
-        return record(pull(onProgress))
+        val outcome = record(pull(onProgress))
+        if (outcome == SyncOutcome.Done && waitingForServer > 0) {
+            // Shown on the Sync and Polling day screens: these changes never go up until the server is updated.
+            db.syncState().put(SyncStateEntity(SyncKeys.LAST_ERROR,
+                "$waitingForServer change(s) wait on this phone: the server does not take them yet (it needs an update)."))
+        }
+        return outcome
     }
+
+    /** Items the server answered `not_implemented` in the last push (they stay queued). */
+    @Volatile var waitingForServer = 0
+        private set
 
     private suspend fun record(o: SyncOutcome): SyncOutcome {
         if (o == SyncOutcome.Wipe) return o
@@ -187,8 +198,13 @@ class SyncRepository @Inject constructor(
      */
     suspend fun push(batchSize: Int = 200): SyncOutcome {
         val outbox = db.outbox()
+        // Items this server cannot take yet (not_implemented), and their records: skipped for the rest of this
+        // run so the items queued after them still go up. A later change of the same record waits behind them.
+        val waiting = HashSet<String>()
+        val waitingKeys = HashSet<Pair<String, String>>()
+        waitingForServer = 0
         while (true) {
-            val queued = outbox.queued(batchSize * 2)
+            val queued = sendable(outbox, batchSize * 2) { it.id in waiting || (it.type to it.entityId) in waitingKeys }
             if (queued.isEmpty()) return SyncOutcome.Done
             val batch = batchOf(queued, batchSize)
             outbox.countAttempt(batch.map { it.id })
@@ -211,7 +227,11 @@ class SyncRepository @Inject constructor(
                         "applied" -> applied(item, result)
                         "conflict" -> conflicted(item, result)
                         else -> { // rejected
-                            if (result.error?.code == "not_implemented") continue // server update needed; keep it queued
+                            if (result.error?.code == "not_implemented") { // server update needed; keep it queued
+                                waiting += item.id
+                                waitingKeys += item.type to item.entityId
+                                continue
+                            }
                             outbox.mark(item.id, OutboxEntity.STATUS_REJECTED, result.error?.code,
                                 result.error?.message ?: "Refused by the server.", null, null)
                             rejected(item)
@@ -219,9 +239,20 @@ class SyncRepository @Inject constructor(
                     }
                 }
             }
-            if (response.results.all { it.status == "rejected" && it.error?.code == "not_implemented" }) {
-                return SyncOutcome.Done // only types this server cannot take yet are left; they stay queued
-            }
+            waitingForServer = waiting.size
+            // A batch item with no answer would come back forever; stop rather than loop.
+            if (batch.none { it.id in waiting } && response.results.none { it.id in byId }) return SyncOutcome.Done
+        }
+    }
+
+    /** The first [want] queued items not [skipped]; reads further down the queue past skipped ones. */
+    private suspend fun sendable(outbox: OutboxDao, want: Int, skipped: (OutboxEntity) -> Boolean): List<OutboxEntity> {
+        var limit = want
+        while (true) {
+            val rows = outbox.queued(limit)
+            val left = rows.filterNot(skipped)
+            if (left.size >= want || rows.size < limit) return left.take(want)
+            limit *= 2
         }
     }
 

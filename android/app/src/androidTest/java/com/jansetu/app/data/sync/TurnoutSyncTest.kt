@@ -65,6 +65,8 @@ class TurnoutSyncTest {
     /** The fake server's marks: voter id -> (is_voted, marked_by). */
     private val marks = mutableMapOf<String, Pair<Boolean, String>>()
     private var refuse: String? = null
+    /** Push types this fake server is too old for: answered not_implemented. */
+    private var notBuilt = emptySet<String>()
 
     @Before fun setUp() = runBlocking {
         mem = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
@@ -98,6 +100,10 @@ class TurnoutSyncTest {
     private fun answer(item: JsonObject): String {
         val id = item.str("id")
         refuse?.let { return """{"id":"$id","status":"rejected","duplicate":false,"error":{"code":"$it","message":"No."}}""" }
+        if (item.str("type") in notBuilt) {
+            return """{"id":"$id","status":"rejected","duplicate":false,"error":{"code":"not_implemented","message":"Not built yet."}}"""
+        }
+        if (item.str("type") !in OutboxEntity.TURNOUT_TYPES) return """{"id":"$id","status":"applied","duplicate":false}"""
         val voters = if (item.str("type") == "unvoted") listOf(item.str("entity_id")!!)
         else item["data"]!!.jsonObject["voter_ids"]!!.jsonArray.map { it.jsonPrimitive.content }
         for (voter in voters) {
@@ -241,5 +247,25 @@ class TurnoutSyncTest {
         mem.voters().removeVoters(listOf(v[3].id))
         mem.turnout().dropOrphans()
         assertNull(mark(3))
+    }
+    @Test fun marksAServerCannotTakeYetWaitAndDoNotHoldBackLaterChanges() = runBlocking {
+        notBuilt = OutboxEntity.TURNOUT_TYPES.toSet()
+        repo.markVoted(listOf(v[0].id), "single", me)
+        repo.markVoted(listOf(v[1].id), "single", me)
+        repo.markVoted(listOf(v[2].id), "single", me)
+        mem.outbox().insert(OutboxEntity("note-1", OutboxEntity.TYPE_PART_NOTE, FakeVoters.booth, 0,
+            "2026-11-14T03:00:00Z", "{}", seq = Long.MAX_VALUE)) // queued after the marks
+
+        assertEquals(SyncOutcome.Done, sync.push(batchSize = 2)) // the marks fill the first batch
+        assertNull("the later change went up", mem.outbox().item("note-1"))
+        assertEquals("the marks stay on the phone", 3, unsent())
+        assertEquals(3, sync.waitingForServer)
+        assertEquals(1, pushed.count { it.str("type") == "part_note" })
+
+        notBuilt = emptySet() // the server is updated
+        assertEquals(SyncOutcome.Done, sync.push())
+        assertEquals(0, unsent())
+        assertEquals(0, sync.waitingForServer)
+        assertEquals(3, marks.size)
     }
 }
