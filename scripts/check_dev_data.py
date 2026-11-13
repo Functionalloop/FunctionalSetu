@@ -406,6 +406,10 @@ def main() -> None:
             w_turn = current_watermark(conn)
             in_part = conn.execute(text("SELECT count(*) FROM app.voters WHERE booth_id = :b AND deleted_at IS NULL "
                                         "AND roll_status = 'active'"), {"b": booth}).scalar()
+            # Marks made by hand on the dev database (phone tests) stay as they are
+            voted_before = conn.execute(text("SELECT count(*) FROM app.voter_turnout t JOIN app.voters v ON v.id = t.voter_id "
+                                       "WHERE v.booth_id = :b AND v.deleted_at IS NULL AND v.roll_status = 'active' "
+                                       "AND t.is_voted"), {"b": booth}).scalar()
             req = TurnoutMarkIn(id=uuid.uuid4(), booth_id=booth, serials="1-2000", source="bulk_typed")
             done, ms = timed(lambda: write_marks(conn, supervisor, s_sup, req))
             undo_mark(conn, supervisor, s_sup, done.marked[0])
@@ -419,8 +423,9 @@ def main() -> None:
                 cursor = page.next_cursor
                 if not cursor:
                     break
-            report(len(done.marked) == in_part and again.marked == done.marked and part.voted == in_part - 1
-                   and len(marks) == in_part and sum(marks.values()) == in_part - 1,
+            new = set(done.marked)
+            report(len(new) == in_part - voted_before and again.marked == done.marked and part.voted == in_part - 1
+                   and new <= marks.keys() and sum(marks[v] for v in new) == len(new) - 1,
                    "whole part marked by serials, one undone, repeat marks nothing; summary and pull agree",
                    f"{in_part} voters {ms:.0f} ms, summary of {len(summary.booths)} parts {ms_sum:.0f} ms")
         finally:
