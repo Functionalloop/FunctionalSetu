@@ -6,6 +6,16 @@ Every change the client asked for after the SRS, and what was decided. Newest li
 - **Replaces** = takes the place of an earlier note or of something already built.
 - **Change request** = not in SRS 1.1. Built only after the client approves the updated app flow; time and cost are agreed separately (SRS, "Change requests").
 
+## 14 Nov 2026: web portal and website pages (developer's change)
+
+Not asked by the client. The teammate who was to build the web portal gave up and left nothing (no code, no designs). The SRS text is not edited.
+
+| SRS 1.1 | Now | Status |
+|---|---|---|
+| Web admin portal: user and booth management, roll import (Excel, CSV, scanned PDF), roll matching review, reports and exports | Built by me, plan Step 15; also every other admin screen of the app | Same for the client; no change in price or dates (final delivery 15 Dec) |
+| "Its screen designs are shared separately" | No portal designs exist; pages follow the approved app flow (`docs/app_flow_v2.pdf`) | Same names and fields as the app |
+| The public website pages | **Dropped** | Less than the SRS. **The client must be told in writing (not done yet).** If they insist, it comes back as one more task (15.15) |
+
 ## 13 Nov 2026: app flow approved
 
 The client approved the updated app flow and wireframes (`docs/app_flow_v2.pdf`) on 13 Nov. Task 7.13 (influencer only, no Important voter field) is built. The change requests (Step 14) still wait for the time and cost (open item 6 below).
@@ -58,7 +68,7 @@ Source: `docs/client_changes_12nov.pdf` ("App Flow Modifications & Additional Fu
 | 31–35 | Matching Engine as its own menu item: compare old and new roll, new / deleted / changed voters, keep survey data, see the results, download a report | Replaces + change request | "Roll update" is renamed Matching Engine (the comparing itself was already in the SRS). The results screen and the report download are new | Step 10, 14.6 |
 | 9 (Know My Constituency) | Geography by Village Panchayat and part, demographics, previous MP / AC / ZP election results; admin and core staff only | Change request | Geography and demographics are worked out from the data already in JANSETU. Previous election results are typed in from what the client gives. "Core staff" = super admin, so admin and super admin see it | 14.7, 14.8 |
 | 36–38 | Put all of it in the app flow | – | `docs/app_flow_v2.pdf` | Flow |
-| 39, 40 | Everything on the portal and the app, with sync and permissions | – | Each task names its portal part for the teammate | all |
+| 39, 40 | Everything on the portal and the app, with sync and permissions | – | Each task names its portal part; since 14 Nov the portal pages are Step 15, built by me | all |
 
 ### Goa, not Maharashtra
 

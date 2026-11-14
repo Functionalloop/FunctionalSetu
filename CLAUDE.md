@@ -3,7 +3,7 @@
 JANSETU is a voter data management platform: an offline-first Android app for field workers, a web admin portal, and one backend + PostgreSQL database on a single Bluehost VPS (4 vCPU, 16 GB RAM).
 
 - **Client:** Naik Management Solutions Pvt Ltd, Sawantwadi
-- **Developer:** Shree Samarth Krupa (me). I build the backend, database, server and Android app. My teammate builds only the web portal (`portal/`).
+- **Developer:** Shree Samarth Krupa (me). I build everything: backend, database, server, Android app and, since 14 Nov, the web portal (`portal/`, Step 15). The teammate who was to build the portal gave up on 14 Nov and left nothing; there is no second developer.
 - **Deadlines:** demo 25 Nov 2026 · working APK 30 Nov · final delivery 15 Dec 2026. The server is a Bluehost VPS (changed from the Hostinger KVM 4 on 13 Nov, see `docs/change_log.md`); if it is not ready, the demo runs from my laptop.
 - **Plan:** `docs/plan.md` lists every remaining step with dates. `TASKS.md` is the task checker generated from it. When a subtask is committed on its step branch (not only when merged), run `python scripts/tasks.py done <id>` (ticks both files, records date and commit) and commit both files. After editing `plan.md`, run `python scripts/tasks.py sync`; `python scripts/tasks.py status` shows progress and the next tasks.
 
@@ -34,7 +34,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 | `context/sync.md` | Pull and push as both the server and the phone see them. |
 | `context/android.md` | App layout, local database, screens built, build and signing. |
 | `context/deploy.md` | Server, Docker Compose, Caddy, backups, APK publishing. |
-| `context/portal.md` | What the teammate's portal needs from me (contract, CORS, server). |
+| `context/portal.md` | Web portal (Step 15): safety rules, stack, pages by task, contract notes. |
 
 - When working on one section, read this file, `context/README.md` and that section's file only. Read another section's file only when the task really crosses into it.
 - Claude Code does not load `context/` by itself; this rule is what makes it read the right file.
@@ -58,7 +58,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 - **Worker:** one Python process taking job rows from PostgreSQL with `FOR UPDATE SKIP LOCKED` (roll imports, exports).
 - **Database:** PostgreSQL 16. Migrations are plain numbered SQL files in `db/migrations/`, applied in order by `scripts/migrate.py`, which records them in a table.
 - **Android:** Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit + OkHttp, Room + SQLCipher (FTS for search), WorkManager for sync, Android Keystore for the DB key.
-- **Portal (teammate):** React + TypeScript + Vite static build, TanStack Query, API types generated from `openapi.json`.
+- **Portal (me, Step 15):** React + TypeScript + Vite static build, TanStack Query, React Router, API types generated from `openapi.json` (`npm run gen:api`). Served by Caddy at the domain root, same address as the API. Node on the laptop only.
 - **Server:** Ubuntu LTS, Docker Compose: `caddy` (HTTPS, portal files, APK), `api`, `worker`, `db`. Nightly `pg_dump`, kept 14 days; an office computer pulls a copy every night (task 12.5; Bluehost has no snapshots on this plan).
 
 ## How the database must be used
@@ -83,7 +83,7 @@ To keep each session small, this file holds only the rules that apply everywhere
 - Lists: `?limit=50&cursor=...` → `{ "items": [...], "next_cursor": ... }`.
 - Errors: `{ "error": { "code": "...", "message": "..." } }` with 400/401/403/404/409/422.
 - Dates ISO 8601 UTC; clients display Indian time.
-- Any endpoint change goes into the OpenAPI schema first and I tell my teammate the same day. No silent breaking changes; add a field or endpoint instead.
+- Any endpoint change goes into the OpenAPI schema first (`scripts/export_openapi.py`); once `portal/` exists, run `npm run gen:api` there and commit the portal's types in the same commit. No silent breaking changes; add a field or endpoint instead.
 
 ## Repo layout
 
@@ -104,7 +104,7 @@ deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Cadd
 backend/Dockerfile    API image (build context = repo root, allow-list in .dockerignore)
 jansetu-private/      real roll files (git-ignored, never committed)
 android/              Android app (Kotlin, Compose)
-Not created yet:      backend/app/worker.py, portal/ (teammate)
+Not created yet:      backend/app/worker.py, portal/ (web portal, from task 15.1)
 ```
 
 ## Build status (13 Nov 2026)
@@ -117,7 +117,7 @@ Not created yet:      backend/app/worker.py, portal/ (teammate)
 - **Step 6 done (13 Nov):** Bluehost VPS live at `https://myjansetu.com` (Caddy HTTPS, api, db; SSH key only, ufw), nightly backup + restore with the transaction counter moved, the real roll on the server, `GET /app/version` and APK download, release key (outside the repo) and APK 0.1.0 published, Phones screen in the app (approve / block) + `approve_phone.py`, laptop fallback (debug build: server address on the Login screen; `scripts/fallback.ps1`). See `context/deploy.md`. 1,204 backend tests; `check_dev_data.py` all pass.
 - **Step 7 done (13 Nov, merged):** 7.1 Kutumb Connect API (members in `family_members`, migration 003); 7.13 influencer only (migration 004, phone database version 3); 7.2 Kutumbs in sync pull and push; 7.3 visits API (REST, push, pull); 7.4 Kutumb Connect tab and Walk list on the phone (phone database version 4); 7.5 Eligible but Not Registered (API, sync, list and form on the phone; phone database version 5); 7.6 Information Updation (voter history API and tab, online only); 7.7 Voter slip (drawn on the phone, shared on WhatsApp, slip events in push); 7.8 Birthdays and Select many (bulk colour tag); 7.9 More menu (terms, announcements, help and report a problem, change password, Update required); 7.10 Conflict review (API and Sync screen); 7.11 Part notes (API, sync, walk list and Survey tab; phone database version 6); 7.12 Share on WhatsApp, at most 5 voters (phone only). 1,399 backend tests.
 - **Step 8 done (14 Nov, merged):** 8.1 turnout API (marks by voter or by part + serials, undo, summary, marks in pull and push); 8.2 Polling day tab and Mark voted (phone database version 7); 8.3 Mark many voted. A phone push now skips items an older server answers `not_implemented` and sends the rest. Server updated to `main` (migrations 003 and 004 applied) and APK 0.2.0 published on 14 Nov.
-- **Next:** Demo (24–25 Nov), then the 501 stubs (steps 7–11); the web portal is planned later (the teammate may not deliver it); see `docs/plan.md`.
+- **Next (re-planned 14 Nov):** Step 9 (14–16 Nov), portal part A on the laptop (15.1–15.7, 17–19 Nov), Step 10 (20–22 Nov), demo (24–25 Nov), portal on the server and part B (26–29 Nov), Step 11 (27–30 Nov), then Steps 12–14 with portal part C. A step is merged before its portal pages are built. See `docs/plan.md` ("14 Nov: one developer") and Step 15.
 
 What the import left for later steps: one booth per part, no Marathi voter names, no `voter_surveys` rows (the first survey save creates the row), no `families` rows.
 
@@ -144,7 +144,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - The roll is English only, but the SRS promises Marathi names and Marathi search.
 - 50 wards (one per part) are a guess; the client will send which parts belong to which Village Panchayat (task 14.1). AC 2 of Goa is Pernem (SC).
 - Roles: I will confirm that a surveyor does not mark voted and a booth agent does not survey. Build to the SRS table until then.
-- The terms of use text and the public website pages come from the client. No website content by 1 Dec = the website pages are dropped.
+- The terms of use text comes from the client. The public website pages are dropped (14 Nov); the SRS names them, so the client must be told in writing (not done yet).
 - The server is outside India and has 100 GB, not the SRS's India region and 200 GB (`docs/change_log.md`, 13 Nov). The client was told on 13 Nov; work does not wait for a written answer.
 
 Nothing outside the SRS and the client's changes of 12 Nov (`docs/change_log.md`) is built (see the last section of `docs/plan.md`). The Login screen has no language buttons.
@@ -152,8 +152,9 @@ Nothing outside the SRS and the client's changes of 12 Nov (`docs/change_log.md`
 ## Git workflow
 
 - One branch per step (`step4-demo-api`, `step5-android-demo`, ...).
-- At the end of each step, run one full check of everything before merging: all backend tests (`TEST_RUNNER=claude pytest`), `python scripts/tasks.py check`, and `python scripts/check_dev_data.py` (the real roll in the dev database: counts and timings only, every write rolled back, row counts compared before and after). Add a check there for each new feature.
+- At the end of each step, run one full check of everything before merging: all backend tests (`TEST_RUNNER=claude pytest`), `python scripts/tasks.py check`, and `python scripts/check_dev_data.py` (the real roll in the dev database: counts and timings only, every write rolled back, row counts compared before and after). Add a check there for each new feature. Once `portal/` exists, also `npm run check` in `portal/`.
 - Merge into `main` when that check passes.
+- Portal work (Step 15) changes only `portal/` (plus the Caddy and publish files of 15.7) and follows the ten safety rules in `docs/plan.md`, Step 15. It never reaches the server before the demo.
 - Never commit `.env` or anything in `jansetu-private/`.
 
 ## Working style

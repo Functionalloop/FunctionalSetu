@@ -8,7 +8,7 @@
 # The dev database (docker-compose.dev.yml, project jansetu-dev) is separate:
 # different project name, different volume, so both can run on the laptop.
 # APK files: deploy/apk/ (git-ignored *.apk), served at /download/ (6.3).
-# Not here yet: worker (no backend/app/worker.py yet), portal (9.9).
+# Not here yet: worker (no backend/app/worker.py yet), portal (15.7).
 name: jansetu
 
 x-logging: &logging

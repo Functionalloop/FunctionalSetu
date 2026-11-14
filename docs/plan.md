@@ -1,20 +1,45 @@
 # JANSETU – plan to final delivery
 
-Written 11 Nov 2026; changed 12 Nov, twice, for the client's changes (see "Client changes of 12 Nov" and `docs/change_log.md`), and 13 Nov (Bluehost server, task 6.7, audit of Step 6). The dates on the tasks are the latest dates: on 13 Nov the work is about a week ahead, and a step starts as soon as the one before it is merged. Scope is `docs/01_srs.md` version 1.1 plus the change requests in Step 14, which are built only after the client approves the updated app flow (`docs/app_flow_v2.pdf`).
+Written 11 Nov 2026; changed 12 Nov, twice, for the client's changes (see "Client changes of 12 Nov" and `docs/change_log.md`), 13 Nov (Bluehost server, task 6.7, audit of Step 6) and 14 Nov (the web portal is now mine, Step 15; Steps 9–11 moved earlier; see the next paragraph). The dates on the tasks are the latest dates: on 14 Nov the work is about two weeks ahead, and a step starts as soon as the one before it is merged. Scope is `docs/01_srs.md` version 1.1 plus the change requests in Step 14, which are built only after the client approves the updated app flow (`docs/app_flow_v2.pdf`).
 
 | Date | Milestone | What must work |
 |---|---|---|
 | Wed 25 Nov | Demo | Login + phone approval, sync pull/push, area tree, voter list/search/profile, survey save, all offline on a real phone, server deployed |
 | Mon 30 Nov | Working APK | The 42 screens of SRS 1.1, with the client's new names (Kutumb Connect, Information Updation, Eligible but Not Registered, Matching Engine) |
-| Tue 15 Dec | Final delivery | Fixes from client testing, scanned roll PDF import (English), the change requests of Step 14 as far as the client has approved them and sent their data, live server, backups, restore test, load test, training, handover notes |
+| Tue 15 Dec | Final delivery | Fixes from client testing, the web portal (Step 15), scanned roll PDF import (English), the change requests of Step 14 as far as the client has approved them and sent their data, live server, backups, restore test, load test, training, handover notes |
+
+## 14 Nov: one developer, also for the web portal
+
+The teammate who was to build the web portal has given up and left nothing behind: no code, no screen designs, no `portal/` folder. From 14 Nov I am the only developer, and the portal is mine too: **Step 15**. The SRS still promises it for 15 Dec.
+
+- **Step 9 comes first, not the portal.** The portal is only a screen on top of the API. On 14 Nov it could do four things (login, voters, phones, turnout); the admin, roll and report endpoints still answer 501. 30 Nov is "all 42 app screens"; the portal is due on 15 Dec.
+- **Where the time comes from.** Step 8 was due on 28 Nov and was merged on 14 Nov. Those two weeks pay for the portal, so Steps 9–11 are moved earlier and the portal is built between them. The milestones do not move.
+- **The rule.** A step is merged first, then its portal pages are built. One branch is open at a time.
+- **What the portal holds** (decided 14 Nov): everything the app's admin screens have. The **public website pages are dropped**; the SRS names them, so the client is told in writing.
+- **So that the portal cannot damage what works:** the ten safety rules at the top of Step 15.
+
+| Dates | Work |
+|---|---|
+| 14–16 Nov | Step 9 (9.1–9.8) |
+| 17–19 Nov | Portal part A (15.1–15.7): project, login, voters, the Step 9 pages; served by Caddy on the laptop only |
+| 20–22 Nov | Step 10 |
+| 23 Nov | Spare day, rehearsal |
+| 24–25 Nov | Freeze and demo. The portal is not in the demo script, and the server is not changed for the portal before the demo |
+| 26–27 Nov | Portal on the server (15.8); portal part B: Matching Engine, corrections, data quality (15.9, 15.10) |
+| 27–28 Nov | Step 11 (11.1–11.3) |
+| 29 Nov | Portal reports and exports (15.11) |
+| 30 Nov | 11.4 working APK, new portal build on the server |
+| 1–10 Dec | Portal part C (15.12–15.14) beside Steps 12–14 |
+
+If Steps 9–11 fall back to their old dates (28–30 Nov), their portal pages move into 1–10 Dec and the order in risk 15 says what slips first.
 
 ## How to use this file
 
 - One checkbox = one Claude Code session = one commit on the step's branch. Tick it once it is committed (`python scripts/tasks.py done <id>`).
 - Each session reads CLAUDE.md, `context/README.md` and the one `context/` file for its section, and updates that file in the same commit.
 - Every endpoint gets four tests: it works, a lower role gets 403, another workspace gets 404, another area gets 404. The last three (and 401, pending / blocked phone, bad id) come from one row in `backend/tests/endpoints.py`; the endpoint's own test file covers what it does.
-- After every API subtask: run `scripts/export_openapi.py`, commit `docs/openapi.json`, tell the teammate the same day. The portal needs nothing else from me.
-- Paths: `app/` = `backend/app/`, `tests/` = `backend/tests/`, `A/` = `android/app/src/main/java/com/jansetu/app/`.
+- After every API subtask: run `scripts/export_openapi.py` and commit `docs/openapi.json`. Once `portal/` exists (15.1), also run `npm run gen:api` there and commit the result in the same commit, so the portal's types never fall behind. (Until 14 Nov this line said "tell the teammate the same day"; there is no teammate now.)
+- Paths: `app/` = `backend/app/`, `tests/` = `backend/tests/`, `A/` = `android/app/src/main/java/com/jansetu/app/`, `P/` = `portal/src/`.
 - Android tests: `androidTest` for the database, unit tests with a fake server for sync and view models, and a short manual check on a real phone for each screen.
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api`
@@ -36,7 +61,7 @@ Goal: everything the phone needs from the server for the demo.
 
 Done when: a script can log in, get approved, download an area, save a survey and push it, with nothing visible from another workspace or area.
 
-Portal (teammate): login, voter list, search and profile, phone approval list. After 4.10: every other portal screen against the 501 contract with mocked data.
+Portal: login (15.2), voter list, search and profile (15.3), phone approval list (15.4).
 
 ## Step 5 – Android demo app · 14–23 Nov · branch `step5-android-demo`
 
@@ -61,7 +86,7 @@ Goal: the demo flow on a real phone, working without internet.
 
 Done when: the demo script below runs twice in a row without touching the laptop.
 
-Portal (teammate): nothing from this step.
+Portal: nothing from this step.
 
 ## Step 6 – Server · 19–23 Nov · branch `step6-server`
 
@@ -78,7 +103,7 @@ Goal: the API on the Bluehost VPS with HTTPS, and a laptop fallback that has bee
 
 Done when: the phone syncs with the server over HTTPS, and with the laptop when the server is switched off.
 
-Portal: not needed for the demo (decided 13 Nov). The teammate may not deliver it; the web portal is planned later (9.9 and a portal plan still to be written).
+Portal: not needed for the demo (decided 13 Nov). The teammate gave up on 14 Nov; I build the portal in Step 15, and Caddy serves it from 15.7 (laptop) and 15.8 (server, after the demo).
 
 ## Demo · 24–25 Nov
 
@@ -88,6 +113,8 @@ Portal: not needed for the demo (decided 13 Nov). The teammate may not deliver i
 Not in the demo: Marathi search (the roll has no Marathi names yet). Say so before the client asks.
 
 Decided 13 Nov: no portal at the demo. "Admin approves" is done on the admin's phone (More > Phones, 6.8), and "the change is on the server" is shown by the admin's phone after Sync now. The admin's own phone is approved once on the server with `scripts/approve_phone.py` before the demo.
+
+Decided 14 Nov: the portal's files and the Caddy change for them reach the server only after the demo (15.8, 26 Nov). Before the demo the portal runs on the laptop only.
 
 ## Step 7 – Field screens · 26–27 Nov · branch `step7-field`
 
@@ -108,7 +135,7 @@ Goal: everything a surveyor uses besides the survey. Each subtask is the endpoin
 - [x] **7.11 Part notes.** One shared note per part (up to 2,000 characters) that everyone assigned to the part sees: `GET/PUT /booths/{id}/note` with `version`, in pull and push (`part_note`). Surveyor and above can write; a booth agent reads. Shown at the top of the walk list and on the Survey tab. Files: `app/routers/part_notes.py`, `tests/test_part_notes.py`, `A/ui/partnote/`. Test: a note saved offline reaches a second phone on its next sync; a stale version gives a conflict, not a lost note. Built 13 Nov: no migration (table from 002); a stale push is a conflict with the server copy but no `sync_conflicts` row (its entity types are fixed in 001; 005 is kept for Step 14), so the phone decides note conflicts itself (Keep mine sends the text again on the server's version); phone database version 6 (full download after the update). Test: `tests/test_part_notes.py`, `FieldSyncTest` and `MigrationTest` on the phone. (27 Nov)
 - [x] **7.12 Share on WhatsApp, at most 5 voters.** Decided 12 Nov: this is the only multi-send; there is no bulk message screen and no bulk SMS. On Kutumb Connect (the members) and on Select many, tick up to 5 voters and choose the voter slip or a message (the candidate message from the election settings, editable before sending). The phone's own WhatsApp then opens for each ticked voter who has a mobile number, one after another, with their own slip or the message; the worker presses send each time. A sixth voter cannot be ticked. A family larger than 5 is sent in two rounds. Voters without a mobile are skipped and counted. No WhatsApp API. Files: `A/ui/share/ShareWhatsAppScreen.kt`. Test: 5 ticked voters, one without a mobile, open WhatsApp 4 times with the right slips and report 1 skipped; a sixth tick is refused. Built 14 Nov: phone only (no API change); route `share/{ids}`; the Kutumb tab passes all members and the ticking is on the share screen (a Kutumb of 6 or more starts unticked); Select many enables WhatsApp only with 1 to 5 ticked (colour tags still take any number); a slip share logs a `slip_event` (whatsapp) as in 7.7, a message share logs nothing; the message is English where set, else Marathi. Test: `ShareWhatsAppTest` (JVM). (27 Nov)
 
-Portal (teammate): Kutumb Connect view (hand-made, no head), Eligible but Not Registered list, Information Updation (voter history). No bulk message on the portal.
+Portal: Kutumb Connect view (hand-made, no head), Eligible but Not Registered list and Information Updation (voter history) in 15.3. No bulk message on the portal.
 
 ## Step 8 – Polling day · 27–28 Nov · branch `step8-polling-day`
 
@@ -118,49 +145,50 @@ Goal: mark who has voted, one by one or many, offline.
 - [x] **8.2 Screens: Polling day, Mark voted.** For a surveyor the tab only says polling day is not part of their role. Files: `A/ui/polling/`. Test: marks made offline upload on reconnect; the unsent count is shown. (28 Nov)
 - [x] **8.3 Screen: Mark many voted** (typed serials and ranges, or ticked from the booth list). Files: `A/ui/polling/BulkVotedScreen.kt`. Test: "12, 15, 18-25" marks 10 voters and skips one already marked. (28 Nov)
 
-Portal (teammate): turnout by booth.
+Portal: turnout by part in 15.6.
 
-## Step 9 – Admin · 28–29 Nov · branch `step9-admin`
+## Step 9 – Admin · 14–16 Nov · branch `step9-admin`
 
-Goal: an admin can run the workspace from the phone and the portal.
+Goal: an admin can run the workspace from the phone. The same endpoints then carry the portal's admin pages (15.4–15.6).
 
-- [ ] **9.1 Users:** `GET/POST /users`, `GET/PATCH /users/{id}`, `POST /users/{id}/reset-password` (limit 200). Files: `app/routers/users.py`, `tests/test_users.py`. Test: the 201st user is refused; an admin cannot create a user in another constituency. (28 Nov)
-- [ ] **9.2 Assignments:** `GET/PUT /users/{id}/assignments`. Files: same router, `tests/test_assignments.py`. Test: after a booth is removed, the next pull tells the phone to drop it. (28 Nov)
-- [ ] **9.3 Constituencies:** `GET/POST/PATCH /constituencies` (limit 5, super admin). Files: `app/routers/constituencies.py`, `tests/test_constituencies.py`. (28 Nov)
-- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also the influencer list), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (28 Nov)
-- [ ] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (29 Nov)
-- [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** The phone list with approve and block is already built (6.8, `A/ui/admin/PhonesScreen.kt`); Users & devices adds the users and links each to their phones. Files: `A/ui/admin/users/`. Test: a new user made on the phone logs in on a second phone and is approved from the first. (29 Nov)
-- [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list).** Files: `A/ui/admin/settings/`. (29 Nov)
-- [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (29 Nov)
-- [ ] **9.9 Portal files on the server.** Caddy serves the portal's static build at the domain root from `deploy/portal/` (git-ignored, copied like the APK), `index.html` as the fallback for the portal's own routes; same origin as the API, so no CORS entry. Who builds the portal and what it holds is planned later (13 Nov: the teammate may not deliver it). Files: `deploy/Caddyfile`, `deploy/docker-compose.yml`. Test: the portal login page loads from the domain; `/api/v1/health` and the APK download still work. (29 Nov)
+- [ ] **9.1 Users:** `GET/POST /users`, `GET/PATCH /users/{id}`, `POST /users/{id}/reset-password` (limit 200). Files: `app/routers/users.py`, `tests/test_users.py`. Test: the 201st user is refused; an admin cannot create a user in another constituency. (14 Nov)
+- [ ] **9.2 Assignments:** `GET/PUT /users/{id}/assignments`. Files: same router, `tests/test_assignments.py`. Test: after a booth is removed, the next pull tells the phone to drop it. (14 Nov)
+- [ ] **9.3 Constituencies:** `GET/POST/PATCH /constituencies` (limit 5, super admin). Files: `app/routers/constituencies.py`, `tests/test_constituencies.py`. (15 Nov)
+- [ ] **9.4 Settings and lists:** `GET/PUT /settings/election` (admin and super admin can both save the election and the candidate, with polling start and end time), `GET/POST/PATCH /masters/{list}` (also the influencer list), `POST /files`. Files: `app/routers/settings.py`, `app/routers/masters.py`, `app/routers/files.py`, tests for each. Test: a renamed colour tag reaches the phone on the next pull; an admin's election save works and a supervisor's gets 403. (15 Nov)
+- [ ] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (15 Nov)
+- [ ] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** The phone list with approve and block is already built (6.8, `A/ui/admin/PhonesScreen.kt`); Users & devices adds the users and links each to their phones. Files: `A/ui/admin/users/`. Test: a new user made on the phone logs in on a second phone and is approved from the first. (16 Nov)
+- [ ] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list).** Files: `A/ui/admin/settings/`. (16 Nov)
+- [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (16 Nov)
 
-Portal (teammate): users, assignments, phones, constituencies, election settings, lists, announcements, activity log, worker activity.
+Task 9.9 (portal files on the server) moved to Step 15 on 14 Nov as 15.7 and 15.8, so this step can be merged without a portal.
 
-## Step 10 – Matching Engine (roll update) and data quality · 29–30 Nov · branch `step10-roll`
+Portal: users, assignments and phones in 15.4; constituencies, election settings and lists in 15.5; announcements, activity log, worker activity and worker locations in 15.6.
+
+## Step 10 – Matching Engine (roll update) and data quality · 20–22 Nov · branch `step10-roll`
 
 Goal: apply a new roll without losing survey work, and clean the list.
 
 Client, 12 Nov: "Roll update" is called **Matching Engine** and is its own item in the More menu. Only a super admin may change official roll data. Upload, resolve, apply, discard, add, correct, remove and restore answer 403 to everyone else; an admin can still read imports and roll edits (contract in 5.15).
 
-- [ ] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (29 Nov)
-- [ ] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (29 Nov, two sessions)
-- [ ] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (30 Nov)
-- [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (30 Nov)
-- [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (30 Nov)
-- [ ] **10.6 Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Matching Engine is its own item in the More menu; it and Correct roll record are shown to a super admin (an admin can open Matching Engine to read, not to change). The results screen and the report download are 14.6. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (30 Nov, two sessions)
+- [ ] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (20 Nov)
+- [ ] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (20–21 Nov, two sessions)
+- [ ] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (21 Nov)
+- [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (21 Nov)
+- [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (22 Nov)
+- [ ] **10.6 Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Matching Engine is its own item in the More menu; it and Correct roll record are shown to a super admin (an admin can open Matching Engine to read, not to change). The results screen and the report download are 14.6. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (22 Nov, two sessions)
 
-Portal (teammate): Matching Engine page (roll upload, matching review; super admin only, admin reads), corrections, duplicates, mobile number sheets. No spelling fixes page.
+Portal: Matching Engine pages (roll upload, matching review; super admin only, admin reads) in 15.9; corrections, repeated voters and mobile number sheets in 15.10. No spelling fixes page.
 
-## Step 11 – Reports and exports · 30 Nov · branch `step11-reports`
+## Step 11 – Reports and exports · 27–30 Nov · branch `step11-reports`
 
 Goal: charts and printed lists; then hand over the working APK.
 
-- [ ] **11.1 Reports:** `GET /reports/survey-progress`, `/colour-tags`, `/demographics`, `/turnout`. Files: `app/routers/reports.py`, `tests/test_reports.py`. Test: totals equal direct counts; a supervisor gets only own wards. (30 Nov)
-- [ ] **11.2 Exports:** `POST /exports`, `GET /exports/{id}`, `.../download`; the worker writes Excel and PDF. Files: `app/routers/exports.py`, `app/export_jobs.py`, `tests/test_exports.py`. Test: an Excel export of a filter has the same rows as `GET /voters` with that filter. (30 Nov)
-- [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (30 Nov)
+- [ ] **11.1 Reports:** `GET /reports/survey-progress`, `/colour-tags`, `/demographics`, `/turnout`. Files: `app/routers/reports.py`, `tests/test_reports.py`. Test: totals equal direct counts; a supervisor gets only own wards. (27 Nov)
+- [ ] **11.2 Exports:** `POST /exports`, `GET /exports/{id}`, `.../download`; the worker writes Excel and PDF. Files: `app/routers/exports.py`, `app/export_jobs.py`, `tests/test_exports.py`. Test: an Excel export of a filter has the same rows as `GET /voters` with that filter. (28 Nov)
+- [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (28 Nov)
 - [ ] **11.4 Working APK.** Signed release build (key from 6.7) on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
 
-Portal (teammate): reports, charts, exports. The client's eight reports at three levels are Step 14.
+Portal: reports, charts and exports in 15.11. The client's eight reports at three levels are Step 14 (portal: 15.13).
 
 ## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery`
 
@@ -171,13 +199,13 @@ Goal: what the SRS promises for final delivery.
 - [ ] **12.4 Load test: 200 users syncing at once** on the server, in a fake workspace. Files: `scripts/loadtest.py`, results in `docs/load_test.md`. Pass mark: no errors and 95% of sync calls under 3 seconds (my figure; the SRS gives none). (5–6 Dec)
 - [ ] **12.5 Backups stored away from the server,** and a restore test. An office computer pulls the newest dump over SSH every night (and at next start if it was off) and keeps 14 days, and warns when the newest dump on the server is more than a day old (nothing else notices a failed backup). Bluehost has no snapshots on this plan (checked 13 Nov), so this is the only copy away from the server; until it runs, I copy a dump to the laptop by hand after 6.5 and after each day of client testing. The copy holds real voter data, so it stays in a folder only I can open. Files: `scripts/pull_backup.ps1` (or `.sh`, to match the office computer), `scripts/backup.sh`, `docs/handover.md`. Test: last night's dump, taken from the office computer, restored into a scratch database; counts match. (7 Dec)
 - [ ] **12.6 Isolation check.** Every endpoint in `openapi.json` has its other-workspace and other-area test. Files: `tests/test_coverage_of_isolation.py`. (8 Dec)
-- [ ] **12.7 Server check.** New secrets, CORS only for the portal domain, API docs page off or admin only (`/api/v1/docs` and `/api/v1/openapi.json` are public since 6.4), demo users switched off (`create_demo_users.py --remove`) and rehearsal surveys gone, kernel updates and reboots (unattended upgrades do not reboot by themselves), disk and log size. Files: `deploy/`. (9 Dec)
-- [ ] **12.8 Handover notes.** Server access, deploy, backup and restore, new workspace and admin, publishing an APK, known limits. Files: `docs/handover.md`. (10–11 Dec)
+- [ ] **12.7 Server check.** New secrets, CORS only for the portal domain (none is needed while the portal is on the API's own address, 15.7), the portal's content security header in place, API docs page off or admin only (`/api/v1/docs` and `/api/v1/openapi.json` are public since 6.4), demo users switched off (`create_demo_users.py --remove`) and rehearsal surveys gone, kernel updates and reboots (unattended upgrades do not reboot by themselves), disk and log size. Files: `deploy/`. (9 Dec)
+- [ ] **12.8 Handover notes.** Server access, deploy, backup and restore, new workspace and admin, publishing an APK, publishing a portal build and going back to the one before, known limits. Files: `docs/handover.md`. (10–11 Dec)
 - [ ] **12.9 Admin training** with the client, using the notes. (12–14 Dec)
 - [ ] **12.11 Android 8 check.** Moved from 5.1: install the release APK on an Android 8 phone or emulator and run the demo script. The SRS promises Android 8.0 or newer. Test: the demo script passes on Android 8.0. (4 Dec)
 - [ ] **12.10 Final delivery.** Final APK published, tag `v1.0` on `main`. (15 Dec)
 
-Portal (teammate): fixes from client testing, final build on the server by 10 Dec. Public website pages only if the client's content arrives by 1 Dec; otherwise they are dropped and I tell the client in writing.
+Portal: fixes from client testing are part of 12.3; the voter slip of 12.2 is shown in 15.12; final build on the server by 10 Dec (15.14). No public website pages: dropped on 14 Nov, and I tell the client in writing because the SRS names them.
 
 ## Step 13 – Scanned roll PDFs (OCR) · 1–9 Dec · branch `step13-roll-ocr`
 
@@ -196,7 +224,7 @@ The PDFs are page images with no text (part 49: 30 pages of 949 × 1343 at 115 d
 
 Not now (12 Nov): Marathi / Maharashtra rolls. The SRS adds them only after the client gives sample PDFs and a checked list; the layout profile and the second reader are built so a Devanagari profile can be added later.
 
-Portal (teammate): PDF upload on the roll upload page, and the box image next to a review row.
+Portal: PDF upload on the Matching Engine upload page, and the box image next to a review row, in 15.12.
 
 ## Step 14 – Change requests of 12 Nov · 1–9 Dec · branch `step14-change-requests`
 
@@ -213,7 +241,49 @@ AC 2 is in Goa: two levels of local body (Village Panchayat, Zilla Panchayat) an
 - [ ] **14.7 Know My Constituency: server.** Admin and super admin only ("core staff" = super admin); everyone else gets 403. `GET /constituency/geography` (panchayats with their parts, polling station names and voter counts), `GET /constituency/demographics` (total, male, female, third gender, age bands, by panchayat and part), both worked out from the roll already in JANSETU. Previous elections: tables `past_elections` (type MP / AC / ZP, year, name) and `past_election_results` (candidate, party, votes, for the whole constituency or one panchayat or part); `GET/POST/PATCH/DELETE /constituency/elections`. The figures come from the client and are typed in or pasted from a sheet. Files: `app/routers/constituency.py`, `tests/test_constituency.py`. Test: a supervisor gets 403 on every route; the demographics total equals the voter count. (8 Dec)
 - [ ] **14.8 Know My Constituency: screens.** An item in the More menu for admin and super admin only: Know My Constituency (three cards), Geography, Demographics, Previous elections (list by MP / AC / ZP, and a form to add results). Files: `A/ui/constituency/`. Test: the menu item is not shown to a supervisor; a result added on the phone shows on the portal. (9 Dec)
 
-Portal (teammate): "Village Panchayat" in every area picker, surname filter, the eight reports with their filters and the three download formats, Matching Engine results and download, Know My Constituency (admin and super admin).
+Portal: "Village Panchayat" in every area picker, surname filter, the eight reports with their filters and the three download formats, Matching Engine results and download, Know My Constituency (admin and super admin), all in 15.13.
+
+## Step 15 – Web portal · 17 Nov–10 Dec · branch `step15-portal`
+
+Goal: an admin can do on the web everything the app's admin screens do. Added 14 Nov, when the teammate gave up (see "14 Nov: one developer" at the top). A React + TypeScript + Vite static build with TanStack Query; the API types are generated from `docs/openapi.json`. There are no separate portal designs: I lay the pages out from the approved app flow (`docs/app_flow_v2.pdf`), with the same screen names and fields. Super admin, admin and supervisor log in; a surveyor or booth agent is told to use the app.
+
+**Safety rules, so that the portal cannot damage what works:**
+
+1. **Own folder.** A portal task changes only `portal/`, plus `deploy/Caddyfile`, `deploy/docker-compose.yml` and one publish script in 15.7. Never `backend/`, `db/` or `android/`. If a page needs something the API does not give, that is a separate backend commit with its own tests, and it only adds.
+2. **The contract is the fence.** `P/api/schema.d.ts` is generated from `docs/openapi.json` and committed. `npm run check` fails when it is out of date, or when a page uses a field that is gone. So an API change that would break the portal fails on the laptop the same day.
+3. **The API is the only door.** No database access, no new server process, no Node on the server. The API checks the role and the area; the portal only hides menu items.
+4. **Voter data.** Tests and made-up responses use fake data only. Nothing is kept in `localStorage`, IndexedDB or a service worker. The access token lives in memory, the refresh token in `sessionStorage` (gone when the tab closes). Screenshots only of the fake workspace `demo`.
+5. **No outside services.** No scripts, fonts, analytics or map tiles from other sites; everything is inside the build. Worker locations is a list with a link that opens the place in a maps app.
+6. **Same address as the API.** On the laptop Vite passes `/api` on to `localhost:8000`, so `CORS_ORIGINS` is not touched. On the server Caddy keeps `/api/*` and `/download/*` exactly as they are and matches them first; the portal is only the last fallback.
+7. **The server after the demo.** Everything is tried on the laptop's production stack first. It goes to the server on 26 Nov, with a backup taken just before. Only the `caddy` container is made again (the certificates stay in `caddy_data`); `api` and `db` are not restarted.
+8. **A build can be taken back.** Each build is copied to `deploy/portal/releases/<time>/` and `current` points at it; going back is pointing `current` at the build before. `index.html` is never cached; the files with a hash in their name always are.
+9. **Writes follow the phone's rules.** A record with a `version` sends it; a 409 shows the server copy and asks, never overwrites. The portal does not use `/sync/*`, so the phones and their outbox are not affected. Surveys are read on the portal and edited on the phone.
+10. **Git.** Branch `step15-portal`, started again from `main` for each part and merged at the end of each part (A, B, C) after the full check. The end-of-step check gains `npm run check` in `portal/`; the backend tests must pass unchanged.
+
+**Part A: project, login, voters and the admin pages · 17–19 Nov, laptop only**
+
+- [ ] **15.1 Project and safety rails.** `portal/` with Vite, React, TypeScript, TanStack Query, React Router, `openapi-typescript` and `openapi-fetch`; versions fixed by `package-lock.json` (`npm ci`). `npm run gen:api` writes the types; `npm run check` runs the type check, lint, tests, the build, "the generated types are current" and "no outside address in the build". The dev server passes `/api` on to the laptop API. `context/portal.md` rewritten as the portal's own file. Files: `portal/package.json`, `portal/vite.config.ts`, `P/api/`, `context/portal.md`, `CLAUDE.md`. Test: `npm run check` passes; with a field taken out of a copy of `openapi.json` it fails; the backend suite is unchanged. (17 Nov)
+- [ ] **15.2 Login and shell.** Login without a phone (workspace code, user ID, password), Set password at the first login, one refresh on `token_expired`, logout, change password. Menu by role from `GET /me`, area picker from `GET /geo/tree`, one place that shows the API's error shape, Indian time. Files: `P/auth/`, `P/shell/`. Test: a wrong password shows the server's message; an expired token is refreshed once; a supervisor has no admin menu; a surveyor is told to use the app. (17 Nov)
+- [ ] **15.3 Voters.** The list with search and every filter of `GET /voters`, with cursor paging. Voter profile, read-only: Details, Survey, Kutumb Connect, Information Updation. The Kutumbs of a part, the Eligible but Not Registered list, the part note. Files: `P/voters/`. Test: paging shows every fake voter once; a switched-off colour tag is not offered as a filter. (18 Nov)
+- [ ] **15.4 Users, assignments, phones** (9.1, 9.2, `GET /devices`). Users list, add a user or an admin with the temporary password shown once, edit, switch off, reset the password, assign Village Panchayats and parts. Phones: waiting, approved, blocked; approve; block with a reason. Files: `P/admin/users/`, `P/admin/phones/`. Test: the refusal of the 201st user is shown as the server words it; an admin is not offered another constituency. (18 Nov)
+- [ ] **15.5 Constituencies, Election & candidate, Lists & labels** (9.3, 9.4). Polling date and time, photo and symbol upload, castes, professions, colour tags, the influencer list, custom fields, message templates. Files: `P/admin/settings/`. Test: a supervisor has none of these pages; a save the server refuses leaves the form as typed and shows the reason. (19 Nov)
+- [ ] **15.6 Team and logs** (9.5, 8.1). Announcements (send, remove), problem reports, activity log, worker activity, worker locations (a list), turnout by part. Files: `P/admin/logs/`, `P/turnout/`. Test: a supervisor is not shown the activity log; the turnout totals equal `GET /turnout/summary`. (19 Nov)
+- [ ] **15.7 Caddy serves the portal** (was 9.9), on the laptop's production stack only. The build is served at the domain root from `deploy/portal/` (git-ignored, copied like the APK), with `index.html` as the fallback for the portal's own routes and a content security header; `scripts/publish_portal.sh` makes `releases/<time>/` and moves `current`. Files: `deploy/Caddyfile`, `deploy/docker-compose.yml`, `scripts/publish_portal.sh`, `.gitignore`, `context/deploy.md`. Test on the laptop stack: the login page loads from `/`; a deep link loads again after a refresh; `/api/v1/health` and an APK download answer as before; an unknown `/api/...` path is still the API's JSON 404; going back one build works. Merge part A. (19 Nov)
+
+**Part B: roll and report pages · 26–30 Nov**
+
+- [ ] **15.8 Portal on the server.** After the demo: a backup, the new Caddyfile, the first build published, then the checks of 15.7 on `https://myjansetu.com` and a login from a phone on mobile data. Files: `context/deploy.md`, `deploy/README.md`. Test: the phones still sync and the APK still downloads after the change. (26 Nov)
+- [ ] **15.9 Matching Engine pages** (10.2, 10.3). Upload a CSV or Excel roll (super admin), the import list with progress, rows by status, resolve an uncertain match, apply, discard. An admin can read and has no buttons that change anything. Files: `P/roll/`. Test: the counts on the page equal the import's counts; an admin sees no Upload, Apply or Discard. (26 Nov)
+- [ ] **15.10 Corrections and data quality** (10.4, 10.5). Add a voter, correct a roll record, remove and restore with a reason and a reference, the roll edits of a voter; data quality counts, repeated voters, mobile number sheets. Files: `P/roll/`, `P/quality/`. Test: a correction without a reason cannot be sent; a removed voter is gone from the list and back after Restore. (27 Nov)
+- [ ] **15.11 Reports and exports** (11.1, 11.2). Survey progress, colour tags, age and gender charts, turnout; export a list as Excel or PDF, with the job's status and the download. Files: `P/reports/`, `P/exports/`. Test: the totals on the page equal the report endpoints; a finished export downloads. Merge part B; a new build goes to the server with the working APK. (29 Nov)
+
+**Part C: final delivery · 1–10 Dec**
+
+- [ ] **15.12 Voter slip and scanned PDF upload** (12.2, 13.7). The slip on the voter profile; a PDF in the Matching Engine upload, and the box image beside a review row. Files: `P/voters/`, `P/roll/`. Test: a fake PDF goes from upload to applied in the browser. (8 Dec)
+- [ ] **15.13 Change request pages** (Step 14; only what the client has approved by then). "Village Panchayat" in every area picker, the surname filter, the eight reports with their filters and three download formats, Matching Engine results and download, Know My Constituency for admin and super admin. Files: `P/reports/`, `P/roll/`, `P/constituency/`. Test: the part summary equals the voter list's count for that part; a supervisor has no Know My Constituency. (9–10 Dec, two sessions)
+- [ ] **15.14 Final portal build.** Checked in Chrome, Edge, Firefox and a phone's browser; published on the server; the portal part of the handover notes (12.8). Files: `docs/handover.md`, `context/portal.md`. Test: the "done when" line below, done by hand on the server. Merge part C. (10 Dec)
+
+Done when: an admin with only a browser can add a user, give them parts, approve their phone, read their surveys, apply a new roll and download a report.
 
 ## Client changes of 12 Nov
 
@@ -258,20 +328,21 @@ Open with the client (asked in the app flow): WhatsApp to 5 as the bulk option; 
 
 ## SRS items that are risky for the dates
 
-1. **All 42 screens by 30 Nov.** 10 are done by the demo; the other 32, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone, because the portal covers the same work.
+1. **All 42 screens by 30 Nov.** 10 are done by the demo; the other 32, with about 75 endpoints, fall in 26–30 Nov. This is the biggest risk in the plan. If it slips, the last things in line are steps 10 and 11 on the phone: the portal covers the same work (15.9–15.11), but since 14 Nov only once I have built it.
 2. **Marathi names and search.** The roll has English names only and the SRS excludes automatic conversion. The app will be built and tested for Marathi with fake data, but real Marathi names need a Marathi roll from the client.
 3. **Server.** Running since 13 Nov at `https://myjansetu.com` (Bluehost, not the KVM 4 of the SRS, and not in India: the client was told on 13 Nov, see `docs/change_log.md`). Subtask 6.6 is still the fallback for the demo.
 4. **Scanned roll PDFs (Step 13).** The election office PDFs have no text, only 115 dpi page images, so they need OCR. 99% on names is not certain at that resolution; EPIC and age are easier. Maharashtra is not being built now. The answer key was made with an AI tool, so its own errors must be told apart from OCR errors. Step 13 adds about 8 sessions in 1–9 Dec on top of Step 12; 13.7 and 13.9 slip first. 13.1 measures before anything more is promised. The SRS promises the reading and the review list, not an accuracy figure.
 5. **Roll matching and review.** The SRS describes the result, not the rules for "clear" and "uncertain" matches. I will use: same EPIC = clear; same booth, serial and similar name = clear; anything else similar = uncertain.
 6. **PDF lists in Marathi.** Devanagari needs a PDF tool that shapes the letters correctly; to be tried in 11.2 before promising a layout.
 7. **Client feedback window.** Problems from the demo arrive up to 28 Nov, in the middle of steps 7–9.
-8. **Portal.** The teammate's screens depend on my endpoints; subtask 4.10 gives the full contract by 17 Nov so the portal is not waiting for steps 9–11.
+8. **Portal.** Since 14 Nov I build it (Step 15); see item 15. The full contract of 4.10 and the generated types keep the pages and the API in step.
 9. **"Existing data will be imported before the demo."** The client has since decided against it; the SRS line should be changed in writing.
 10. **Part 4 file is a copy of part 3.** About 688 voters are missing until the client sends the right file.
-11. **Content from the client.** The terms of use text and the public website pages come from the client. No website content by 1 Dec means the website pages are dropped.
+11. **Content from the client.** The terms of use text comes from the client. The public website pages are dropped (14 Nov); the SRS names them, so the client must be told in writing. If the client insists, they come back as one more task (15.15).
 12. **Client changes of 12 Nov, morning list.** Six more sessions (5.14–5.16, 7.11, 7.12, 12.11); spelling fixes and the house-number script fall away. They are in SRS version 1.1, approved by the client on 12 Nov.
 13. **Client changes of 12 Nov, evening list.** One more session before 30 Nov (7.13, which also undoes part of 5.14–5.16) and eight in 1–9 Dec (Step 14). 1–15 Dec then holds Step 12 (10 tasks), Step 13 (8) and Step 14 (8), plus client fixes and training: that is more than the days allow. What slips first, in this order: 13.9, 13.7, 14.8 and 14.7 (Know My Constituency, which also waits for the client's election figures), 14.6. Tell the client when the app flow is sent: the change requests need their approval, their data (panchayat list, election figures) and an agreed date.
 14. **App flow approved (13 Nov).** 7.13 is built; publish a new APK before the demo so the phones lose the Important voter field (an old app's survey with `is_important` is refused). Step 14 waits for the time and cost.
+15. **The portal, by one developer (14 Nov).** The teammate gave up, so Step 15 adds about 16 sessions. It fits only because Steps 7 and 8 were finished two weeks early; 1–15 Dec was already too full (item 13). Never dropped, because the SRS names them: users and parts (15.4), roll import and matching (15.9, the PDF in 15.12), reports and exports (15.11). First to slip, in this order: 15.13, the logs pages of 15.6, the data quality half of 15.10; the phone app has all of these.
 
 ## SRS asks for it; the schema or API document does not cover it yet
 
@@ -292,7 +363,7 @@ Rows marked **Decided** were settled on 11 Nov. The others need a small addition
 | Blocked phone | Nothing records that the phone finished wiping. | The phone reports it on its next `/devices/me` call. |
 | Backups "stored separately" | One server, no outside paid services. | **Decided:** a nightly pull to an office computer (12.5). Bluehost has no snapshots on this plan (checked 13 Nov). |
 | Terms of use | The table is empty. | **Decided:** the text comes from the client. |
-| Public website pages (portal) | No content or page list anywhere. | **Decided:** content comes from the client. None by 1 Dec = the pages are dropped. |
+| Public website pages (portal) | No content or page list anywhere. | **Decided 14 Nov:** dropped; the domain root opens the portal login. The client is told in writing. |
 | Roll file format for import | The SRS names file types, not columns. | Use the columns of the 51 part files until a sample arrives. |
 | 200 users at once | The schema default is 150 concurrent users; nothing enforces it. | Test at 200, as the SRS says. |
 

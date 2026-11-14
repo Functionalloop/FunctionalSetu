@@ -32,7 +32,7 @@ Current state (14 Nov IST): the server runs `main` with Steps 7 and 8 (deployed 
 |---|---|
 | `db` | `postgres:16-bookworm`, volume `pgdata`, **no host port**. Memory from `PG_SHARED_BUFFERS` / `PG_EFFECTIVE_CACHE_SIZE` (server 4GB / 10GB, laptop 512MB / 2GB) |
 | `api` | image `jansetu-api` from `backend/Dockerfile`, uvicorn, `API_WORKERS` processes x `DB_POOL_SIZE` (x2 overflow) connections; port 8000 only inside the network. Gets only the app role password and the JWT secret |
-| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; `/download/<name>.apk` → `deploy/apk/`; anything else 404 until the portal (9.9). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
+| `caddy` | `caddy:2.10`, ports 80/443 (+443/udp). `/api/*` → api; `/download/<name>.apk` → `deploy/apk/`; anything else 404 until the portal (15.7 laptop, 15.8 server after the demo; `/api/*` and `/download/*` stay first, the portal is the last fallback). `www` redirects to `DOMAIN`. Certificates in volume `caddy_data` (keep it: Let's Encrypt limits new certificates) |
 | `ops` | same image, profile `ops`, for one-off scripts; the only container with the superuser and owner passwords |
 
 Commands (repo root; compose reads `deploy/.env`):

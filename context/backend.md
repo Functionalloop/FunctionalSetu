@@ -134,4 +134,4 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 
 - Never use a superuser or owner connection in the API.
 - Do not write `audit_log` or `sync_xid` by hand; triggers do it.
-- After editing any route or schema: export OpenAPI, commit it, tell the teammate the same day. Add fields instead of changing existing ones.
+- After editing any route or schema: export OpenAPI and commit it; once `portal/` exists, run `npm run gen:api` there in the same commit (see `context/portal.md`). Add fields instead of changing existing ones.

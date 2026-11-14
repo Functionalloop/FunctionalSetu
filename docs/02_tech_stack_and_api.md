@@ -15,7 +15,7 @@ JANSETU runs as one FastAPI backend on PostgreSQL 16, used by a Kotlin Android a
 | Background jobs | One Python worker reading job rows from PostgreSQL (`FOR UPDATE SKIP LOCKED`) | Roll imports and exports run outside requests. No Redis or Celery to run. |
 | Files | Server disk folder, tracked in the `files` table | Slips, exports, APK builds. No outside storage. |
 | Android app | Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit + OkHttp, Room + SQLCipher with FTS, WorkManager, Android Keystore; min SDK 26 (Android 8.0) | Offline-first with an encrypted local copy; fast English and Marathi search. |
-| Web portal | React + TypeScript + Vite (static build), TanStack Query, client types generated from the OpenAPI file | A static build needs no Node process on the server. Your teammate can use Next.js in static-export mode if they prefer. |
+| Web portal | React + TypeScript + Vite (static build), TanStack Query, client types generated from the OpenAPI file | A static build needs no Node process on the server. Built by me since 14 Nov (plan, Step 15). |
 | Server | Ubuntu LTS, Docker Compose: Caddy (HTTPS), API, worker, PostgreSQL | One command to deploy. Caddy renews the HTTPS certificate by itself. |
 | Backups | Nightly `pg_dump`, kept 14 days, copied off the main disk | Matches the SRS. |
 
@@ -66,12 +66,12 @@ The API contract comes first, so the app and the portal can be built at the same
 
 1. **Database (you):** load the schema locally, import the client's voter data.
 2. **API skeleton (you):** FastAPI project, login, `set_context` per request, and empty endpoints that return the right shapes. Share `/api/v1/openapi.json`.
-3. **Portal starts (teammate):** generates typed client code from the OpenAPI file and builds screens against the local API or mocked responses.
+3. **Portal (me, since 14 Nov; plan Step 15):** generates typed client code from the OpenAPI file and builds pages against the local API, each step's pages after that step is merged.
 4. **API features (you):** fill endpoints in this order: login and devices, sync, voters and surveys, polling day, admin, roll import, reports.
 5. **Android app (you):** local database and search first, then login, sync, survey, polling day, admin screens.
 6. **Server:** when the VPS is ready, `docker compose up` and point both clients at the domain.
 
-**Rule for changes:** any endpoint change goes into the OpenAPI file first and is told to the teammate the same day. Breaking changes need a new field or endpoint, not a silent change.
+**Rule for changes:** any endpoint change goes into the OpenAPI file first, and the portal's generated types are updated in the same commit. Breaking changes need a new field or endpoint, not a silent change.
 
 ## API rules
 

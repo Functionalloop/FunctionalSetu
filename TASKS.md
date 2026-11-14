@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 52 / 99 done (53%)** `███████████░░░░░░░░░`
+**Overall: 52 / 112 done (46%)** `█████████░░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -13,12 +13,13 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 13 / 13 | `██████████` |
 | Step 8 – Polling day | 3 / 3 | `██████████` |
-| Step 9 – Admin | 0 / 9 | `░░░░░░░░░░` |
+| Step 9 – Admin | 0 / 8 | `░░░░░░░░░░` |
 | Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 | Step 13 – Scanned roll PDFs (OCR) | 0 / 8 | `░░░░░░░░░░` |
 | Step 14 – Change requests of 12 Nov | 0 / 8 | `░░░░░░░░░░` |
+| Step 15 – Web portal | 0 / 14 | `░░░░░░░░░░` |
 
 ## Step 4 – Demo API · 12–17 Nov · branch `step4-demo-api` — 12/12
 
@@ -92,32 +93,31 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **8.2** Screens: Polling day, Mark voted · due 28 Nov · done 2026-11-14 · `7f934ac`
 - [x] **8.3** Screen: Mark many voted · due 28 Nov · done 2026-11-14 · `040fe91`
 
-## Step 9 – Admin · 28–29 Nov · branch `step9-admin` — 0/9
+## Step 9 – Admin · 14–16 Nov · branch `step9-admin` — 0/8
 
-- [ ] **9.1** Users · due 28 Nov
-- [ ] **9.2** Assignments · due 28 Nov
-- [ ] **9.3** Constituencies · due 28 Nov
-- [ ] **9.4** Settings and lists · due 28 Nov
-- [ ] **9.5** Team and logs · due 29 Nov
-- [ ] **9.6** Screens: Users & devices, Add user (also Add admin), Booths & karyakartas · due 29 Nov
-- [ ] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list) · due 29 Nov
-- [ ] **9.8** Screens: Activity log, Worker activity, Worker locations · due 29 Nov
-- [ ] **9.9** Portal files on the server · due 29 Nov
+- [ ] **9.1** Users · due 14 Nov
+- [ ] **9.2** Assignments · due 14 Nov
+- [ ] **9.3** Constituencies · due 15 Nov
+- [ ] **9.4** Settings and lists · due 15 Nov
+- [ ] **9.5** Team and logs · due 15 Nov
+- [ ] **9.6** Screens: Users & devices, Add user (also Add admin), Booths & karyakartas · due 16 Nov
+- [ ] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list) · due 16 Nov
+- [ ] **9.8** Screens: Activity log, Worker activity, Worker locations · due 16 Nov
 
-## Step 10 – Matching Engine (roll update) and data quality · 29–30 Nov · branch `step10-roll` — 0/6
+## Step 10 – Matching Engine (roll update) and data quality · 20–22 Nov · branch `step10-roll` — 0/6
 
-- [ ] **10.1** Worker · due 29 Nov
-- [ ] **10.2** Roll upload and matching · due 29 Nov, two sessions
-- [ ] **10.3** Review and apply · due 30 Nov
-- [ ] **10.4** One-voter corrections · due 30 Nov
-- [ ] **10.5** Data quality · due 30 Nov
-- [ ] **10.6** Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts · due 30 Nov, two sessions
+- [ ] **10.1** Worker · due 20 Nov
+- [ ] **10.2** Roll upload and matching · due 20–21 Nov, two sessions
+- [ ] **10.3** Review and apply · due 21 Nov
+- [ ] **10.4** One-voter corrections · due 21 Nov
+- [ ] **10.5** Data quality · due 22 Nov
+- [ ] **10.6** Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts · due 22 Nov, two sessions
 
-## Step 11 – Reports and exports · 30 Nov · branch `step11-reports` — 0/4
+## Step 11 – Reports and exports · 27–30 Nov · branch `step11-reports` — 0/4
 
-- [ ] **11.1** Reports · due 30 Nov
-- [ ] **11.2** Exports · due 30 Nov
-- [ ] **11.3** Screens: Reports & charts, Print or export a list · due 30 Nov
+- [ ] **11.1** Reports · due 27 Nov
+- [ ] **11.2** Exports · due 28 Nov
+- [ ] **11.3** Screens: Reports & charts, Print or export a list · due 28 Nov
 - [ ] **11.4** Working APK · due 30 Nov
 
 ## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/10
@@ -154,3 +154,20 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [ ] **14.6** Matching Engine results and report · due 7 Dec
 - [ ] **14.7** Know My Constituency: server · due 8 Dec
 - [ ] **14.8** Know My Constituency: screens · due 9 Dec
+
+## Step 15 – Web portal · 17 Nov–10 Dec · branch `step15-portal` — 0/14
+
+- [ ] **15.1** Project and safety rails · due 17 Nov
+- [ ] **15.2** Login and shell · due 17 Nov
+- [ ] **15.3** Voters · due 18 Nov
+- [ ] **15.4** Users, assignments, phones · due 18 Nov
+- [ ] **15.5** Constituencies, Election & candidate, Lists & labels · due 19 Nov
+- [ ] **15.6** Team and logs · due 19 Nov
+- [ ] **15.7** Caddy serves the portal · due 19 Nov
+- [ ] **15.8** Portal on the server · due 26 Nov
+- [ ] **15.9** Matching Engine pages · due 26 Nov
+- [ ] **15.10** Corrections and data quality · due 27 Nov
+- [ ] **15.11** Reports and exports · due 29 Nov
+- [ ] **15.12** Voter slip and scanned PDF upload · due 8 Dec
+- [ ] **15.13** Change request pages · due 9–10 Dec, two sessions
+- [ ] **15.14** Final portal build · due 10 Dec

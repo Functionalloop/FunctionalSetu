@@ -40,7 +40,7 @@
 		}
 	}
 
-	# Later: the portal's static files go at the root (9.9).
+	# Later: the portal's static files go at the root (15.7), as the last fallback.
 	handle {
 		respond "Not found" 404
 	}
