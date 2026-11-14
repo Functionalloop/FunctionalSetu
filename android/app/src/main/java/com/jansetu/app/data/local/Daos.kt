@@ -120,6 +120,7 @@ interface AreaDao {
     @Query("SELECT * FROM areas WHERE parent_id = :parent ORDER BY sort_order, number, name_en") fun children(parent: String): Flow<List<AreaEntity>>
     @Query("SELECT * FROM areas WHERE id = :id") suspend fun area(id: String): AreaEntity?
     @Query("SELECT * FROM areas WHERE id IN (:ids)") suspend fun areas(ids: List<String>): List<AreaEntity>
+    @Query("SELECT * FROM areas ORDER BY sort_order, number, name_en") suspend fun all(): List<AreaEntity>
 }
 
 @Dao

@@ -5,7 +5,9 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import kotlinx.serialization.json.JsonObject
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -27,6 +29,21 @@ interface JansetuApi {
     ): DevicePage
     @POST("devices/{id}/approve") suspend fun approveDevice(@Path("id") id: String): AdminDevice
     @POST("devices/{id}/block") suspend fun blockDevice(@Path("id") id: String, @Body body: BlockDeviceRequest): AdminDevice
+
+    // Users & devices, Booths & karyakartas (9.6): admin and super admin
+    @GET("users")
+    suspend fun users(
+        @Query("q") q: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): UserPage
+    @GET("users/{id}") suspend fun user(@Path("id") id: String): AdminUser
+    @POST("users") suspend fun createUser(@Body body: NewUser): TemporaryPassword
+    /** Only the keys present are changed (a JSON null clears a field): see UserEdits. */
+    @PATCH("users/{id}") suspend fun updateUser(@Path("id") id: String, @Body body: JsonObject): AdminUser
+    @POST("users/{id}/reset-password") suspend fun resetPassword(@Path("id") id: String): TemporaryPassword
+    @GET("users/{id}/assignments") suspend fun assignments(@Path("id") id: String): AssignmentsOut
+    @PUT("users/{id}/assignments") suspend fun setAssignments(@Path("id") id: String, @Body body: AssignmentsIn): AssignmentsOut
 
     @GET("sync/pull")
     suspend fun pull(

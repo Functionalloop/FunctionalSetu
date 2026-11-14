@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,13 +95,16 @@ fun MoreScreen(
             HorizontalDivider()
         }
         if (session.user.role in PHONE_ADMIN_ROLES) {
+            // 9.6: Phones became a tab of Users & devices.
             ListItem(
-                headlineContent = { Text("Phones") },
-                supportingContent = { Text("Approve waiting phones, block a lost one (needs internet)") },
+                headlineContent = { Text("Users & devices") },
+                supportingContent = { Text("Add users, reset passwords, approve or block phones (needs internet)") },
                 leadingContent = { Icon(Icons.Default.PhoneAndroid, null) },
                 modifier = Modifier.clickable(onClick = onPhones),
             )
             HorizontalDivider()
+            MoreItem("Booths & karyakartas", "Who works in which part and Village Panchayat (needs internet)",
+                Icons.Default.Groups) { onOpen("assign") }
         }
         MoreItem("Announcements", "Notices from your admins (needs internet)", Icons.Default.Campaign) { onOpen("announcements") }
         MoreItem("Change password", "Needs internet", Icons.Default.Lock) { onOpen("password") }

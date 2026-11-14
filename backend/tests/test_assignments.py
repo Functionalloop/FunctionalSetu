@@ -48,6 +48,9 @@ def test_put_replaces_the_list(client, ws, admin, owner_conn):
     by = owner_conn.execute("SELECT DISTINCT assigned_by FROM app.user_area_assignments WHERE user_id = %s",
                             (uid,)).fetchall()
     assert by == [(ws.users["admin1"],)]
+    listed = {u["id"]: u for u in client.get(f"{API}/users", headers=admin).json()["items"]}
+    assert sorted(listed[str(uid)]["area_ids"]) == sorted([str(ws.ward), str(ws.booths[1])])  # also in the list
+    assert listed[str(ws.users["admin1"])]["area_ids"] == []
     assert area_ids(put(client, admin, uid)) == []
 
 

@@ -58,7 +58,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Roles that see the Phones item (the server checks again: admin and above). */
+/** Roles that see Users & devices and Booths & karyakartas (the server checks again: admin and above). */
 val PHONE_ADMIN_ROLES = setOf("admin", "super_admin")
 
 enum class PhoneFilter(val label: String, val status: String?) {
@@ -67,7 +67,7 @@ enum class PhoneFilter(val label: String, val status: String?) {
 
 /**
  * Phones of the admin's constituency (super admin: all), from the server; needs internet.
- * Part of plan 9.6 (Users & devices), built early for the demo: approve a waiting phone, block a lost one.
+ * Built early (6.5) for the demo; since 9.6 the Phones tab of Users & devices.
  */
 @HiltViewModel
 class PhonesViewModel @Inject constructor(private val api: JansetuApi) : ViewModel() {
@@ -147,25 +147,14 @@ class PhonesViewModel @Inject constructor(private val api: JansetuApi) : ViewMod
     private companion object { const val PAGE = 100 }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** The phone list with its filters and the block dialog: the Phones tab of Users & devices (9.6). */
 @Composable
-fun PhonesScreen(session: Session, onBack: () -> Unit, vm: PhonesViewModel = hiltViewModel()) {
+fun PhonesContent(session: Session, vm: PhonesViewModel, modifier: Modifier = Modifier) {
     var blocking by remember { mutableStateOf<AdminDevice?>(null) }
     LaunchedEffect(Unit) { vm.poll() }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Phones") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = {
-                    val scope = rememberCoroutineScope()
-                    IconButton(onClick = { scope.launch { vm.reload() } }) { Icon(Icons.Default.Refresh, "Refresh") }
-                },
-            )
-        },
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+    run {
+        Column(modifier.fillMaxSize()) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -229,7 +218,7 @@ fun PhonesScreen(session: Session, onBack: () -> Unit, vm: PhonesViewModel = hil
 }
 
 @Composable
-private fun PhoneCard(d: AdminDevice, isMine: Boolean, busy: Boolean, onApprove: () -> Unit, onBlock: () -> Unit) {
+fun PhoneCard(d: AdminDevice, isMine: Boolean, busy: Boolean, onApprove: () -> Unit, onBlock: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(d.fullNameEn ?: d.username ?: "Unknown user", style = MaterialTheme.typography.titleMedium)

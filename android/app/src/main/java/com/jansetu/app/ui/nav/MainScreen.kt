@@ -35,7 +35,10 @@ import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import com.jansetu.app.ui.admin.PhonesScreen
+import com.jansetu.app.ui.admin.users.AddUserScreen
+import com.jansetu.app.ui.admin.users.AssignScreen
+import com.jansetu.app.ui.admin.users.UserDetailScreen
+import com.jansetu.app.ui.admin.users.UsersScreen
 import com.jansetu.app.ui.home.HomeScreen
 import com.jansetu.app.ui.birthdays.BirthdaysScreen
 import com.jansetu.app.ui.home.MoreScreen
@@ -139,7 +142,7 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                 MarkVotedScreen(session, onBack = { nav.popBackStack() })
             }
             composable("more") {
-                MoreScreen(session, problems = problems.size, onPhones = { nav.navigate("phones") }, onNewVoters = { nav.navigate("newvoters") },
+                MoreScreen(session, problems = problems.size, onPhones = { nav.navigate("users") }, onNewVoters = { nav.navigate("newvoters") },
                     onBirthdays = { nav.navigate("birthdays") }, onOpen = { nav.navigate(it) })
             }
             composable("announcements") { AnnouncementsScreen(onBack = { nav.popBackStack() }) }
@@ -153,7 +156,19 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("newvoter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 NewVoterFormScreen(session, onBack = { nav.popBackStack() })
             }
-            composable("phones") { PhonesScreen(session, onBack = { nav.popBackStack() }) }
+            // Admin (9.6)
+            composable("users") {
+                UsersScreen(session, onBack = { nav.popBackStack() }, onAdd = { nav.navigate("adduser") },
+                    onOpen = { nav.navigate("user/$it") })
+            }
+            composable("adduser") {
+                AddUserScreen(session, onBack = { nav.popBackStack() },
+                    onCreated = { id -> nav.navigate("user/$id") { popUpTo("users") } })
+            }
+            composable("user/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                UserDetailScreen(session, onBack = { nav.popBackStack() })
+            }
+            composable("assign") { AssignScreen(onBack = { nav.popBackStack() }) }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter,
                     onSlip = { nav.navigate("slip/$it") }, onShare = { nav.navigate(shareRoute(it)) })

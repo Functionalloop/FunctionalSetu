@@ -19101,6 +19101,15 @@
             "type": "boolean",
             "title": "Pending Device",
             "description": "A phone is waiting for approval"
+          },
+          "area_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Area Ids",
+            "description": "Wards and booths assigned to the user (as GET /users/{id}/assignments); empty for admins. Added 14 Nov (9.6) so the Booths & karyakartas screen needs one call"
           }
         },
         "type": "object",

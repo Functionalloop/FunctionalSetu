@@ -48,6 +48,9 @@ class User(UserSummary):
     created_at: datetime
     device_count: int = Field(description="Phones linked to this user")
     pending_device: bool = Field(description="A phone is waiting for approval")
+    area_ids: list[uuid.UUID] = Field(default_factory=list, description=(
+        "Wards and booths assigned to the user (as GET /users/{id}/assignments); empty for admins. "
+        "Added 14 Nov (9.6) so the Booths & karyakartas screen needs one call"))
 
 
 class UserPage(Page):

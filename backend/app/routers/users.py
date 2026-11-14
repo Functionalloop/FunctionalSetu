@@ -41,7 +41,9 @@ _SELECT = """
            u.must_change_password, u.preferred_language, u.last_login_at, u.locked_until, u.created_at,
            (SELECT count(*) FROM app.devices d WHERE d.tenant_id = u.tenant_id AND d.user_id = u.id) AS device_count,
            EXISTS (SELECT 1 FROM app.devices d WHERE d.tenant_id = u.tenant_id AND d.user_id = u.id
-                     AND d.status = 'pending') AS pending_device
+                     AND d.status = 'pending') AS pending_device,
+           ARRAY(SELECT a.geo_unit_id FROM app.user_area_assignments a
+                  WHERE a.tenant_id = u.tenant_id AND a.user_id = u.id ORDER BY a.geo_unit_id) AS area_ids
       FROM app.users u
 """
 # Users the caller may see: super admin all, admin their constituency. Removed users never.

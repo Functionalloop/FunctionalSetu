@@ -450,3 +450,58 @@ data class ConflictPage(
 
 /** keep: "kept_client" (the phone's value is written) or "kept_server". */
 @Serializable data class ConflictResolution(val keep: String)
+
+// --- Users & devices, Booths & karyakartas (9.6) ---
+
+/** A user as an admin sees it (GET /users, /users/{id}). */
+@Serializable
+data class AdminUser(
+    val id: String,
+    val username: String,
+    @SerialName("full_name_en") val fullNameEn: String,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    val role: String,
+    val mobile: String? = null,
+    @SerialName("local_body_id") val localBodyId: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("must_change_password") val mustChangePassword: Boolean = false,
+    @SerialName("last_login_at") val lastLoginAt: String? = null,
+    @SerialName("locked_until") val lockedUntil: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("device_count") val deviceCount: Int = 0,
+    @SerialName("pending_device") val pendingDevice: Boolean = false,
+    /** Assigned wards and booths (server 9.6); an older server leaves it out. */
+    @SerialName("area_ids") val areaIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class UserPage(val items: List<AdminUser>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class NewUser(
+    val username: String,
+    @SerialName("full_name_en") val fullNameEn: String,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    val mobile: String? = null,
+    val role: String,
+    @SerialName("local_body_id") val localBodyId: String? = null,
+)
+
+/** Shown once: after create and after reset password. */
+@Serializable
+data class TemporaryPassword(val user: AdminUser, @SerialName("temporary_password") val temporaryPassword: String)
+
+@Serializable data class AssignmentsIn(@SerialName("area_ids") val areaIds: List<String>)
+
+@Serializable
+data class AssignedArea(
+    val id: String,
+    @SerialName("parent_id") val parentId: String? = null,
+    val level: String,
+    val code: String,
+    val number: Int? = null,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+)
+
+@Serializable data class AssignmentsOut(val areas: List<AssignedArea>)
