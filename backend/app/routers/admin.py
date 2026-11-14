@@ -14,61 +14,18 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 
 from ..deps import Db, ReadyUser
-from ..schemas import ColorTag, CustomFieldLabel, NamedListEntry, Role
-from ..schemas_admin import (AnnouncementIn, AssignmentsOut, AuditPage, ColorTagIn, Constituency, ConstituencyIn,
+from ..schemas import ColorTag, CustomFieldLabel, NamedListEntry
+from ..schemas_admin import (AnnouncementIn, AuditPage, ColorTagIn, Constituency, ConstituencyIn,
                              ConstituencyPatch, CustomFieldKey, CustomFieldLabelIn, ElectionSettings,
                              ElectionSettingsIn, FileKind, MessageTemplate, MessageTemplateIn, NamedEntryIn,
-                             ProblemReportPage, StoredFile, TemplateKind, TemporaryPassword, User, UserIn, UserPage,
-                             UserPatch, WorkerActivity, WorkerLocationPage, Assignments)
+                             ProblemReportPage, StoredFile, TemplateKind, WorkerActivity, WorkerLocationPage)
 from ..schemas_field import Announcement
 from ..stubs import Admin, Cursor, Limit, SuperAdmin, not_built
 
 router = APIRouter(tags=["admin"])
 
 
-# --- users (9.1) and assignments (9.2) -------------------------------------------------------
-@router.get("/users", response_model=UserPage,
-            summary="Users in the admin's constituency (super admin: all). Admin.")
-def list_users(conn: Db, user: Admin, role: Role | None = None, is_active: bool | None = None,
-               q: Annotated[str | None, Query(max_length=100, description="name, user ID or mobile")] = None,
-               limit: Limit = 50, cursor: Cursor = None) -> UserPage:
-    not_built("9.1")
-
-
-@router.post("/users", response_model=TemporaryPassword, status_code=status.HTTP_201_CREATED,
-             summary="Create a user with a temporary password (limit 200 per workspace). Admin.")
-def create_user(body: UserIn, conn: Db, user: Admin) -> TemporaryPassword:
-    not_built("9.1")
-
-
-@router.get("/users/{user_id}", response_model=User, summary="One user. Admin.")
-def get_user(user_id: uuid.UUID, conn: Db, user: Admin) -> User:
-    not_built("9.1")
-
-
-@router.patch("/users/{user_id}", response_model=User, summary="Edit, disable or enable a user. Admin.")
-def update_user(user_id: uuid.UUID, body: UserPatch, conn: Db, user: Admin) -> User:
-    not_built("9.1")
-
-
-@router.post("/users/{user_id}/reset-password", response_model=TemporaryPassword,
-             summary="New temporary password; the user's sessions end. Admin.")
-def reset_password(user_id: uuid.UUID, conn: Db, user: Admin) -> TemporaryPassword:
-    not_built("9.1")
-
-
-@router.get("/users/{user_id}/assignments", response_model=AssignmentsOut,
-            summary="Wards and booths the user works in. Admin.")
-def get_assignments(user_id: uuid.UUID, conn: Db, user: Admin) -> AssignmentsOut:
-    not_built("9.2")
-
-
-@router.put("/users/{user_id}/assignments", response_model=AssignmentsOut,
-            summary="Replace the user's wards and booths; their next pull drops what was removed. Admin.")
-def set_assignments(user_id: uuid.UUID, body: Assignments, conn: Db, user: Admin) -> AssignmentsOut:
-    not_built("9.2")
-
-
+# Users (9.1) and assignments (9.2) are in users.py.
 # --- constituencies (9.3) -------------------------------------------------------------------
 @router.get("/constituencies", response_model=list[Constituency], summary="Constituencies in the workspace. Super admin.")
 def list_constituencies(conn: Db, user: SuperAdmin) -> list[Constituency]:

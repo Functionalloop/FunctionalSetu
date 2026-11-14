@@ -136,6 +136,18 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("POST", "/turnout/marks", roles=POLLING_ROLES,
              body=lambda w: {"id": str(uuid.uuid4()), "booth_id": str(w.a.booths[0]), "serials": "1"}),
     Endpoint("DELETE", "/turnout/marks/{voter_id}", roles=POLLING_ROLES, target="voter"),
+    # users (9.1); behaviour: test_users.py. The target is a surveyor of that place's constituency.
+    Endpoint("GET", "/users", roles=ADMINS, lists="user"),
+    Endpoint("POST", "/users", roles=ADMINS,
+             body=lambda w: {"username": f"r{uuid.uuid4().hex[:12]}", "full_name_en": "Rule Check",
+                             "role": "surveyor", "local_body_id": str(w.a.local_body)}),
+    Endpoint("GET", "/users/{user_id}", roles=ADMINS, target="user"),
+    Endpoint("PATCH", "/users/{user_id}", roles=ADMINS, target="user", body={"full_name_mr": "Rule"}),
+    Endpoint("POST", "/users/{user_id}/reset-password", roles=ADMINS, target="user"),
+    # assignments (9.2); behaviour: test_assignments.py
+    Endpoint("GET", "/users/{user_id}/assignments", roles=ADMINS, target="user"),
+    Endpoint("PUT", "/users/{user_id}/assignments", roles=ADMINS, target="user",
+             body=lambda w: {"area_ids": [str(w.a.booths[0])]}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -143,13 +155,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
     # admin (9)
-    ("GET", "/users", ADMINS, "ready"),
-    ("POST", "/users", ADMINS, "ready"),
-    ("GET", "/users/{user_id}", ADMINS, "ready"),
-    ("PATCH", "/users/{user_id}", ADMINS, "ready"),
-    ("POST", "/users/{user_id}/reset-password", ADMINS, "ready"),
-    ("GET", "/users/{user_id}/assignments", ADMINS, "ready"),
-    ("PUT", "/users/{user_id}/assignments", ADMINS, "ready"),
     ("GET", "/constituencies", SUPER, "ready"),
     ("POST", "/constituencies", SUPER, "ready"),
     ("PATCH", "/constituencies/{constituency_id}", SUPER, "ready"),
@@ -241,6 +246,24 @@ def _make_device(world, where: str) -> uuid.UUID:
         "INSERT INTO app.devices (id, tenant_id, user_id, device_uid_hash) VALUES (%s, %s, %s, %s)",
         (did, tenant, uid, uuid.uuid4().hex * 2))
     return did
+
+
+def _make_user(world, where: str) -> uuid.UUID:
+    """A surveyor in that place's constituency."""
+    tenant, lb, _, _ = world.place(where)
+    uid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.users (id, tenant_id, username, full_name_en, role, local_body_id, password_hash)
+           VALUES (%s, %s, %s, 'Rule Person', 'surveyor', %s, 'x')""",
+        (uid, tenant, f"p{uid.hex[:12]}", lb))
+    return uid
+
+
+def _user_state(world, user_id: uuid.UUID):
+    return (world.conn.execute("""SELECT full_name_mr, role, is_active, password_hash, updated_at
+                                    FROM app.users WHERE id = %s""", (user_id,)).fetchone(),
+            world.conn.execute("""SELECT array_agg(geo_unit_id ORDER BY geo_unit_id) FROM app.user_area_assignments
+                                   WHERE user_id = %s""", (user_id,)).fetchone()[0])
 
 
 def _device_state(world, device_id: uuid.UUID):
@@ -350,6 +373,7 @@ def _booth(world, where: str) -> uuid.UUID:
 KINDS: dict[str, Kind] = {
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
+    "user": Kind(_make_user, _user_state),
     "family": Kind(_make_family, _family_state),
     "booth": Kind(_booth),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
