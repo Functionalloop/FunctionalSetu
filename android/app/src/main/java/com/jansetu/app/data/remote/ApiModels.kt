@@ -768,3 +768,82 @@ data class VoterListItem(
 
 @Serializable
 data class VoterListPage(val items: List<VoterListItem>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+// --- Reports and exports (11.3; server 11.1, 11.2) ---------------------------------------------------
+
+/** One Village Panchayat (ward) or part (booth) of a report; `parentId` = a booth's ward (null on wards). */
+@Serializable
+data class AreaCount(
+    @SerialName("area_id") val areaId: String,
+    val name: String,
+    val level: String,
+    val total: Int,
+    /** Surveyed (survey progress) or voted (turnout). */
+    val done: Int,
+    val percent: Double,
+    @SerialName("parent_id") val parentId: String? = null,
+)
+
+@Serializable
+data class SurveyProgress(val total: Int, val surveyed: Int, val percent: Double, @SerialName("by_area") val byArea: List<AreaCount> = emptyList())
+
+/** `colorTagId` null = no colour tag. Only counts above zero are sent. */
+@Serializable
+data class ColorTagCount(@SerialName("color_tag_id") val colorTagId: String? = null, val count: Int)
+
+@Serializable
+data class ColorTagReport(
+    val total: Int,
+    @SerialName("by_tag") val byTag: List<ColorTagCount> = emptyList(),
+    /** area id -> counts */
+    @SerialName("by_area") val byArea: Map<String, List<ColorTagCount>> = emptyMap(),
+)
+
+@Serializable
+data class AgeBand(val band: String, val male: Int, val female: Int, val other: Int)
+
+@Serializable
+data class Demographics(
+    val total: Int, val male: Int, val female: Int, val other: Int,
+    @SerialName("age_bands") val ageBands: List<AgeBand> = emptyList(),
+)
+
+/** `hour` is the Indian hour (0-23). */
+@Serializable
+data class TurnoutHour(val hour: Int, val voted: Int, val cumulative: Int)
+
+@Serializable
+data class TurnoutReport(
+    val total: Int, val voted: Int, val percent: Double,
+    @SerialName("by_area") val byArea: List<AreaCount> = emptyList(),
+    @SerialName("by_hour") val byHour: List<TurnoutHour> = emptyList(),
+)
+
+/**
+ * POST /exports. kind = voter_list, mobile_list, report or turnout; format = xlsx or pdf; language = mr, en or hi.
+ * `filter` takes the GET /voters keys (voter kinds) or ward_id (+ booth_id for demographics); empty `columns` =
+ * the server's default columns.
+ */
+@Serializable
+data class ExportIn(
+    val kind: String,
+    val format: String,
+    val language: String = "mr",
+    val filter: JsonObject = JsonObject(emptyMap()),
+    val columns: List<String> = emptyList(),
+    val options: JsonObject = JsonObject(emptyMap()),
+)
+
+/** status = queued, running, done or failed (`error` is a plain message for the user). */
+@Serializable
+data class ExportJob(
+    val id: String,
+    val kind: String,
+    val format: String,
+    val status: String,
+    @SerialName("row_count") val rowCount: Int? = null,
+    @SerialName("page_count") val pageCount: Int? = null,
+    val error: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("finished_at") val finishedAt: String? = null,
+)

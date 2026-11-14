@@ -43,6 +43,13 @@ import com.jansetu.app.ui.quality.DataQualityScreen
 import com.jansetu.app.ui.quality.DuplicatesScreen
 import com.jansetu.app.ui.quality.MobileSheetScreen
 import com.jansetu.app.ui.quality.MobileSheetsScreen
+import com.jansetu.app.ui.quality.QUALITY_ROLES
+import com.jansetu.app.ui.reports.EXPORT_ROUTE
+import com.jansetu.app.ui.reports.ExportScreen
+import com.jansetu.app.ui.reports.ReportRules
+import com.jansetu.app.ui.reports.ReportScreen
+import com.jansetu.app.ui.reports.ReportsScreen
+import com.jansetu.app.ui.reports.exportRoute
 import com.jansetu.app.ui.admin.logs.ActivityLogScreen
 import com.jansetu.app.ui.admin.logs.WorkerActivityScreen
 import com.jansetu.app.ui.admin.logs.WorkerLocationsScreen
@@ -140,7 +147,10 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                     onBirthdays = { nav.navigate("birthdays") }, onQuality = { nav.navigate("quality") })
             }
             composable("search") {
-                SearchScreen(onOpen = nav::openVoter, onShare = { nav.navigate(shareRoute(it)) }, canTag = session.canSurvey)
+                SearchScreen(onOpen = nav::openVoter, onShare = { nav.navigate(shareRoute(it)) }, canTag = session.canSurvey,
+                    onExport = if (session.user.role in QUALITY_ROLES) { f ->
+                        nav.navigate(exportRoute(ReportRules.VOTER_LIST, filter = ReportRules.apiFilter(f), search = true))
+                    } else null)
             }
             composable("birthdays") { BirthdaysScreen(onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
             composable("walk") { WalkListScreen(session, onOpen = nav::openVoter) }
@@ -212,6 +222,17 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                 RollImportScreen(session, onBack = { nav.popBackStack() })
             }
             composable("removed") { RemovedVotersScreen(session, onBack = { nav.popBackStack() }) }
+            // Reports & charts, Print or export a list (11.3; online only)
+            composable("reports") { ReportsScreen(session, onBack = { nav.popBackStack() }, onOpen = { nav.navigate(it) }) }
+            composable("report/{key}", arguments = listOf(navArgument("key") { type = NavType.StringType })) {
+                ReportScreen(onBack = { nav.popBackStack() }, onExport = { nav.navigate(it) })
+            }
+            composable(EXPORT_ROUTE, arguments = listOf(
+                navArgument("kind") { type = NavType.StringType; defaultValue = ReportRules.VOTER_LIST },
+                navArgument("report") { type = NavType.StringType; defaultValue = "" },
+                navArgument("filter") { type = NavType.StringType; defaultValue = "" },
+                navArgument("search") { type = NavType.BoolType; defaultValue = false },
+            )) { ExportScreen(onBack = { nav.popBackStack() }) }
             composable("rolledit/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 // A removed voter leaves this phone with the sync: go back past its screen.
                 RollEditScreen(onBack = { nav.popBackStack() },

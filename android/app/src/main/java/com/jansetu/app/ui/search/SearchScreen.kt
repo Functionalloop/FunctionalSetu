@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Checkbox
@@ -126,7 +127,10 @@ class SearchViewModel @Inject constructor(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SearchScreen(
-    onOpen: (String) -> Unit, onShare: (Set<String>) -> Unit, canTag: Boolean, vm: SearchViewModel = hiltViewModel(),
+    onOpen: (String) -> Unit, onShare: (Set<String>) -> Unit, canTag: Boolean,
+    /** Print or export the voters of this search (11.3; supervisor and above), null = no button. */
+    onExport: ((VoterFilter) -> Unit)? = null,
+    vm: SearchViewModel = hiltViewModel(),
 ) {
     val filter by vm.filter.collectAsStateWithLifecycle()
     val rows by vm.rows.collectAsStateWithLifecycle()
@@ -173,6 +177,7 @@ fun SearchScreen(
                 if (n > 0) BadgedBox(badge = { Badge { Text("$n") } }) { Icon(Icons.Default.FilterList, "Filters") }
                 else Icon(Icons.Default.FilterList, "Filters")
             }
+            if (onExport != null) IconButton(onClick = { onExport(filter) }) { Icon(Icons.Default.Print, "Print or export this list") }
         }
         Text(
             votersText(count), style = MaterialTheme.typography.labelLarge,

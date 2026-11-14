@@ -104,7 +104,9 @@ fun MoreScreen(
             )
             HorizontalDivider()
         }
-        if (session.user.role in QUALITY_ROLES) { // 10.6
+        if (session.user.role in QUALITY_ROLES) { // 10.6, 11.3
+            MoreItem("Reports & charts", "Survey progress, colour tags, age and gender, turnout; print or export a list (needs internet)",
+                Icons.Default.BarChart) { onOpen("reports") }
             MoreItem("Data quality", "Missing numbers, possible duplicates, repeated voters (needs internet)",
                 Icons.Default.FactCheck) { onOpen("quality") }
         }

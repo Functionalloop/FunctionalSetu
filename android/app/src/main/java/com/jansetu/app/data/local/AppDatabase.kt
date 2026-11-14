@@ -170,6 +170,7 @@ open class LocalDb @Inject constructor(
         instance = null
         context.deleteDatabase(AppDatabase.NAME)
         com.jansetu.app.ui.slip.deleteSlipFiles(context) // the last slip image shows a voter's name
+        com.jansetu.app.ui.reports.deleteExportFiles(context) // so does the last Excel or PDF export (11.3)
         meta.edit().clear().commit()
         key.forget()
     }

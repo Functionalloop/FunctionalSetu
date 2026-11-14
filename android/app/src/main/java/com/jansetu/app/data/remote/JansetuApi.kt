@@ -15,6 +15,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 /** Base URL ends in /api/v1/ (BuildConfig.API_URL). */
 interface JansetuApi {
@@ -157,6 +158,18 @@ interface JansetuApi {
         @Query("cursor") cursor: String? = null,
         @Query("limit") limit: Int? = null,
     ): VoterListPage
+
+    // Reports & charts, Print or export a list (11.3): supervisor and above, the caller's area
+    @GET("reports/survey-progress") suspend fun surveyProgress(@Query("ward_id") wardId: String? = null): SurveyProgress
+    @GET("reports/colour-tags") suspend fun colourTagReport(@Query("ward_id") wardId: String? = null): ColorTagReport
+    @GET("reports/demographics")
+    suspend fun demographics(@Query("ward_id") wardId: String? = null, @Query("booth_id") boothId: String? = null): Demographics
+    @GET("reports/turnout") suspend fun turnoutReport(@Query("ward_id") wardId: String? = null): TurnoutReport
+    /** Answers 202 at once; poll exportJob until done or failed. */
+    @POST("exports") suspend fun startExport(@Body body: ExportIn): ExportJob
+    @GET("exports/{id}") suspend fun exportJob(@Path("id") id: String): ExportJob
+    /** 409 export_not_ready before done. The file name is in Content-Disposition. */
+    @Streaming @GET("exports/{id}/download") suspend fun downloadExport(@Path("id") id: String): Response<ResponseBody>
 
     @GET("sync/pull")
     suspend fun pull(
