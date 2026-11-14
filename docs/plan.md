@@ -158,7 +158,7 @@ Goal: an admin can run the workspace from the phone. The same endpoints then car
 - [x] **9.5 Team and logs:** `POST/DELETE /announcements`, `GET /problem-reports`, `GET /audit-log`, `GET /reports/worker-activity`, `GET /worker-locations`. Files: `app/routers/admin_logs.py`, `tests/test_admin_logs.py`. (15 Nov)
 - [x] **9.6 Screens: Users & devices, Add user (also Add admin), Booths & karyakartas.** The phone list with approve and block is already built (6.8, `A/ui/admin/PhonesScreen.kt`); Users & devices adds the users and links each to their phones. Files: `A/ui/admin/users/`. Test: a new user made on the phone logs in on a second phone and is approved from the first. (16 Nov)
 - [x] **9.7 Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list).** Files: `A/ui/admin/settings/`. (16 Nov)
-- [ ] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (16 Nov)
+- [x] **9.8 Screens: Activity log, Worker activity, Worker locations.** Files: `A/ui/admin/logs/`. (16 Nov)
 
 Task 9.9 (portal files on the server) moved to Step 15 on 14 Nov as 15.7 and 15.8, so this step can be merged without a portal.
 
