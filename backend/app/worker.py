@@ -206,8 +206,15 @@ def main(argv: list[str] | None = None) -> int:
     load_handlers()
     parser = argparse.ArgumentParser(description="JANSETU background worker")
     parser.add_argument("--once", action="store_true", help="run the jobs that are ready now, then stop")
+    parser.add_argument("--kinds", action="store_true", help="print the job kinds this worker runs, then stop")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    if args.kinds:
+        print("\n".join(sorted(HANDLERS)))
+        return 0
+    if not HANDLERS:  # a worker without handlers would take nothing and look healthy
+        log.error("no job handlers registered; not starting")
+        return 1
 
     if args.once:
         count = 0
@@ -219,11 +226,16 @@ def main(argv: list[str] | None = None) -> int:
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
-    log.info("worker started; kinds: %s", ", ".join(sorted(HANDLERS)) or "none yet")
+    log.info("worker started; kinds: %s", ", ".join(sorted(HANDLERS)))
     run_forever(stop)
     log.info("worker stopped")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # `python -m app.worker` runs this file as `__main__`, a second copy of the module. The job modules register
+    # their handlers in `app.worker`, so main() must run there; this copy's HANDLERS would stay empty (found 14 Nov
+    # at the Step 11 deploy: the server's worker had started with no kinds).
+    from app.worker import main as _main
+
+    raise SystemExit(_main())

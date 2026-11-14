@@ -264,3 +264,17 @@ def test_the_api_role_cannot_queue_a_job_for_another_workspace(make_workspace, k
     with pytest.raises(Exception, match="row-level security"):
         with app_db.transaction(a.tenant) as conn:
             conn.execute(text("INSERT INTO app.jobs (tenant_id, kind) VALUES (:t, :k)"), {"t": b.tenant, "k": kind})
+
+
+def test_python_dash_m_app_worker_has_every_handler():
+    """The worker is started as `python -m app.worker` (Docker); its handlers must be the registered ones
+    (14 Nov: run as __main__ it had none and would never take a job)."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    out = subprocess.run([sys.executable, "-m", "app.worker", "--kinds"], cwd=Path(__file__).parents[1],
+                         env=os.environ.copy(), capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.split() == ["export", "mobile_import", "roll_import"]
