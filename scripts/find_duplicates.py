@@ -11,6 +11,7 @@ Runs as the API's database role with RLS on; the audit rows have no user (a scri
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -20,6 +21,10 @@ from sqlalchemy import text
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
+
+# The API's Settings will not load without a JWT secret, and the `ops` container has none (it
+# signs nothing). This script makes no tokens, so a placeholder is enough when the real one is absent.
+os.environ.setdefault("JWT_SECRET", "x" * 32 + "-unused-by-find-duplicates")
 
 from app.db import transaction  # noqa: E402
 from app.duplicates import find_pairs  # noqa: E402

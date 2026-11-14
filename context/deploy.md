@@ -50,7 +50,7 @@ docker compose -f deploy/docker-compose.yml down # keeps the volumes; `down -v` 
 - The dev database (`docker-compose.dev.yml`, project `jansetu-dev`, port 5442) is separate; both can run at once.
 - Image contents are an allow-list (`.dockerignore`): backend code, `db/`, `scripts/`. Nothing from `jansetu-private/` or `.env` can enter it. Python packages pinned by `backend/constraints.txt` (refresh with `pip freeze --exclude-editable` after a dependency change).
 - A fresh `db` has no `jansetu_app` role, so `/health` is 503 until `migrate.py` has run.
-- First deploy with 10.5: once, `docker compose -f deploy/docker-compose.yml run --rm ops python scripts/find_duplicates.py` (pairs for the voters already on record; later ones are found by the API). Done on the dev database 14 Nov (24 pairs).
+- `find_duplicates.py` (pairs for the voters already on record; later ones are found by the API): **done on the server 14 Nov** (24 pairs, as on the dev database), before Step 10 was deployed, by mounting the two new files read-only into a one-off `ops` run. No need to run it again at the Step 10 deploy (safe to repeat: 0 new). The script sets a placeholder `JWT_SECRET` because `ops` has none and `Settings` needs one.
 - Tested 13 Nov on the laptop: health 200 through Caddy, http → https 308, unknown path 404, API errors keep their JSON shape, client IP passed through from Caddy.
 
 ## Backups (`scripts/backup.sh`, `scripts/restore.sh`)
