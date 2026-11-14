@@ -185,7 +185,7 @@ Goal: charts and printed lists; then hand over the working APK.
 
 - [x] **11.1 Reports:** `GET /reports/survey-progress`, `/colour-tags`, `/demographics`, `/turnout`. Files: `app/routers/reports.py`, `tests/test_reports.py`. Test: totals equal direct counts; a supervisor gets only own wards. (27 Nov)
 - [x] **11.2 Exports:** `POST /exports`, `GET /exports/{id}`, `.../download`; the worker writes Excel and PDF. Files: `app/routers/exports.py`, `app/export_jobs.py`, `tests/test_exports.py`. Test: an Excel export of a filter has the same rows as `GET /voters` with that filter. (28 Nov)
-- [ ] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (28 Nov)
+- [x] **11.3 Screens: Reports & charts, Print or export a list.** Files: `A/ui/reports/`. (28 Nov)
 - [ ] **11.4 Working APK.** Signed release build (key from 6.7) on the server through `publish_apk.py`; link sent to the client. Test: an older build shows Update required and installs the new one. (30 Nov)
 
 Portal: reports, charts and exports in 15.11. The client's eight reports at three levels are Step 14 (portal: 15.13).
