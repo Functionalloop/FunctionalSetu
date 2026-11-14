@@ -11,6 +11,8 @@ owner's row counts before and after must match. Exit code 1 if anything fails.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import sys
 import time
 import uuid
@@ -27,6 +29,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.config import get_settings  # noqa: E402
 from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
+from app import roll_apply, roll_match  # noqa: E402
+from app import worker as jobs  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
@@ -45,7 +49,12 @@ from app.routers.part_notes import write_part_note  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.turnout import turnout_summary, undo_mark, write_marks  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
-from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
+from app import mobile_match  # noqa: E402
+from app.duplicates import find_pairs  # noqa: E402
+from app.routers.data_quality import data_quality_summary, duplicate_pairs  # noqa: E402
+from app.routers.roll_edits import add_voter, correct_voter, remove_voter, restore_voter, voter_roll_edits  # noqa: E402
+from app.routers.voters import get_voter_history, list_voters, read_survey, save_survey, voter_detail  # noqa: E402
+from app.schemas_roll import RemoveRestore, RollPatch, VoterAdd  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
 from app.schemas_field import ConflictStatus  # noqa: E402
 from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, ProblemReportIn,  # noqa: E402
@@ -59,7 +68,8 @@ SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations", "user_area_assignments",
-                   "sync_conflicts",
+                   "sync_conflicts", "jobs", "roll_versions", "roll_import_rows", "files", "voter_roll_edits",
+                   "voter_duplicate_pairs", "mobile_import_batches", "mobile_import_rows",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -196,8 +206,9 @@ def main() -> None:
         _, sv, _, pages, worst, size, _ = full_pull(conn, s_srv)
         report(len(sv) == expect, "surveyor first download = their parts", f"{len(sv)} voters, {pages} pages, {size / 1e6:.1f} MB")
         w = current_watermark(conn)
-        _, dv, dg, pages, _, _, _ = full_pull(conn, s_admin, since=w)
-        report(not dv and not dg and pages == 1, "idle delta pull is one request with nothing", f"{pages} page")
+        _, dv, dg, pages, worst, _, _ = full_pull(conn, s_admin, since=w)
+        report(not dv and not dg and pages == 1, "idle delta pull is one request with nothing",
+               f"{pages} page, {worst:.0f} ms")
 
     # --- write checks: one transaction, rolled back --------------------------------------------------
     print("Writes (rolled back)")
@@ -499,6 +510,189 @@ def main() -> None:
             report(ms < SLOW_PAGE_MS, "worker activity over 92 days", f"{len(act.rows)} worker-days, {ms:.0f} ms")
             loc, ms = timed(lambda: worker_locations(conn, admin, today - timedelta(days=91), today, limit=50))
             report(ms < SLOW_PAGE_MS, "worker locations over 92 days", f"{len(loc.items)} on page 1, {ms:.0f} ms")
+        finally:
+            trans.rollback()
+
+    # 10.1: the worker takes a job queued in this workspace and runs it there (RLS on).
+    # The job writes nothing; its row is committed by the worker, so the owner deletes it.
+    print("Worker")
+    kind = f"check_{uuid.uuid4().hex[:8]}"
+    with transaction(tenant) as conn:
+        job_admin = principal(conn, tenant, "demo.admin")
+    with transaction(tenant, job_admin.user_id) as conn:
+        job_id = jobs.enqueue(conn, kind)
+    seen: dict[str, int] = {}
+
+    def count_voters(conn: Connection, job: jobs.Job) -> None:
+        seen["voters"] = conn.execute(text("SELECT count(*) FROM app.voters WHERE deleted_at IS NULL")).scalar_one()
+        raise jobs.JobFailed("check only")   # nothing to keep
+
+    try:
+        ran, ms = timed(lambda: jobs.run_one({kind: jobs.Handler(count_voters)}))
+        with connect_owner() as c:
+            status = c.execute("SELECT status::text FROM app.jobs WHERE id = %s", (job_id,)).fetchone()[0]
+        report(ran and seen.get("voters") == total and status == "failed",
+               "worker claims a queued job and runs it in its workspace",
+               f"saw {seen.get('voters')} of {total} voters, job {status}, {ms:.0f} ms")
+    finally:
+        with connect_owner() as c:
+            c.execute("DELETE FROM app.jobs WHERE id = %s", (job_id,))
+            c.commit()
+
+    # 10.2: the real roll part files read and matched again as a "new roll" (rolled back). The same
+    # roll must match itself: counts and time only.
+    print("Matching Engine (rolled back)")
+    parts = sorted((ROOT / "jansetu-private").glob("S05A02P*.csv"))
+    if not parts:
+        print("  SKIP  no roll part files in jansetu-private/")
+    else:
+        header, body = None, []
+        for p in parts:
+            lines = p.read_text(encoding="utf-8-sig").splitlines()
+            header = header or lines[0]
+            body += lines[1:]
+        data = "\n".join([header, *body]).encode("utf-8")
+        with get_engine().connect() as conn:
+            trans = conn.begin()
+            try:
+                set_context(conn, tenant, admin.user_id)
+                lb = admin.local_body_id
+                rv = conn.execute(text("""INSERT INTO app.roll_versions (tenant_id, local_body_id, list_type, title)
+                                          VALUES (:t, :lb, 'main', 'check') RETURNING id"""),
+                                  {"t": tenant, "lb": lb}).scalar_one()
+                counts, ms = timed(lambda: roll_match.import_rows(conn, rv, lb, "main", data))
+                on_record = conn.execute(text("""SELECT count(*) FROM app.voters WHERE local_body_id = :lb
+                                                  AND deleted_at IS NULL"""), {"lb": lb}).scalar_one()
+                shown = ", ".join(f"{k} {v}" for k, v in counts.items())
+                report(counts["rows"] == len(body) and counts["absent_from_current_roll"] == 0
+                       and counts["new"] == 0 and counts["matched"] >= 0.99 * on_record and ms < 60_000,
+                       "the roll on record matches itself", f"{len(parts)} files; {shown}; {ms / 1000:.1f} s")
+
+                # 10.3: review the rest as a person would (skip unreadable rows, repeated entries are the same
+                # voter), then apply: the same roll changes nobody, so no history lines either
+                conn.execute(text("""UPDATE app.roll_import_rows
+                                        SET review_status = CASE WHEN match_status IS NULL THEN 'rejected'
+                                                                 ELSE 'accepted' END::app.review_status
+                                      WHERE roll_version_id = :rv AND review_status = 'pending'"""), {"rv": rv})
+                conn.execute(text("UPDATE app.roll_versions SET status = 'review' WHERE id = :rv"), {"rv": rv})
+                audit_before = conn.execute(text("SELECT count(*) FROM app.audit_log")).scalar_one()
+                applied, ms = timed(lambda: roll_apply.apply_import(conn, admin, roll_apply.lock_import(conn, rv)))
+                new_audit = conn.execute(text("SELECT count(*) FROM app.audit_log")).scalar_one() - audit_before
+                report(applied["unchanged"] >= 0.99 * on_record and applied["added"] == 0
+                       and applied["marked_absent"] == 0 and ms < 60_000,
+                       "applying the same roll changes (almost) nobody",
+                       f"{', '.join(f'{k} {v}' for k, v in applied.items())}; {new_audit} audit rows; "
+                       f"{ms / 1000:.1f} s")
+                changed = conn.execute(text("""
+                    SELECT c, count(*) FROM app.audit_log a, jsonb_object_keys(a.new_values) c
+                     WHERE a.id > (SELECT max(id) FROM app.audit_log) - :n AND a.entity_type = 'voters'
+                     GROUP BY c ORDER BY 2 DESC"""), {"n": new_audit}).all()
+                if changed:
+                    print("        voter columns changed (counts): " + ", ".join(f"{c} {n}" for c, n in changed))
+            finally:
+                trans.rollback()
+
+    # 10.4: one surveyed voter removed (gone from the list and the phones), restored (back with its
+    # survey), corrected; one voter added by hand. Rolled back; timings only.
+    print("One-voter corrections (rolled back)")
+    with get_engine().connect() as conn:
+        trans = conn.begin()
+        try:
+            set_context(conn, tenant, admin.user_id)
+            name = conn.execute(text("""SELECT username FROM app.users WHERE role = 'super_admin' AND is_active
+                                         AND deleted_at IS NULL ORDER BY created_at LIMIT 1""")).scalar()
+            if name is None:
+                print("  SKIP  no super admin in this workspace")
+            else:
+                boss = principal(conn, tenant, name)
+                set_context(conn, tenant, boss.user_id)
+                s_boss = load_scope(conn, boss)
+                vid, booth = conn.execute(text("""
+                    SELECT v.id, v.booth_id FROM app.voters v WHERE v.deleted_at IS NULL AND v.roll_status = 'active'
+                       AND v.local_body_id = :lb ORDER BY v.id LIMIT 1"""), {"lb": admin.local_body_id}).one()
+                if read_survey(conn, vid) is None:
+                    save_survey(vid, SurveyIn(version=0, notes="check"), conn, boss, s_boss)
+                w = current_watermark(conn)
+                _, ms_rm = timed(lambda: remove_voter(vid, RemoveRestore(reason="duplicate"), conn, boss, s_boss))
+                try:
+                    voter_detail(conn, s_admin, vid)
+                    hidden = False
+                except ApiError as e:
+                    hidden = e.status == 404
+                _, dv, _, _, _, _, _ = full_pull(conn, s_admin, since=w)
+                report(hidden and vid in dv, "removed voter hidden, sent to phones as removed", f"{ms_rm:.0f} ms")
+
+                w = current_watermark(conn)
+                _, ms_rs = timed(lambda: restore_voter(vid, RemoveRestore(reason="other"), conn, boss, s_boss))
+                back, cursor, worst = set(), None, 0.0
+                while True:
+                    page, ms = timed(lambda: pull_page(conn, s_admin, w, cursor, 1000))
+                    back |= {s.voter_id for s in page.surveys}
+                    worst, cursor = max(worst, ms), page.next_cursor
+                    if not cursor:
+                        break
+                report(voter_detail(conn, s_admin, vid).deleted_at is None and vid in back,
+                       "restored voter back, its survey in the delta pull",
+                       f"restore {ms_rs:.0f} ms, slowest pull page {worst:.0f} ms")
+
+                fixed, ms = timed(lambda: correct_voter(vid, RollPatch(fields={"house_no": "CHECK-1"},
+                                                                       reason="typing_mistake"), conn, boss, s_boss))
+                kinds = [e.action for e in voter_roll_edits(vid, conn, admin, s_admin, limit=10).items]
+                report(fixed.house_no == "CHECK-1" and kinds == ["correct", "restore", "remove"],
+                       "correction saved, three roll edits for the admin to read", f"{ms:.0f} ms")
+
+                serial = conn.execute(text("SELECT max(serial_no) + 1 FROM app.voters WHERE booth_id = :b"),
+                                      {"b": booth}).scalar_one()
+                added, ms = timed(lambda: add_voter(VoterAdd(booth_id=booth, serial_no=serial, gender="F",
+                                                             first_name_en="Check", reason="supplementary_list"),
+                                                    conn, boss, s_boss))
+                report(added.booth_id == booth and added.part_no > 0, "voter added by hand in a real part",
+                       f"{ms:.0f} ms")
+        finally:
+            trans.rollback()
+
+    # 10.5: pairs found on the real roll, data quality counts, a mobile sheet made from real names with
+    # fake numbers. Rolled back; counts and timings only.
+    print("Data quality (rolled back)")
+    with get_engine().connect() as conn:
+        trans = conn.begin()
+        try:
+            set_context(conn, tenant, admin.user_id)
+            n, ms = timed(lambda: find_pairs(conn, admin.local_body_id))
+            again = find_pairs(conn, admin.local_body_id)
+            report(again == 0, "possible duplicates found once", f"{n} new pairs, {ms:.0f} ms; again: {again}")
+
+            for name, p, s in (("admin", admin, s_admin), ("supervisor", supervisor, s_sup)):
+                cond, params = s.filter("v.geo_path")
+                live = conn.execute(text(f"SELECT count(*) FROM app.voters v WHERE v.deleted_at IS NULL AND {cond}"),
+                                    params).scalar()
+                dq, ms = timed(lambda: data_quality_summary(conn, p, s))
+                page, ms2 = timed(lambda: duplicate_pairs(conn, p, s, limit=50))
+                report(dq.voters == live and ms < SLOW_PAGE_MS, f"data quality summary ({name})",
+                       f"{dq.voters} voters, {dq.no_mobile} without mobile, {dq.possible_duplicates} pairs, "
+                       f"{dq.repeated_in_roll} repeated; {ms:.0f} ms; pairs page {len(page.items)} in {ms2:.0f} ms")
+
+            # a sheet of 400 real voters by name (half also by EPIC), 50 unknown names, 10 bad numbers
+            sample = conn.execute(text("""
+                SELECT epic_no, coalesce(first_name_en, '') || ' ' || coalesce(last_name_en, '') AS name
+                  FROM app.voters WHERE local_body_id = :lb AND deleted_at IS NULL AND first_name_en IS NOT NULL
+                 ORDER BY md5(id::text) LIMIT 400"""), {"lb": admin.local_body_id}).all()
+            buf = io.StringIO()
+            out = csv.writer(buf)
+            out.writerow(["name", "mobile", "epic"])
+            out.writerows([nm, 9000000000 + i, epic if i % 2 and epic else ""] for i, (epic, nm) in enumerate(sample))
+            out.writerows([f"Zzqx Wyvut{i}", 9100000000 + i, ""] for i in range(50))
+            out.writerows(["Bad Number", i, ""] for i in range(10))
+            bid = conn.execute(text("""INSERT INTO app.mobile_import_batches (tenant_id, source, created_by)
+                                       VALUES (:t, 'phone_contacts', :u) RETURNING id"""),
+                               {"t": tenant, "u": admin.user_id}).scalar_one()
+            _, ms = timed(lambda: mobile_match.import_sheet(conn, bid, admin.user_id, admin.local_body_id,
+                                                            buf.getvalue().encode()))
+            got = dict(conn.execute(text("""SELECT status::text, count(*) FROM app.mobile_import_rows
+                                             WHERE batch_id = :b GROUP BY 1"""), {"b": bid}).all())
+            report(got.get("matched", 0) >= 200 and got.get("skipped") == 10 and ms < 60_000,
+                   "mobile sheet of real names matched", f"{', '.join(f'{k} {v}' for k, v in sorted(got.items()))}; "
+                                                         f"{ms / 1000:.1f} s")
         finally:
             trans.rollback()
 

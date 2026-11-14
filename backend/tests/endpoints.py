@@ -195,6 +195,37 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/audit-log", roles=ADMINS),
     Endpoint("GET", "/reports/worker-activity", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
     Endpoint("GET", "/worker-locations", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
+    # Matching Engine, roll import (10.2): writes super admin only, an admin reads own constituency;
+    # behaviour: test_roll_import.py
+    Endpoint("POST", "/rolls/imports", roles=SUPER, works=False),  # multipart upload
+    Endpoint("GET", "/rolls/imports", roles=ADMINS, lists="roll_import"),
+    Endpoint("GET", "/rolls/imports/{import_id}", roles=ADMINS, target="roll_import"),
+    Endpoint("GET", "/rolls/imports/{import_id}/rows", roles=ADMINS, target="roll_import"),
+    # review and apply (10.3); behaviour: test_roll_apply.py. The rule import has no rows: resolve is 404.
+    Endpoint("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", roles=SUPER, target="roll_import",
+             body={"accept": False}, works=False),
+    Endpoint("POST", "/rolls/imports/{import_id}/apply", roles=SUPER, target="roll_import"),
+    Endpoint("POST", "/rolls/imports/{import_id}/discard", roles=SUPER, target="roll_import"),
+    # one-voter corrections (10.4): super admin writes, an admin reads; behaviour: test_roll_edits.py
+    Endpoint("POST", "/voters", roles=SUPER,
+             body=lambda w: {"booth_id": str(w.a.booths[0]), "serial_no": w.next_serial(), "gender": "F",
+                             "first_name_en": "Rule", "reason": "supplementary_list"}),
+    Endpoint("PATCH", "/voters/{voter_id}/roll", roles=SUPER, target="voter",
+             body={"fields": {"house_no": "Rule 1"}, "reason": "typing_mistake"}),
+    Endpoint("POST", "/voters/{voter_id}/remove", roles=SUPER, target="voter", body={"reason": "duplicate"}),
+    Endpoint("POST", "/voters/{voter_id}/restore", roles=SUPER, target="voter", body={"reason": "other"}),
+    Endpoint("GET", "/voters/{voter_id}/roll-edits", roles=ADMINS, target="voter"),
+    # data quality and mobile number sheets (10.5); behaviour: test_data_quality.py
+    Endpoint("GET", "/data-quality/summary", roles=SUPERVISORS, area_params=("ward_id",)),
+    Endpoint("GET", "/data-quality/duplicates", roles=SUPERVISORS, lists="duplicate_pair",
+             query={"unchecked_only": False}),
+    Endpoint("POST", "/data-quality/duplicates/{pair_id}/resolve", roles=SUPERVISORS, target="duplicate_pair",
+             body={"same_person": False}),
+    Endpoint("POST", "/mobile-imports", roles=ADMINS, works=False),  # multipart upload
+    Endpoint("GET", "/mobile-imports", roles=ADMINS, lists="mobile_import"),
+    Endpoint("GET", "/mobile-imports/{import_id}", roles=ADMINS, target="mobile_import"),
+    Endpoint("POST", "/mobile-imports/{import_id}/rows/{row_id}/resolve", roles=ADMINS, target="mobile_import",
+             body={"voter_id": None}, works=False),  # row ids are the sheet's own: own tests
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -203,24 +234,6 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    ("POST", "/rolls/imports", SUPER, "ready"),
-    ("GET", "/rolls/imports", ADMINS, "ready"),
-    ("GET", "/rolls/imports/{import_id}", ADMINS, "ready"),
-    ("GET", "/rolls/imports/{import_id}/rows", ADMINS, "ready"),
-    ("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", SUPER, "ready"),
-    ("POST", "/rolls/imports/{import_id}/apply", SUPER, "ready"),
-    ("POST", "/rolls/imports/{import_id}/discard", SUPER, "ready"),
-    ("POST", "/voters", SUPER, "ready"),
-    ("PATCH", "/voters/{voter_id}/roll", SUPER, "ready"),
-    ("POST", "/voters/{voter_id}/remove", SUPER, "ready"),
-    ("POST", "/voters/{voter_id}/restore", SUPER, "ready"),
-    ("GET", "/voters/{voter_id}/roll-edits", ADMINS, "ready"),
-    ("GET", "/data-quality/summary", SUPERVISORS, "ready"),
-    ("GET", "/data-quality/duplicates", SUPERVISORS, "ready"),
-    ("POST", "/data-quality/duplicates/{pair_id}/resolve", SUPERVISORS, "ready"),
-    ("POST", "/mobile-imports", ADMINS, "ready"),
-    ("GET", "/mobile-imports/{import_id}", ADMINS, "ready"),
-    ("POST", "/mobile-imports/{import_id}/rows/{row_id}/resolve", ADMINS, "ready"),
     # reports and exports (11)
     ("GET", "/reports/survey-progress", SUPERVISORS, "ready"),
     ("GET", "/reports/colour-tags", SUPERVISORS, "ready"),
@@ -459,7 +472,60 @@ def _constituency_state(world, lb: uuid.UUID):
                               (lb,)).fetchone()
 
 
+def _make_roll_import(world, where: str) -> uuid.UUID:
+    """A roll import of that place's constituency, waiting in review (no rows)."""
+    tenant, lb, _, _ = world.place(where)
+    rid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.roll_versions (id, tenant_id, local_body_id, list_type, title, status)
+                          VALUES (%s, %s, %s, 'main', 'Rule import', 'review')""", (rid, tenant, lb))
+    return rid
+
+
+def _roll_import_state(world, rid: uuid.UUID):
+    return world.conn.execute("SELECT status, applied_at, updated_at FROM app.roll_versions WHERE id = %s",
+                              (rid,)).fetchone()
+
+
+def _make_duplicate_pair(world, where: str) -> uuid.UUID:
+    """Two voters of that place's booth stored as an unchecked pair."""
+    a, b = sorted((_make_voter(world, where), _make_voter(world, where)))
+    pid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.voter_duplicate_pairs (id, tenant_id, voter_a_id, voter_b_id, source)
+                          VALUES (%s, %s, %s, %s, 'fuzzy_match')""", (pid, world.place(where)[0], a, b))
+    return pid
+
+
+def _duplicate_pair_state(world, pid: uuid.UUID):
+    return world.conn.execute("""SELECT p.status, p.reviewed_by, a.deleted_at, b.deleted_at
+                                   FROM app.voter_duplicate_pairs p JOIN app.voters a ON a.id = p.voter_a_id
+                                   JOIN app.voters b ON b.id = p.voter_b_id WHERE p.id = %s""", (pid,)).fetchone()
+
+
+def _make_mobile_import(world, where: str) -> uuid.UUID:
+    """A finished sheet uploaded by a new user of that place's constituency, one row to review."""
+    tenant, lb, _, _ = world.place(where)
+    uid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.users (id, tenant_id, username, full_name_en, role, local_body_id, password_hash)
+                          VALUES (%s, %s, %s, 'Rule Admin', 'admin', %s, 'x')""", (uid, tenant, f"m{uid.hex[:12]}", lb))
+    fid, bid = _make_file(world, where), uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.mobile_import_batches (id, tenant_id, source, file_id, status, created_by,
+                                                                review_count)
+                          VALUES (%s, %s, 'file', %s, 'done', %s, 1)""", (bid, tenant, fid, uid))
+    world.conn.execute("""INSERT INTO app.mobile_import_rows (tenant_id, batch_id, row_no, name, mobile, status)
+                          VALUES (%s, %s, 1, 'Rule Person', '9876500001', 'needs_review')""", (tenant, bid))
+    return bid
+
+
+def _mobile_import_state(world, bid: uuid.UUID):
+    return world.conn.execute("""SELECT b.review_count, array_agg(r.status ORDER BY r.row_no)
+                                   FROM app.mobile_import_batches b JOIN app.mobile_import_rows r ON r.batch_id = b.id
+                                  WHERE b.id = %s GROUP BY b.review_count""", (bid,)).fetchone()
+
+
 KINDS: dict[str, Kind] = {
+    "duplicate_pair": Kind(_make_duplicate_pair, _duplicate_pair_state),
+    "mobile_import": Kind(_make_mobile_import, _mobile_import_state),
+    "roll_import": Kind(_make_roll_import, _roll_import_state),
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
     "user": Kind(_make_user, _user_state),

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "JANSETU API",
-    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |\n| 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |\n| 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |\n| 409 | `user_limit` | users: the workspace has its limit of active users (200) |\n| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |\n| 409 | `name_taken` | lists: another entry has this Marathi name |\n| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
+    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |\n| 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |\n| 403 | `feature_off` | mobile number sheets: switched off in the workspace's settings (`feature_mobile_import`) |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |\n| 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |\n| 409 | `user_limit` | users: the workspace has its limit of active users (200) |\n| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |\n| 409 | `name_taken` | lists: another entry has this Marathi name |\n| 409 | `import_in_progress` | roll import: this constituency has an import not yet applied or discarded |\n| 409 | `import_closed`, `review_not_finished` | roll import: not in review (resolve, apply) or already applied (discard) / rows still wait for review (`error.pending`) |\n| 409 | `voter_taken` | roll import: another row already has this voter (`error.row_no`) |\n| 409 | `epic_in_use`, `serial_in_use` | roll apply: another voter has the EPIC / keeps the part and serial of these rows (`error.row_nos`); one-voter add, correct, restore: a live voter has them (`error.voter_id`) |\n| 409 | `row_resolved` | mobile number sheet: the row is already matched or skipped |\n| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG; roll import and mobile sheets: over 20 MB / not CSV or .xlsx |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -1228,6 +1228,18 @@
             }
           },
           {
+            "name": "removed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "true: only the voters a super admin removed (hidden), to restore one. Admin and super admin.",
+              "default": false,
+              "title": "Removed"
+            },
+            "description": "true: only the voters a super admin removed (hidden), to restore one. Admin and super admin."
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -1413,16 +1425,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -8534,133 +8536,6 @@
         }
       }
     },
-    "/api/v1/voters/{voter_id}/slip": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "The voter slip drawn by the server (for the portal). All roles.",
-        "operationId": "voter_slip",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          },
-          {
-            "name": "format",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^(png|pdf)$",
-              "default": "png",
-              "title": "Format"
-            }
-          },
-          {
-            "name": "lang",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^(mr|en)$",
-              "default": "mr",
-              "title": "Lang"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The slip as a PNG image or a PDF",
-            "content": {
-              "image/png": {},
-              "application/pdf": {}
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/rolls/imports": {
       "post": {
         "tags": [
@@ -8746,16 +8621,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -8879,16 +8744,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -8980,16 +8835,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -9151,16 +8996,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -9170,7 +9005,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Accept or reject one uncertain match. Super admin.",
+        "summary": "Accept or reject one uncertain match, or give a row its voter. Super admin.",
         "operationId": "resolve_roll_row",
         "security": [
           {
@@ -9278,16 +9113,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -9386,16 +9211,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -9405,7 +9220,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Throw an import away. Super admin.",
+        "summary": "Throw an import away (not an applied one). Super admin.",
         "operationId": "discard_roll_import",
         "security": [
           {
@@ -9487,16 +9302,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -9612,16 +9417,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -9723,16 +9518,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -9848,16 +9633,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -9867,7 +9642,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Roll corrections made to this voter. Admin.",
+        "summary": "Roll corrections made to this voter, newest first. Admin.",
         "operationId": "voter_roll_edits",
         "security": [
           {
@@ -9986,16 +9761,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -10101,16 +9866,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -10136,6 +9891,22 @@
               "type": "boolean",
               "default": true,
               "title": "Unchecked Only"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
             }
           },
           {
@@ -10239,16 +10010,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -10258,7 +10019,7 @@
         "tags": [
           "roll and data quality"
         ],
-        "summary": "Same person (hide one) or different people. Supervisor.",
+        "summary": "Same person or different people; a super admin may also hide one (keep_voter_id). Supervisor.",
         "operationId": "resolve_duplicate",
         "security": [
           {
@@ -10357,9 +10118,117 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile-imports": {
+      "get": {
+        "tags": [
+          "roll and data quality"
+        ],
+        "summary": "Mobile number sheets of the caller's team, newest first, without rows. Admin.",
+        "operationId": "list_mobile_imports",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
           },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileImportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
@@ -10369,24 +10238,27 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/mobile-imports": {
+      },
       "post": {
         "tags": [
           "roll and data quality"
         ],
         "summary": "Upload a sheet of names and mobiles (CSV or Excel); matching runs as a job. Admin.",
         "operationId": "start_mobile_import",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_start_mobile_import"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "202": {
@@ -10458,23 +10330,8 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/mobile-imports/{import_id}": {
@@ -10571,16 +10428,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -10637,6 +10484,123 @@
                   "$ref": "#/components/schemas/MobileImport"
                 }
               }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/slip": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The voter slip drawn by the server (for the portal). All roles.",
+        "operationId": "voter_slip",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(png|pdf)$",
+              "default": "png",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(mr|en)$",
+              "default": "mr",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The slip as a PNG image or a PDF",
+            "content": {
+              "image/png": {},
+              "application/pdf": {}
             }
           },
           "400": {
@@ -15295,6 +15259,35 @@
           "rows"
         ],
         "title": "MobileImport"
+      },
+      "MobileImportPage": {
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as `cursor` for the next page; null on the last page"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MobileImport"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Sheets without their rows (rows = [])"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "MobileImportPage"
       },
       "MobileImportRow": {
         "properties": {
@@ -20046,6 +20039,19 @@
           "is_repeated_in_roll": {
             "type": "boolean",
             "title": "Is Repeated In Roll"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Set while a super admin has removed (hidden) the voter"
           },
           "survey": {
             "anyOf": [

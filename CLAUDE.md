@@ -98,13 +98,14 @@ backend/              FastAPI app (app/, tests/), pyproject.toml
 scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, approve_phone.py, export_openapi.py, tasks.py,
                       backup.sh, restore.sh (+ sql/ helpers), publish_apk.py,
                       check_dev_data.py (end-of-step check on the real roll), fallback.ps1 (laptop fallback, 6.6),
+                      find_duplicates.py (10.5, once per deploy for pairs already on record),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example,
                       README.md (server setup and commands), server_setup.sh, make_env.sh
 backend/Dockerfile    API image (build context = repo root, allow-list in .dockerignore)
 jansetu-private/      real roll files (git-ignored, never committed)
 android/              Android app (Kotlin, Compose)
-Not created yet:      backend/app/worker.py, portal/ (web portal, from task 15.1)
+Not created yet:      portal/ (web portal, from task 15.1)
 ```
 
 ## Build status (13 Nov 2026)
@@ -137,7 +138,7 @@ The client changed the scope twice on 12 Nov. The evening list (`docs/client_cha
 - **Change requests (Step 14, only after approval):** Village Panchayat level, surname search, eight reports at three levels with Excel / PDF / CSV, Matching Engine results and report, Know My Constituency (admin and super admin; "core staff" = super admin).
 - **Goa, not Maharashtra:** AC 2 is in Goa. Area levels are Constituency → Village Panchayat or Municipal Council → Part. No gat, gan or Panchayat Samiti; ZP = Zilla Panchayat. The `ward` level in the schema and API is the Village Panchayat.
 - **Scanned roll PDFs are in scope** (Step 13, after the demo): OCR with free tools on our own machines; see `context/roll_ocr.md`.
-- Migrations: `002_client_changes.sql`, `003_kutumb_members.sql` (7.1) and `004_client_changes_final.sql` (7.13) are applied (do not edit them); all of Step 14 goes into one `005_change_requests.sql`.
+- Migrations: `002_client_changes.sql`, `003_kutumb_members.sql` (7.1) and `004_client_changes_final.sql` (7.13) are applied (do not edit them); `005_worker_jobs.sql` (10.1, job queue); all of Step 14 goes into one `006_change_requests.sql`.
 
 ## Open questions with client
 

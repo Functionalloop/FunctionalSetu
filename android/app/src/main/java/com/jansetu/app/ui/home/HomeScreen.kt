@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Cake
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import com.jansetu.app.ui.common.istTime
+import com.jansetu.app.ui.quality.QUALITY_ROLES
+import androidx.compose.foundation.clickable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -64,6 +66,7 @@ class HomeViewModel @Inject constructor(local: LocalDb) : ViewModel() {
 @Composable
 fun HomeScreen(
     session: Session, onSearch: () -> Unit, onSync: () -> Unit, onNewVoters: () -> Unit, onBirthdays: () -> Unit,
+    onQuality: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val c by vm.counts.collectAsStateWithLifecycle()
@@ -102,6 +105,16 @@ fun HomeScreen(
         }
         OutlinedButton(onClick = onSync, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Sync, null); Text("  Sync")
+        }
+        if (session.user.role in QUALITY_ROLES) { // 10.6: the approved flow's "Needs attention"
+            Text("Needs attention", style = MaterialTheme.typography.titleMedium)
+            Card(Modifier.fillMaxWidth().clickable(onClick = onQuality)) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Data quality", style = MaterialTheme.typography.titleSmall)
+                    Text("${"%,d".format((c.voters - c.withMobile).coerceAtLeast(0))} voters without a mobile on this phone · " +
+                        "duplicates, repeated voters (needs internet)", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }

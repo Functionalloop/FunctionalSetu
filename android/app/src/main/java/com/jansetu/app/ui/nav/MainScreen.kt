@@ -35,6 +35,14 @@ import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.jansetu.app.ui.admin.roll.MatchingScreen
+import com.jansetu.app.ui.admin.roll.RemovedVotersScreen
+import com.jansetu.app.ui.admin.roll.RollEditScreen
+import com.jansetu.app.ui.admin.roll.RollImportScreen
+import com.jansetu.app.ui.quality.DataQualityScreen
+import com.jansetu.app.ui.quality.DuplicatesScreen
+import com.jansetu.app.ui.quality.MobileSheetScreen
+import com.jansetu.app.ui.quality.MobileSheetsScreen
 import com.jansetu.app.ui.admin.logs.ActivityLogScreen
 import com.jansetu.app.ui.admin.logs.WorkerActivityScreen
 import com.jansetu.app.ui.admin.logs.WorkerLocationsScreen
@@ -129,7 +137,7 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("home") {
                 HomeScreen(session, onSearch = { nav.navigate("search") { launchSingleTop = true } },
                     onSync = { nav.navigate("sync") }, onNewVoters = { nav.navigate("newvoters") },
-                    onBirthdays = { nav.navigate("birthdays") })
+                    onBirthdays = { nav.navigate("birthdays") }, onQuality = { nav.navigate("quality") })
             }
             composable("search") {
                 SearchScreen(onOpen = nav::openVoter, onShare = { nav.navigate(shareRoute(it)) }, canTag = session.canSurvey)
@@ -185,9 +193,34 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             composable("constituencies") {
                 ConstituenciesScreen(onBack = { nav.popBackStack() }, onAddAdmin = { nav.navigate("adduser") })
             }
+            // Data quality, Repeated voters, Mobile numbers, Matching Engine, Correct roll record (10.6; online only)
+            composable("quality") {
+                DataQualityScreen(onBack = { nav.popBackStack() }, onPairs = { nav.navigate("duplicates?source=$it") })
+            }
+            composable("duplicates?source={source}", arguments = listOf(navArgument("source") {
+                type = NavType.StringType; defaultValue = ""
+            })) { DuplicatesScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter) }
+            composable("mobiles") { MobileSheetsScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate("mobilesheet/$it") }) }
+            composable("mobilesheet/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                MobileSheetScreen(onBack = { nav.popBackStack() })
+            }
+            composable("matching") {
+                MatchingScreen(session, onBack = { nav.popBackStack() }, onOpen = { nav.navigate("rollimport/$it") },
+                    onRemoved = { nav.navigate("removed") })
+            }
+            composable("rollimport/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                RollImportScreen(session, onBack = { nav.popBackStack() })
+            }
+            composable("removed") { RemovedVotersScreen(session, onBack = { nav.popBackStack() }) }
+            composable("rolledit/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                // A removed voter leaves this phone with the sync: go back past its screen.
+                RollEditScreen(onBack = { nav.popBackStack() },
+                    onRemoved = { if (!nav.popBackStack("voter/{id}", inclusive = true)) nav.popBackStack() })
+            }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter,
-                    onSlip = { nav.navigate("slip/$it") }, onShare = { nav.navigate(shareRoute(it)) })
+                    onSlip = { nav.navigate("slip/$it") }, onShare = { nav.navigate(shareRoute(it)) },
+                    onCorrect = { nav.navigate("rolledit/$it") })
             }
             composable(SHARE_ROUTE, arguments = listOf(navArgument("ids") { type = NavType.StringType })) {
                 ShareWhatsAppScreen(onBack = { nav.popBackStack() })

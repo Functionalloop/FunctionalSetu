@@ -42,6 +42,33 @@ def _path(tenant: uuid.UUID, file_id: uuid.UUID) -> Path:
     return Path(get_settings().files_dir) / str(tenant) / str(file_id)
 
 
+def stored_path(storage_path: str) -> Path:
+    """Where the bytes of an app.files row live (its storage_path is relative to files_dir)."""
+    return Path(get_settings().files_dir) / storage_path
+
+
+def store_file(conn, user, kind: FileKind, data: bytes, original_name: str | None, mime: str) -> dict:
+    """Insert the app.files row and write the bytes; returns the row (StoredFile fields).
+    Written after the row and before the commit: if the write fails the row is rolled back; if the
+    commit fails a file without a row is left, which nothing points at."""
+    file_id = uuid.uuid4()
+    rel = f"{user.tenant_id}/{file_id}"
+    name = os.path.basename(original_name or "").strip()[:200] or None
+    row = conn.execute(text(f"""
+        INSERT INTO app.files (id, tenant_id, kind, storage_path, original_name, mime_type, size_bytes, sha256,
+                               created_by)
+        VALUES (:id, :tenant, CAST(:kind AS app.file_kind), :path, :name, :mime, :size, :sha, :by)
+        RETURNING {_STORED}
+    """), {"id": file_id, "tenant": user.tenant_id, "kind": kind.value, "path": rel, "name": name, "mime": mime,
+           "size": len(data), "sha": hashlib.sha256(data).hexdigest(), "by": user.user_id}).mappings().one()
+    target = _path(user.tenant_id, file_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".part")
+    tmp.write_bytes(data)
+    tmp.replace(target)
+    return dict(row)
+
+
 @router.post("/files", response_model=StoredFile, status_code=status.HTTP_201_CREATED,
              summary="Upload a candidate photo, symbol or slip header (image, up to 5 MB). Admin.")
 def upload_file(conn: Db, user: Admin, file: Annotated[UploadFile, File()],
@@ -56,24 +83,7 @@ def upload_file(conn: Db, user: Admin, file: Annotated[UploadFile, File()],
     if mime is None:
         raise ApiError(422, "unsupported_file", "Only PNG or JPEG images.")
 
-    file_id = uuid.uuid4()
-    rel = f"{user.tenant_id}/{file_id}"
-    name = os.path.basename(file.filename or "").strip()[:200] or None
-    row = conn.execute(text(f"""
-        INSERT INTO app.files (id, tenant_id, kind, storage_path, original_name, mime_type, size_bytes, sha256,
-                               created_by)
-        VALUES (:id, :tenant, CAST(:kind AS app.file_kind), :path, :name, :mime, :size, :sha, :by)
-        RETURNING {_STORED}
-    """), {"id": file_id, "tenant": user.tenant_id, "kind": kind.value, "path": rel, "name": name, "mime": mime,
-           "size": len(data), "sha": hashlib.sha256(data).hexdigest(), "by": user.user_id}).mappings().one()
-    # Written after the row and before the commit: if the write fails the row is rolled back; if the commit
-    # fails a file without a row is left, which nothing points at.
-    target = _path(user.tenant_id, file_id)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".part")
-    tmp.write_bytes(data)
-    tmp.replace(target)
-    return StoredFile(**row)
+    return StoredFile(**store_file(conn, user, kind, data, file.filename, mime))
 
 
 @router.get("/files/{file_id}", response_class=Response,

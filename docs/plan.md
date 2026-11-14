@@ -170,12 +170,12 @@ Goal: apply a new roll without losing survey work, and clean the list.
 
 Client, 12 Nov: "Roll update" is called **Matching Engine** and is its own item in the More menu. Only a super admin may change official roll data. Upload, resolve, apply, discard, add, correct, remove and restore answer 403 to everyone else; an admin can still read imports and roll edits (contract in 5.15).
 
-- [ ] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (20 Nov)
-- [ ] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (20–21 Nov, two sessions)
-- [ ] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (21 Nov)
-- [ ] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (21 Nov)
-- [ ] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (22 Nov)
-- [ ] **10.6 Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Matching Engine is its own item in the More menu; it and Correct roll record are shown to a super admin (an admin can open Matching Engine to read, not to change). The results screen and the report download are 14.6. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (22 Nov, two sessions)
+- [x] **10.1 Worker.** One process that takes queued rows with `FOR UPDATE SKIP LOCKED`. Files: `app/worker.py`, `db/migrations/005_worker_jobs.sql` (queue table + `app.claim_job`), `deploy/docker-compose.yml`, `tests/test_worker.py`. Test: two workers never take the same job. (20 Nov)
+- [x] **10.2 Roll upload and matching** for CSV and Excel: `POST /rolls/imports`, `GET /rolls/imports`, `GET /rolls/imports/{id}`, `.../rows`. Files: `app/routers/rolls.py`, `app/roll_match.py`, `tests/test_roll_import.py`. Test: a fake roll with one changed name, one new and one missing voter gives matched, uncertain, new and absent rows. (20–21 Nov, two sessions)
+- [x] **10.3 Review and apply:** `.../rows/{row_id}/resolve`, `.../apply`, `.../discard`. Test: after apply, surveys are still linked, the missing voter is "not in current roll" and nobody is marked dead. Files: same. (21 Nov)
+- [x] **10.4 One-voter corrections:** `POST /voters`, `PATCH /voters/{id}/roll`, `.../remove`, `.../restore`, `GET /voters/{id}/roll-edits`. Files: `app/routers/roll_edits.py`, `tests/test_roll_edits.py`. Test: a removed voter is hidden from search and comes back with restore; an admin's correction gets 403. (21 Nov)
+- [x] **10.5 Data quality:** `GET /data-quality/summary`, `/data-quality/duplicates`, `.../resolve`, `POST /mobile-imports`, `GET /mobile-imports/{id}`. Files: `app/routers/data_quality.py`, `tests/test_data_quality.py`. (22 Nov)
+- [x] **10.6 Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts.** No Spelling fixes screen (client, 12 Nov). Matching Engine is its own item in the More menu; it and Correct roll record are shown to a super admin (an admin can open Matching Engine to read, not to change). The results screen and the report download are 14.6. Files: `A/ui/quality/`, `A/ui/admin/roll/`. (22 Nov, two sessions)
 
 Portal: Matching Engine pages (roll upload, matching review; super admin only, admin reads) in 15.9; corrections, repeated voters and mobile number sheets in 15.10. No spelling fixes page.
 
@@ -228,7 +228,7 @@ Portal: PDF upload on the Matching Engine upload page, and the box image next to
 
 ## Step 14 – Change requests of 12 Nov · 1–9 Dec · branch `step14-change-requests`
 
-Goal: what the client's final list of 12 Nov adds to SRS 1.1 (`docs/change_log.md`). **Nothing here starts before the client approves the app flow** (`docs/app_flow_v2.pdf`) and the time and cost. One migration, `005_change_requests.sql`, holds every schema change of this step.
+Goal: what the client's final list of 12 Nov adds to SRS 1.1 (`docs/change_log.md`). **Nothing here starts before the client approves the app flow** (`docs/app_flow_v2.pdf`) and the time and cost. One migration, `006_change_requests.sql`, holds every schema change of this step (005 is the job queue of 10.1).
 
 AC 2 is in Goa: two levels of local body (Village Panchayat, Zilla Panchayat) and Municipal Councils for towns; no gat, gan or Panchayat Samiti. The level between the constituency and the part is "Village Panchayat / Municipal Council".
 

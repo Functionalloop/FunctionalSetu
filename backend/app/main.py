@@ -8,9 +8,10 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import (admin_logs, app_version, auth, birthdays, constituencies, devices, families, field, files, geo,
-                      health, masters, me, misc, new_voters, part_notes, reports, rolls, settings, slips, sync,
-                      turnout, users, visits, voters)
+from .routers import (admin_logs, app_version, auth, birthdays, constituencies, data_quality, devices, families,
+                      field, files, geo,
+                      health, masters, me, misc, new_voters, part_notes, reports, roll_edits, rolls, settings, slips,
+                      sync, turnout, users, visits, voters)
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -41,6 +42,7 @@ each refresh returns a new refresh token and the old one stops working.
 | 403 | `password_change_required` | call `/auth/change-password` first |
 | 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |
 | 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |
+| 403 | `feature_off` | mobile number sheets: switched off in the workspace's settings (`feature_mobile_import`) |
 | 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |
 | 422 | `validation_error` (with `details`), `weak_password` | |
 | 409 | `version_conflict` (with `current` = the server copy) | stale `version` |
@@ -49,7 +51,12 @@ each refresh returns a new refresh token and the old one stops working.
 | 409 | `user_limit` | users: the workspace has its limit of active users (200) |
 | 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |
 | 409 | `name_taken` | lists: another entry has this Marathi name |
-| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG |
+| 409 | `import_in_progress` | roll import: this constituency has an import not yet applied or discarded |
+| 409 | `import_closed`, `review_not_finished` | roll import: not in review (resolve, apply) or already applied (discard) / rows still wait for review (`error.pending`) |
+| 409 | `voter_taken` | roll import: another row already has this voter (`error.row_no`) |
+| 409 | `epic_in_use`, `serial_in_use` | roll apply: another voter has the EPIC / keeps the part and serial of these rows (`error.row_nos`); one-voter add, correct, restore: a live voter has them (`error.voter_id`) |
+| 409 | `row_resolved` | mobile number sheet: the row is already matched or skipped |
+| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG; roll import and mobile sheets: over 20 MB / not CSV or .xlsx |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
@@ -99,8 +106,12 @@ def create_app() -> FastAPI:
     app.include_router(masters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(files.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(admin_logs.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    # partly built (Step 10): each route not built yet carries responses=NOT_BUILT itself
+    app.include_router(rolls.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(roll_edits.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(data_quality.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
-    for planned in (field, rolls, reports):
+    for planned in (field, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 

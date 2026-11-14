@@ -95,9 +95,12 @@ def world(test_database, client):
 
 # --- helpers ------------------------------------------------------------------------------
 def fill_path(ep: Endpoint, target_id=None) -> str:
-    """Path with its parameters: the target's id, or sample values for stub routes."""
+    """Path with its parameters: the target's id (first parameter; later ones take their sample value,
+    e.g. row_id), or sample values for stub routes."""
     if ep.target:
-        return re.sub(r"\{[^}]+\}", str(target_id), ep.path)
+        first = re.search(r"\{[^}]+\}", ep.path)
+        rest = re.sub(r"\{([^}]+)\}", lambda m: PATH_SAMPLES.get(m.group(1), str(target_id)), ep.path[first.end():])
+        return ep.path[:first.start()] + str(target_id) + rest
     return re.sub(r"\{([^}]+)\}", lambda m: PATH_SAMPLES.get(m.group(1), str(uuid.uuid4())), ep.path)
 
 

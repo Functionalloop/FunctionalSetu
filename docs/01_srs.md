@@ -11,8 +11,8 @@ This SRS fixes what JANSETU will deliver by 15 Dec 2026 for INR 75,000 (includin
 | Product | JANSETU – Citizen Connect and Constituency Development Management Platform |
 | Client (Company) | Naik Management Solutions Private Limited, Sawantwadi, Maharashtra |
 | Developer | Shree Samarth Krupa (Proprietor: Sachin Sadashiv Bhise), Moira, Goa |
-| Version | 1.1 – approved by the Company on 12 Nov 2026 |
-| Date | 12 Nov 2026 |
+| Version | 1.1 – approved by the Company on 12 Nov 2026; constituency limit raised to 7 on 14 Nov 2026 |
+| Date | 12 Nov 2026 (updated 14 Nov 2026) |
 | Attachments | Android app wireframes (43 screens; 42 are built, see "Changes in 1.1") and the screen flow PDF |
 
 **How to use this document:** the Company reads it, marks any changes, and confirms in writing (WhatsApp or email is enough). The approved version becomes the scope for the agreement's Schedule A.
@@ -33,6 +33,7 @@ Version 1.1 adds the changes the Company asked for on 12 Nov 2026, and scanned r
 - **Scanned roll PDFs:** now included (see "Data handling").
 - **Existing data:** the old app's data is not imported, by the Company's decision.
 - "Not registered" means a new voter; no change.
+- **Constituencies (14 Nov 2026):** up to 7 constituencies per workspace, in place of 5. Price and dates are unchanged.
 
 ## Draft for version 1.2 (not approved)
 
@@ -143,7 +144,7 @@ Everything runs on one KVM 4 server with no paid outside services.
 JANSETU is sized for one workspace within these limits, on the KVM 4 server.
 
 - **Users:** up to 200 users per workspace.
-- **Constituencies:** up to 5 per workspace.
+- **Constituencies:** up to 7 per workspace.
 - **Languages:** voter names shown in English and Marathi. App labels in English (Marathi labels can be added as a change request).
 - **Search speed:** results appear while typing on the phone, also when offline.
 - **Polling day:** the server is tested for all 200 users syncing at the same time.
@@ -157,7 +158,7 @@ These items are not part of the INR 75,000 price. Any of them can be quoted sepa
 - OTP login, SMS gateway, WhatsApp Business API or any other paid outside service.
 - iPhone (iOS) app.
 - Automatic English-to-Marathi name conversion.
-- More than 5 constituencies in one workspace, or a server larger than the KVM 4 (for example, 10–11 constituencies with 30–35 lakh voters).
+- More than 7 constituencies in one workspace, or a server larger than the KVM 4 (for example, 10–11 constituencies with 30–35 lakh voters).
 - Hosting and domain costs from year two; the Company pays these directly.
 
 ## Milestones and acceptance
@@ -183,11 +184,6 @@ Please answer these with your review; they affect the build.
 
 - [x] Colour tag names: Ours, Opposite, Doubtful (the white tag is removed).
 - [x] Survey fields: changed as listed in "Changes in 1.1".
-- [ ] Number of wards, and the first constituency to set up.
-- [ ] The list of positions for important voters, and the list of influencer types.
-- [ ] Part notes: one shared note per part (as written here), or many dated notes?
-- [ ] The walk list stays house by house, using the roll's house numbers?
-- [ ] For scanned PDFs: all AC 2 roll part PDFs. For Marathi rolls: 2–3 sample part PDFs and a checked list of about 1,000 voters to compare against.
 
 ## Approval
 

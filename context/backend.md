@@ -25,6 +25,11 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/errors.py` | `ApiError(status, code, message)`; one JSON shape for all errors; `ERROR_RESPONSES` for OpenAPI |
 | `app/security.py` | Argon2id hashing, JWT access token (15 min), refresh token helpers |
 | `app/schemas.py` | All Pydantic request/response models, `Role` enum |
+| `app/worker.py` | background worker (10.1); see "Worker" below |
+| `app/roll_match.py` | Matching Engine: read a roll file, match it, the `roll_import` job (10.2); see below |
+| `app/roll_apply.py` | Matching Engine: resolve one row, apply, discard (10.3); see below |
+| `app/routers/roll_edits.py` | One-voter corrections: add, correct, remove, restore, roll edits (10.4); see below |
+| `app/routers/data_quality.py`, `app/duplicates.py`, `app/mobile_match.py` | Data quality, duplicate pairs, mobile number sheets (10.5); see below |
 | `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `slips.py`, `birthdays.py`, `misc.py`, `part_notes.py`, `turnout.py`, `sync.py`, `app_version.py`; stubs in `field.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
@@ -112,6 +117,13 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /problem-reports` | 9.5. Reports by the caller's team (admin: users of own constituency; super admin: all), newest first, cursor `[created_at, id]`, `?status=`. No "mark done" route in the contract yet |
 | `GET /audit-log` | 9.5. Rows whose actor is in the caller's team (super admin: also rows with no actor, e.g. scripts). Filters `entity_type` (table name), `entity_id`, `actor_user_id` (outside team 404), `date_from` / `date_to` (Indian dates). Newest first by `id`, cursor `[id]`. `password_hash` is dropped from old / new values |
 | `GET /reports/worker-activity`, `GET /worker-locations` | 9.5. Indian days, at most 92 days (422), `user_id` outside the team 404. Activity: surveys = distinct voters whose survey the worker saved that day (from `audit_log`, as `voter_surveys` keeps only the last saver), mobiles = those saves with `mobile_1/2`, visits, new voters (`created_by`), standing voted marks (`marked_by`). Locations: survey saves with a location (from `audit_log` new values; a later save that moved only one of lat / lng is missed) and visits with lat / lng; newest first, cursor `[at, key]` (`s<audit id>` / `v<visit id>`, `COLLATE "C"`) |
+| `POST /rolls/imports` | Matching Engine (10.2), super admin, `routers/rolls.py`. Multipart `file` + `local_body_id` (an active constituency in scope: 404; a ward: 422) + `list_type` + `title` + `published_on`. CSV or .xlsx by the first bytes (PDF / old .xls / binary 422 `unsupported_file`), ≤ 20 MB (`file_too_large`). One open import (uploaded / parsing / review) per constituency, checked under an advisory lock: 409 `import_in_progress`. Stores the file (`files.store_file`, kind `roll_import`), a `roll_versions` row (`uploaded`) and a `roll_import` job; 202 |
+| `GET /rolls/imports`, `GET /rolls/imports/{id}` | admins. Seen through the constituency (`scope.filter("g.path")`): admin own, super admin all; else 404. Newest first, cursor `[created_at, id]`. `status` `parsing` = `uploaded` while its job runs; `error` = the job's error when `failed`. `counts` counted live from the rows (keys in `COUNT_KEYS`) |
+| `GET /rolls/imports/{id}/rows` | admins. `?match_status=`, `?pending_only=` (review status pending), by `row_no`, cursor `[row_no]`. Absent voters are rows after the file's rows (`raw` = `{}`, values copied from the voter) |
+| `POST /rolls/imports/{id}/rows/{row_id}/resolve`, `POST .../apply`, `POST .../discard` | 10.3, super admin (admin 403), `app/roll_apply.py`; import locked `FOR UPDATE`. Resolve returns the row, apply / discard the import. Not in review: 409 `import_closed` (discard again = no-op; discard after apply = 409). Rules below |
+| `POST /voters`, `PATCH /voters/{id}/roll`, `POST /voters/{id}/remove`, `.../restore`, `GET /voters/{id}/roll-edits` | 10.4, `routers/roll_edits.py`: writes super admin (admin 403), roll edits admins (removed voters included). Rules below |
+| `GET /data-quality/summary`, `GET /data-quality/duplicates`, `POST .../duplicates/{id}/resolve` | 10.5, supervisor and above, area scope (`ward_id` 404 outside). Rules below |
+| `POST /mobile-imports`, `GET /mobile-imports/{id}`, `POST .../rows/{row_id}/resolve` | 10.5, admins; job `mobile_import`. Rules below |
 | `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
@@ -126,9 +138,71 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 
 `q` rules: up to 5 words, every word must match `voters.search_text` (names mr/en, EPIC, house; lowercase `LIKE`, wildcards escaped). An ASCII number also matches `serial_no` exactly, and `mobile_1/2` when 4+ digits. Real roll (11 Nov): paging all 31,871 voters at 200/page, slowest page 61 ms; searches 10–32 ms.
 
-**Contract stubs (4.10):** every other endpoint exists as a stub that checks login and role, then answers 501 `not_implemented` (`app/stubs.py`). Routers by plan step: `field.py` (7), `rolls.py` (10), `reports.py` (11); Step 9 is fully built (`admin.py` removed 14 Nov); conflicts in `sync.py` (7.10). Models: `schemas_field.py`, `schemas_admin.py`, `schemas_roll.py`. Every push type is built (8.1); a type the server does not know yet would be rejected `not_implemented` and not recorded, so a retry after the update applies it.
+**Contract stubs (4.10):** every other endpoint exists as a stub that checks login and role, then answers 501 `not_implemented` (`app/stubs.py`). Routers by plan step: `field.py` (7), `rolls.py` (10, partly built: it is included like a built router and each route not built yet carries `responses=NOT_BUILT` itself), `reports.py` (11); Step 9 is fully built (`admin.py` removed 14 Nov); conflicts in `sync.py` (7.10). Models: `schemas_field.py`, `schemas_admin.py`, `schemas_roll.py`. Every push type is built (8.1); a type the server does not know yet would be rejected `not_implemented` and not recorded, so a retry after the update applies it.
 
 **Building a stub:** replace `not_built(...)` with the code; remove `responses=NOT_BUILT` / move the router out of the `planned` loop in `main.py` when all its routes are built; in `tests/endpoints.py` drop `stub` and add `target` / `lists` (and a `Kind` if new); write its own test file; export OpenAPI. `test_stub_flags_match_the_api` fails if the row and the route disagree.
+
+## Worker (`app/worker.py`, 10.1)
+
+```
+python -m app.worker          # from backend/; Docker: service `worker`
+python -m app.worker --once   # run what is ready now, then stop (laptop)
+```
+
+- Queue: `enqueue(conn, kind, ref_id, payload)` in the request's transaction (workspace and user from the context); answer the client at once, the client polls the job's own row. Table `app.jobs` (migration 005).
+- Built kinds: `roll_import` (10.2, `app/roll_match.py`), `mobile_import` (10.5, `app/mobile_match.py`).
+- Handlers: `register(kind, run, on_fail)`. `run(conn, job)` gets a transaction with the job's workspace **and user** set (RLS, audit actor = whoever queued it). `on_fail(conn, job, message)` marks the job's own row failed (e.g. roll import status). Kinds to come: `roll_import` (10.2), `mobile_import` (10.5), `export` (11.2). The worker module must import the handler modules before `main()` runs; a worker claims only kinds it has handlers for.
+- One job: claim (`app.claim_job`, `SKIP LOCKED`, own transaction, status `running` + `claim_token` + lease `WORKER_LEASE_SECONDS` 300) → run transaction locks the job row while `claim_token` still matches (so no one else can take it however long it runs), handler, `done`. Died worker: lock gone, lease runs out, taken again.
+- Errors: the handler's writes roll back. `JobFailed("plain message")` = failed at once (bad file); other exceptions = queued again after 30 s / 120 s, failed after `MAX_ATTEMPTS` (3); a job claimed a 4th time (its worker died every time) is failed without running. `error` holds at most 500 characters: keep voter data out of `JobFailed` messages.
+- Empty queue: looks again every `WORKER_POLL_SECONDS` (2). SIGTERM finishes the running job, then stops.
+- Tests (`tests/test_worker.py`): each test uses its own kind, so jobs other tests leave queued are never taken.
+
+## Matching Engine (`app/roll_match.py`, 10.2)
+
+- Job `roll_import` (`run_import`): reads the stored file, matches it, writes every row to `roll_import_rows` and sets the import to `review` with `stats`; `fail_import` sets `failed`. Nothing official changes before apply (10.3). An import no longer `uploaded` (discarded meanwhile) is left alone.
+- File: CSV (UTF-8 only; comma / semicolon / tab from the header line) or .xlsx (first sheet, `openpyxl`, imported in the worker only). Header names normalised (lowercase, `_`), aliases in `ALIASES`; the client's part-file format is the model. Needed: part_no, serial_no, gender, a name. Bad file = `JobFailed` with a plain message (missing columns named; never row values). At most 100,000 rows.
+- Row reasons (stay as rows, `match_status` NULL, pending): `no_part_no`, `bad_serial_no`, `bad_gender`, `no_name`, `same_part_and_serial_as_an_earlier_row`.
+- Rules (module docstring has the full list): EPIC equal + name similarity ≥ `NAME_SAME` 0.8 + same gender = matched (accepted); EPIC equal otherwise = uncertain; no EPIC match = best voter of the same part and gender with similarity ≥ `NAME_LIKE` 0.5 (relative's name counts a third; two different EPICs never pair), greedy best-first = uncertain; none = new (accepted); a second row for a taken voter = possible_duplicate (pending, or accepted when it is the deleted entry of a voter listed live elsewhere); active voters of the file's parts left over = absent (accepted; none for a supplementary list). `match_notes` names changed fields, never values.
+- Similarity = pg_trgm's, in Python (`trigrams`, `similarity`; a test compares it with the database). Everything in memory: real roll (51 part files, 32,598 rows) matches itself 31,871 matched / 0 uncertain / 0 new / 0 absent; 688 unreadable = the broken part 4 copy; 39 possible duplicates = voters listed twice under one EPIC. ~15 s on the laptop (`check_dev_data`).
+- Rows are written with one `INSERT ... SELECT FROM unnest(arrays)` per 5,000 rows (`_COLUMNS`, `CHUNK`): COPY is refused on an RLS table and one INSERT per row was most of the time. `map_columns` is cached (it ran per row).
+- `rolls.py` imports `roll_match`, so the API process registers the handler too (harmless); the worker imports it in `load_handlers()`.
+
+## Matching Engine: review and apply (`app/roll_apply.py`, 10.3)
+
+Module docstring has the full rules. In short:
+
+- **Resolve** `{accept, voter_id?}`: accept = the suggestion is right; reject = not that voter (matched / uncertain / duplicate rows are then added as new voters; an unreadable row is skipped; a new row stays new). `voter_id` (accept only, matched / uncertain / new rows) = "this row is that voter": row becomes accepted uncertain, note "voter chosen by hand"; voter outside the constituency 404; held by another row 409 `voter_taken` (`error.row_no`). Absent rows cannot be resolved (422); accepting an unreadable row or one with no suggestion 422.
+- **Absent rows follow the matches** (`refresh_absent`): a voter no row holds any more gets an absent row (accepted, `row_no` after the last); one a row holds again has its absent row rejected. Rejected absent rows are not counted.
+- **Apply**: pending rows 409 `review_not_finished` (`error.pending`). Accepted matches update the voter's roll fields (`_target`: an empty file cell keeps the old value), **only when something changed** (no history line otherwise); a live row brings an absent / deleted voter back; a deleted entry = `deleted_in_roll`, keeping the `deletion_reason` on record (never "dead"). New / rejected rows are inserted; accepted absent = `absent_from_current_roll` (not hidden). Surveys, Kutumbs, visits, marks untouched; voter ids never change. A part not on record gets a ward + booth (code = part, "Part N" / "भाग N"). `roll_part_versions` upserted; `roll_versions.stats` gets the `applied` counts (`APPLIED_KEYS`).
+- **Serials**: (booth, serial) is unique among active voters, so moves are ordered to free each slot first; a swap cycle parks one voter as absent for a moment (an extra history line). A slot kept by a voter not in this import, or an insert into a taken slot: 409 `serial_in_use`; an EPIC another voter holds: 409 `epic_in_use` (both `error.row_nos`).
+- Runs inside the request (no job): real roll apply ~5 s on the laptop; the same roll again = 0 updated, 1 audit row (`check_dev_data`).
+- Not yet: `new_voters.matched_voter_id` (Eligible but Not Registered matched to a new roll entry); `GET /voters` still lists absent voters (show the status in the UI, 10.6).
+
+## One-voter corrections (`app/routers/roll_edits.py`, 10.4)
+
+- Every write needs `reason` (+ optional `reference`, trimmed) and adds one `voter_roll_edits` row (old / new values of the changed fields only); the voters trigger adds the audit row (History "roll_edit") and the sync_xid.
+- **Add**: `RollFields` + reason; ward, constituency, `part_no` (= the Village Panchayat's `number`) and `booth_no` come from the booth (a ward: 422; outside scope: 404; section must be a child of the booth). Text trimmed, blank = null; a name is needed (422). Server-made id.
+- **Correct**: `fields` = any `RollFields` keys (others 422), merged with the record and validated whole (errors at `body.fields.<key>`). Fields already equal are dropped; nothing left = 200 with no edit row. A booth change moves ward / part too. A removed voter: 404 (restore first).
+- **Remove** = `deleted_at` (hidden from lists, search, detail and phones; `roll_status` untouched; survey and everything else kept). **Restore** clears it. Both repeat-safe (no second edit row).
+- Clashes with a live voter: EPIC anywhere in the workspace, (booth, serial) among active voters: 409 `epic_in_use` / `serial_in_use` with `error.voter_id` (add, correct, restore).
+- Helpers in `routers/voters.py`: `voter_in_scope(..., include_removed=)`, `voter_detail(conn, scope, id, include_removed=)` (`VoterDetail.deleted_at` added 14 Nov). `GET /voters?removed=true` lists removed voters (admins; others 403) so the portal can restore one.
+- Phones: see `context/sync.md` (a restored voter's survey, members and marks come again).
+
+## Data quality (`routers/data_quality.py`, `duplicates.py`, 10.5)
+
+- **Pairs** (`find_pairs(conn, lb, voter_id=None)`): live voters of one constituency with the same name (English, else Marathi), relative's name and gender, ages within 2 (or one unknown). Source `roll_flag` when either is `is_repeated_in_roll`, else `fuzzy_match`. Stored once (`ON CONFLICT DO NOTHING`), never deleted, so a decision stays. Found at the end of roll apply (`applied.new_pairs`), after a hand add / correction (that voter), and by `scripts/find_duplicates.py` (once for data on record; run on the server after deploying 10.5). Real roll: 24 pairs, 0.4 s.
+- **Summary**: live voters in the area (+ `ward_id`): no mobile (no survey counts), no dob, repeated in roll, shifted (`has_new_address` or the voter's latest visit `shifted`, one `DISTINCT ON` scan of visits), doubtful dead (`dead_marked`, not confirmed; nothing sets `dead_marked` yet), possible duplicates = unchecked pairs with both voters live and in the area. Real roll 60 ms.
+- **List**: pairs with both voters in the area; `unchecked_only` (default) also needs both live; `?source=` (added 14 Nov); oldest first, cursor `[created_at, id]`; voters as `SyncVoter` (with `deleted_at`).
+- **Resolve**: same person / different people by anyone who sees the pair (again = change of mind). `keep_voter_id` hides the other voter (`roll_edits.hide_voter`, reason duplicate, reference "duplicate pair <id>"): super admin only (403 for others; client 12 Nov: only a super admin removes), must be one of the two (422), only with same_person (422).
+
+## Mobile number sheets (`mobile_match.py`, 10.5)
+
+- Upload: admins, CSV / .xlsx ≤ 20 MB (`roll_match.read_table`), `feature_mobile_import` off = 403 `feature_off`. Batch + file (kind `mobile_import`) + job; payload `local_body_id` = the uploader's constituency (null = super admin = whole workspace). A sheet is seen by the uploader's team (`u.local_body_id`; super admin all): an admin does not see a super admin's sheet.
+- Columns (`ALIASES`): mobile (needed), name or EPIC (needed), part, house, address. Mobile: digits, +91 / 0 dropped, `^[6-9]\d{9}$` else row `skipped`.
+- Match: EPIC; else voters sharing the sheet name's words (both first name and surname when given), same part if given, similarity ≥ 0.5 = candidates (5, best first); exactly one ≥ 0.8 (house number breaks a tie) = sure. Sure + a free slot (mobile_1, then mobile_2) or the number already there = `matched`; both slots taken = `needs_review` with that voter.
+- Numbers are written in two statements (insert / guarded update on the loaded values); a survey changed meanwhile goes through `store_mobile` one by one. Survey version rises, audit actor = uploader, phones pull it; a phone with an unsent survey edit then gets a version conflict (normal 7.10 flow). 2,000 real names ~4 s.
+- Resolve (needs_review / not_found only, else 409 `row_resolved`): `voter_id` (in the caller's area, 404) stores the number, replacing mobile_2 when both are taken; null = skipped. Counts recounted.
+- `GET /mobile-imports/{id}` returns the first 500 rows, to review first. `GET /mobile-imports` (added 14 Nov, known addition in `test_contract.py`) lists the team's sheets newest first without rows, cursor `[created_at, id]`.
 
 ## Tests
 
@@ -142,6 +216,7 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 - Pitfall: this FastAPI version does not flatten included routers into `app.routes`; list routes from `app.openapi()["paths"]`.
 - Each endpoint's own test file covers its behaviour (409, paging, search, ...), not the generic rules.
 - Test voters are inserted by the owner without `app.skip_audit`, so their history starts with a `roll_edit` entry.
+- Do not run `check_dev_data.py`, `migrate.py` or other dev-database work while pytest runs: the sync watermark comes from the transaction numbers of the whole PostgreSQL server, so an open transaction in the dev database holds it back and the delta-pull tests get old rows again (7 failures in `test_sync_pull.py`, 14 Nov).
 - Times in tests: the database clock is UTC; a "past" phone time must be before today UTC (a later one becomes now).
 
 ## Pitfalls

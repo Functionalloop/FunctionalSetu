@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Docker: the `files` volume at /srv/files. Laptop: a git-ignored folder.
     files_dir: Path = ROOT / "jansetu-private" / "files"
 
+    # Background worker (app/worker.py): seconds between looks at an empty queue, and the
+    # lease of a claimed job (a running job past it is taken again: its worker died).
+    worker_poll_seconds: float = 2.0
+    worker_lease_seconds: int = 300
+
     @property
     def database_url(self) -> URL:
         return URL.create(
