@@ -206,6 +206,15 @@ ENDPOINTS: list[Endpoint] = [
              body={"accept": False}, works=False),
     Endpoint("POST", "/rolls/imports/{import_id}/apply", roles=SUPER, target="roll_import"),
     Endpoint("POST", "/rolls/imports/{import_id}/discard", roles=SUPER, target="roll_import"),
+    # one-voter corrections (10.4): super admin writes, an admin reads; behaviour: test_roll_edits.py
+    Endpoint("POST", "/voters", roles=SUPER,
+             body=lambda w: {"booth_id": str(w.a.booths[0]), "serial_no": w.next_serial(), "gender": "F",
+                             "first_name_en": "Rule", "reason": "supplementary_list"}),
+    Endpoint("PATCH", "/voters/{voter_id}/roll", roles=SUPER, target="voter",
+             body={"fields": {"house_no": "Rule 1"}, "reason": "typing_mistake"}),
+    Endpoint("POST", "/voters/{voter_id}/remove", roles=SUPER, target="voter", body={"reason": "duplicate"}),
+    Endpoint("POST", "/voters/{voter_id}/restore", roles=SUPER, target="voter", body={"reason": "other"}),
+    Endpoint("GET", "/voters/{voter_id}/roll-edits", roles=ADMINS, target="voter"),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -214,11 +223,6 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    ("POST", "/voters", SUPER, "ready"),
-    ("PATCH", "/voters/{voter_id}/roll", SUPER, "ready"),
-    ("POST", "/voters/{voter_id}/remove", SUPER, "ready"),
-    ("POST", "/voters/{voter_id}/restore", SUPER, "ready"),
-    ("GET", "/voters/{voter_id}/roll-edits", ADMINS, "ready"),
     ("GET", "/data-quality/summary", SUPERVISORS, "ready"),
     ("GET", "/data-quality/duplicates", SUPERVISORS, "ready"),
     ("POST", "/data-quality/duplicates/{pair_id}/resolve", SUPERVISORS, "ready"),

@@ -28,6 +28,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/worker.py` | background worker (10.1); see "Worker" below |
 | `app/roll_match.py` | Matching Engine: read a roll file, match it, the `roll_import` job (10.2); see below |
 | `app/roll_apply.py` | Matching Engine: resolve one row, apply, discard (10.3); see below |
+| `app/routers/roll_edits.py` | One-voter corrections: add, correct, remove, restore, roll edits (10.4); see below |
 | `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `slips.py`, `birthdays.py`, `misc.py`, `part_notes.py`, `turnout.py`, `sync.py`, `app_version.py`; stubs in `field.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
@@ -119,6 +120,7 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /rolls/imports`, `GET /rolls/imports/{id}` | admins. Seen through the constituency (`scope.filter("g.path")`): admin own, super admin all; else 404. Newest first, cursor `[created_at, id]`. `status` `parsing` = `uploaded` while its job runs; `error` = the job's error when `failed`. `counts` counted live from the rows (keys in `COUNT_KEYS`) |
 | `GET /rolls/imports/{id}/rows` | admins. `?match_status=`, `?pending_only=` (review status pending), by `row_no`, cursor `[row_no]`. Absent voters are rows after the file's rows (`raw` = `{}`, values copied from the voter) |
 | `POST /rolls/imports/{id}/rows/{row_id}/resolve`, `POST .../apply`, `POST .../discard` | 10.3, super admin (admin 403), `app/roll_apply.py`; import locked `FOR UPDATE`. Resolve returns the row, apply / discard the import. Not in review: 409 `import_closed` (discard again = no-op; discard after apply = 409). Rules below |
+| `POST /voters`, `PATCH /voters/{id}/roll`, `POST /voters/{id}/remove`, `.../restore`, `GET /voters/{id}/roll-edits` | 10.4, `routers/roll_edits.py`: writes super admin (admin 403), roll edits admins (removed voters included). Rules below |
 | `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
@@ -172,6 +174,16 @@ Module docstring has the full rules. In short:
 - **Serials**: (booth, serial) is unique among active voters, so moves are ordered to free each slot first; a swap cycle parks one voter as absent for a moment (an extra history line). A slot kept by a voter not in this import, or an insert into a taken slot: 409 `serial_in_use`; an EPIC another voter holds: 409 `epic_in_use` (both `error.row_nos`).
 - Runs inside the request (no job): real roll apply ~5 s on the laptop; the same roll again = 0 updated, 1 audit row (`check_dev_data`).
 - Not yet: `new_voters.matched_voter_id` (Eligible but Not Registered matched to a new roll entry); `GET /voters` still lists absent voters (show the status in the UI, 10.6).
+
+## One-voter corrections (`app/routers/roll_edits.py`, 10.4)
+
+- Every write needs `reason` (+ optional `reference`, trimmed) and adds one `voter_roll_edits` row (old / new values of the changed fields only); the voters trigger adds the audit row (History "roll_edit") and the sync_xid.
+- **Add**: `RollFields` + reason; ward, constituency, `part_no` (= the Village Panchayat's `number`) and `booth_no` come from the booth (a ward: 422; outside scope: 404; section must be a child of the booth). Text trimmed, blank = null; a name is needed (422). Server-made id.
+- **Correct**: `fields` = any `RollFields` keys (others 422), merged with the record and validated whole (errors at `body.fields.<key>`). Fields already equal are dropped; nothing left = 200 with no edit row. A booth change moves ward / part too. A removed voter: 404 (restore first).
+- **Remove** = `deleted_at` (hidden from lists, search, detail and phones; `roll_status` untouched; survey and everything else kept). **Restore** clears it. Both repeat-safe (no second edit row).
+- Clashes with a live voter: EPIC anywhere in the workspace, (booth, serial) among active voters: 409 `epic_in_use` / `serial_in_use` with `error.voter_id` (add, correct, restore).
+- Helpers in `routers/voters.py`: `voter_in_scope(..., include_removed=)`, `voter_detail(conn, scope, id, include_removed=)` (`VoterDetail.deleted_at` added 14 Nov). `GET /voters?removed=true` lists removed voters (admins; others 403) so the portal can restore one.
+- Phones: see `context/sync.md` (a restored voter's survey, members and marks come again).
 
 ## Tests
 

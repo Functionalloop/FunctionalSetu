@@ -25,12 +25,11 @@ from ..deps import Db
 from ..errors import ApiError
 from ..paging import decode_cursor, encode_cursor, invalid_cursor
 from ..roll_match import CSV_MIME, KIND as ROLL_JOB, MAX_BYTES, XLSX_MIME, sniff
-from ..schemas import ListType, UserSummary, VoterDetail
+from ..schemas import ListType, UserSummary
 from ..schemas_admin import FileKind
 from ..schemas_roll import (DataQualitySummary, DuplicatePair, DuplicatePairPage, MatchStatus, MobileImport,
-                            MobileRowResolution, PairResolution, RemoveRestore, RollEditPage,
-                            RollImport, RollImportPage, RollImportRow, RollImportRowPage, RollPatch, RowResolution,
-                            VoterAdd)
+                            MobileRowResolution, PairResolution, RollImport, RollImportPage, RollImportRow,
+                            RollImportRowPage, RowResolution)
 from ..scope import Scope, UserScope, require_area
 from ..stubs import NOT_BUILT, Admin, Cursor, Limit, SuperAdmin, Supervisor, not_built
 from ..worker import enqueue
@@ -232,35 +231,7 @@ def discard_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin, scope:
     return get_import(conn, scope, import_id)
 
 
-# --- one-voter corrections (10.4) --------------------------------------------------------------
-@router.post("/voters", response_model=VoterDetail, responses=NOT_BUILT, status_code=status.HTTP_201_CREATED,
-             summary="Add one voter to the roll by hand, with reason and reference. Super admin.")
-def add_voter(body: VoterAdd, conn: Db, user: SuperAdmin) -> VoterDetail:
-    not_built("10.4")
-
-
-@router.patch("/voters/{voter_id}/roll", response_model=VoterDetail, responses=NOT_BUILT,
-              summary="Correct one roll record, with reason and reference. Super admin.")
-def correct_voter(voter_id: uuid.UUID, body: RollPatch, conn: Db, user: SuperAdmin) -> VoterDetail:
-    not_built("10.4")
-
-
-@router.post("/voters/{voter_id}/remove", response_model=VoterDetail, responses=NOT_BUILT,
-             summary="Hide one voter (survey work is kept), with reason. Super admin.")
-def remove_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: SuperAdmin) -> VoterDetail:
-    not_built("10.4")
-
-
-@router.post("/voters/{voter_id}/restore", response_model=VoterDetail, responses=NOT_BUILT, summary="Bring back a hidden voter. Super admin.")
-def restore_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: SuperAdmin) -> VoterDetail:
-    not_built("10.4")
-
-
-@router.get("/voters/{voter_id}/roll-edits", response_model=RollEditPage, responses=NOT_BUILT,
-            summary="Roll corrections made to this voter. Admin.")
-def voter_roll_edits(voter_id: uuid.UUID, conn: Db, user: Admin, limit: Limit = 50,
-                     cursor: Cursor = None) -> RollEditPage:
-    not_built("10.4")
+# One-voter corrections (10.4) are in routers/roll_edits.py.
 
 
 # --- data quality (10.5) ------------------------------------------------------------------------

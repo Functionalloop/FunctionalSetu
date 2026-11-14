@@ -13,7 +13,7 @@ from ..deps import SURVEY_ROLES, Db, Principal, ReadyUser, require_roles
 from ..errors import ApiError
 from ..history import voter_history
 from ..paging import decode_cursor, encode_cursor, invalid_cursor
-from ..schemas import (Gender, Survey, SurveyFields, SurveyIn, SurveyStatus, VoterDetail, VoterListItem,
+from ..schemas import (Gender, Role, Survey, SurveyFields, SurveyIn, SurveyStatus, VoterDetail, VoterListItem,
                        VoterPage)
 from ..schemas_field import HistoryPage
 from ..scope import Scope, UserScope, require_area
@@ -69,11 +69,15 @@ def list_voters(
     has_mobile: bool | None = None,
     influencer: Annotated[bool | None, Query(description="true: influencers only; false: the others")] = None,
     influencer_type_id: uuid.UUID | None = None,
+    removed: Annotated[bool, Query(description=(
+        "true: only the voters a super admin removed (hidden), to restore one. Admin and super admin."))] = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     cursor: str | None = None,
 ) -> VoterPage:
+    if removed and not user.at_least(Role.admin):
+        raise ApiError(403, "forbidden_role", "Only an admin can list removed voters.")
     cond, params = scope.filter("v.geo_path")
-    where = ["v.deleted_at IS NULL", cond]
+    where = ["v.deleted_at IS NOT NULL" if removed else "v.deleted_at IS NULL", cond]
 
     for name, area in (("ward_id", ward_id), ("booth_id", booth_id)):
         if area is not None:
@@ -141,17 +145,30 @@ _EDIT_COLS = list(SurveyFields.model_fields)  # replaced on every save
 SurveyUser = Annotated[Principal, Depends(require_roles(SURVEY_ROLES))]
 
 
-def voter_in_scope(conn: Connection, scope: Scope, voter_id: uuid.UUID, cols: str = "v.id") -> Any:
-    """The voter row, or 404 when it is removed, in another workspace (RLS) or outside the user's area."""
+def voter_in_scope(conn: Connection, scope: Scope, voter_id: uuid.UUID, cols: str = "v.id",
+                   include_removed: bool = False) -> Any:
+    """The voter row, or 404 when it is removed (unless `include_removed`), in another workspace (RLS)
+    or outside the user's area."""
     cond, params = scope.filter("v.geo_path")
+    live = "TRUE" if include_removed else "v.deleted_at IS NULL"
     row = conn.execute(text(f"""
         SELECT {cols} FROM app.voters v
           LEFT JOIN app.voter_surveys s ON s.tenant_id = v.tenant_id AND s.voter_id = v.id
-         WHERE v.id = :voter_id AND v.deleted_at IS NULL AND {cond}
+         WHERE v.id = :voter_id AND {live} AND {cond}
     """), {**params, "voter_id": voter_id}).mappings().first()
     if row is None:
         raise ApiError(404, "not_found", "Voter not found.")
     return row
+
+
+DETAIL_COLS = f"""{_LIST_COLS},
+    v.first_name_mr, v.middle_name_mr, v.last_name_mr, v.first_name_en, v.middle_name_en, v.last_name_en,
+    v.age_as_of, v.address_mr, v.address_en, v.list_type, v.deletion_reason, v.is_repeated_in_roll, v.deleted_at"""
+
+
+def voter_detail(conn: Connection, scope: Scope, voter_id: uuid.UUID, include_removed: bool = False) -> VoterDetail:
+    row = voter_in_scope(conn, scope, voter_id, DETAIL_COLS, include_removed)
+    return VoterDetail(**row, survey=read_survey(conn, voter_id))
 
 
 def read_survey(conn: Connection, voter_id: uuid.UUID) -> Survey | None:
@@ -173,10 +190,7 @@ def check_survey_references(conn: Connection, body: SurveyIn) -> None:
 
 @router.get("/{voter_id}", response_model=VoterDetail, summary="One voter: roll details plus survey. All roles.")
 def get_voter(voter_id: uuid.UUID, conn: Db, user: ReadyUser, scope: UserScope) -> VoterDetail:
-    row = voter_in_scope(conn, scope, voter_id, cols=f"""{_LIST_COLS},
-        v.first_name_mr, v.middle_name_mr, v.last_name_mr, v.first_name_en, v.middle_name_en, v.last_name_en,
-        v.age_as_of, v.address_mr, v.address_en, v.list_type, v.deletion_reason, v.is_repeated_in_roll""")
-    return VoterDetail(**row, survey=read_survey(conn, voter_id))
+    return voter_detail(conn, scope, voter_id)
 
 
 @router.get("/{voter_id}/history", response_model=HistoryPage,

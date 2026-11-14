@@ -329,6 +329,7 @@ class VoterDetail(VoterListItem):
     list_type: ListType
     deletion_reason: str | None = Field(description="Only as printed in the roll")
     is_repeated_in_roll: bool
+    deleted_at: datetime | None = Field(None, description="Set while a super admin has removed (hidden) the voter")
     survey: Survey | None = Field(description="Null until the first survey save")
 
 

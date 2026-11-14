@@ -4,7 +4,8 @@ Page 1: settings, lists, areas, `area_ids`, totals and a new watermark W'.
 Then phases, each keyset-paged by id:
     voters    first download: every voter in the area (removed ones left out)
               delta: voters in the area with sync_xid >= since, removed ones included (deleted_at set)
-    surveys   surveys of voters in the area (delta: sync_xid >= since)
+    surveys   surveys of voters in the area (delta: sync_xid >= since, or the voter's; also for members
+              and turnout, so a restored voter gets its rows back)
     families  Kutumbs whose booth is in the area (first: not deleted; delta: sync_xid >= since, deleted included)
     visits    visits in the user's booths (first: all not deleted; delta: sync_xid >= since)
     members   family_members of voters in the area (first: in a Kutumb; delta: sync_xid >= since, also the
@@ -130,6 +131,15 @@ class _PhaseSql:
             source, where, params, key, select, id_field)
 
 
+def _changed_or_voter(alias: str, since: str | None) -> str:
+    """SQL for a voter's own rows (survey, Kutumb membership, voted mark): the row changed since the
+    watermark, or its voter did. A voter that comes back (restored, 10.4; moved into the area by a
+    roll) was dropped on the phone with these rows, so they must come again although they did not change."""
+    if since is None:
+        return "TRUE"
+    return f"({_changed(alias, since)} OR {_changed('v', since)})"
+
+
 def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool, polling_role: bool) -> _PhaseSql:
     vcond, params = scope.filter("v.geo_path")
     params["since"] = since
@@ -139,7 +149,7 @@ def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool, polli
         return _PhaseSql("app.voters v", where, params, "v.id", VOTER_COLS, "id")
     if phase == "surveys":
         return _PhaseSql(f"app.voter_surveys s {with_voter.format(a='s')}",
-                         f"v.deleted_at IS NULL AND {_changed('s', since)} AND {vcond}", params,
+                         f"v.deleted_at IS NULL AND {_changed_or_voter('s', since)} AND {vcond}", params,
                          "s.voter_id", SURVEY_COLS, "voter_id")
     if phase == "families":  # seen through its booth, like GET /booths/{id}/families
         gcond, gparams = scope.filter("g.path")
@@ -165,12 +175,12 @@ def _phase(phase: str, scope: Scope, since: str | None, survey_role: bool, polli
                          PART_NOTE_COLS, "booth_id")
     if phase == "turnout":  # through the voter; polling-day roles only
         role = "" if polling_role else "FALSE AND "
-        first = "t.is_voted" if since is None else _changed("t", since)
+        first = "t.is_voted" if since is None else _changed_or_voter("t", since)
         return _PhaseSql(f"app.voter_turnout t {with_voter.format(a='t')}",
                          f"{role}{first} AND v.deleted_at IS NULL AND {vcond}", params, "t.voter_id", MARK_COLS,
                          "voter_id")
     if phase == "members":
-        first = "m.family_id IS NOT NULL" if since is None else _changed("m", since)
+        first = "m.family_id IS NOT NULL" if since is None else _changed_or_voter("m", since)
         return _PhaseSql(f"app.family_members m {with_voter.format(a='m')}",
                          f"{first} AND v.deleted_at IS NULL AND {vcond}", params, "m.voter_id", MEMBER_COLS,
                          "voter_id")

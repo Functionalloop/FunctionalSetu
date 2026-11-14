@@ -47,7 +47,9 @@ from app.routers.part_notes import write_part_note  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.turnout import turnout_summary, undo_mark, write_marks  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
-from app.routers.voters import get_voter_history, list_voters, save_survey  # noqa: E402
+from app.routers.roll_edits import add_voter, correct_voter, remove_voter, restore_voter, voter_roll_edits  # noqa: E402
+from app.routers.voters import get_voter_history, list_voters, read_survey, save_survey, voter_detail  # noqa: E402
+from app.schemas_roll import RemoveRestore, RollPatch, VoterAdd  # noqa: E402
 from app.schemas import PushItem, Role, SurveyIn  # noqa: E402
 from app.schemas_field import ConflictStatus  # noqa: E402
 from app.schemas_field import (FamilyChange, FamilyIn, NewVoterIn, NewVoterPatch, PartNoteIn, ProblemReportIn,  # noqa: E402
@@ -61,7 +63,7 @@ SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations", "user_area_assignments",
-                   "sync_conflicts", "jobs", "roll_versions", "roll_import_rows", "files",
+                   "sync_conflicts", "jobs", "roll_versions", "roll_import_rows", "files", "voter_roll_edits",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -198,8 +200,9 @@ def main() -> None:
         _, sv, _, pages, worst, size, _ = full_pull(conn, s_srv)
         report(len(sv) == expect, "surveyor first download = their parts", f"{len(sv)} voters, {pages} pages, {size / 1e6:.1f} MB")
         w = current_watermark(conn)
-        _, dv, dg, pages, _, _, _ = full_pull(conn, s_admin, since=w)
-        report(not dv and not dg and pages == 1, "idle delta pull is one request with nothing", f"{pages} page")
+        _, dv, dg, pages, worst, _, _ = full_pull(conn, s_admin, since=w)
+        report(not dv and not dg and pages == 1, "idle delta pull is one request with nothing",
+               f"{pages} page, {worst:.0f} ms")
 
     # --- write checks: one transaction, rolled back --------------------------------------------------
     print("Writes (rolled back)")
@@ -582,6 +585,65 @@ def main() -> None:
                     print("        voter columns changed (counts): " + ", ".join(f"{c} {n}" for c, n in changed))
             finally:
                 trans.rollback()
+
+    # 10.4: one surveyed voter removed (gone from the list and the phones), restored (back with its
+    # survey), corrected; one voter added by hand. Rolled back; timings only.
+    print("One-voter corrections (rolled back)")
+    with get_engine().connect() as conn:
+        trans = conn.begin()
+        try:
+            set_context(conn, tenant, admin.user_id)
+            name = conn.execute(text("""SELECT username FROM app.users WHERE role = 'super_admin' AND is_active
+                                         AND deleted_at IS NULL ORDER BY created_at LIMIT 1""")).scalar()
+            if name is None:
+                print("  SKIP  no super admin in this workspace")
+            else:
+                boss = principal(conn, tenant, name)
+                set_context(conn, tenant, boss.user_id)
+                s_boss = load_scope(conn, boss)
+                vid, booth = conn.execute(text("""
+                    SELECT v.id, v.booth_id FROM app.voters v WHERE v.deleted_at IS NULL AND v.roll_status = 'active'
+                       AND v.local_body_id = :lb ORDER BY v.id LIMIT 1"""), {"lb": admin.local_body_id}).one()
+                if read_survey(conn, vid) is None:
+                    save_survey(vid, SurveyIn(version=0, notes="check"), conn, boss, s_boss)
+                w = current_watermark(conn)
+                _, ms_rm = timed(lambda: remove_voter(vid, RemoveRestore(reason="duplicate"), conn, boss, s_boss))
+                try:
+                    voter_detail(conn, s_admin, vid)
+                    hidden = False
+                except ApiError as e:
+                    hidden = e.status == 404
+                _, dv, _, _, _, _, _ = full_pull(conn, s_admin, since=w)
+                report(hidden and vid in dv, "removed voter hidden, sent to phones as removed", f"{ms_rm:.0f} ms")
+
+                w = current_watermark(conn)
+                _, ms_rs = timed(lambda: restore_voter(vid, RemoveRestore(reason="other"), conn, boss, s_boss))
+                back, cursor, worst = set(), None, 0.0
+                while True:
+                    page, ms = timed(lambda: pull_page(conn, s_admin, w, cursor, 1000))
+                    back |= {s.voter_id for s in page.surveys}
+                    worst, cursor = max(worst, ms), page.next_cursor
+                    if not cursor:
+                        break
+                report(voter_detail(conn, s_admin, vid).deleted_at is None and vid in back,
+                       "restored voter back, its survey in the delta pull",
+                       f"restore {ms_rs:.0f} ms, slowest pull page {worst:.0f} ms")
+
+                fixed, ms = timed(lambda: correct_voter(vid, RollPatch(fields={"house_no": "CHECK-1"},
+                                                                       reason="typing_mistake"), conn, boss, s_boss))
+                kinds = [e.action for e in voter_roll_edits(vid, conn, admin, s_admin, limit=10).items]
+                report(fixed.house_no == "CHECK-1" and kinds == ["correct", "restore", "remove"],
+                       "correction saved, three roll edits for the admin to read", f"{ms:.0f} ms")
+
+                serial = conn.execute(text("SELECT max(serial_no) + 1 FROM app.voters WHERE booth_id = :b"),
+                                      {"b": booth}).scalar_one()
+                added, ms = timed(lambda: add_voter(VoterAdd(booth_id=booth, serial_no=serial, gender="F",
+                                                             first_name_en="Check", reason="supplementary_list"),
+                                                    conn, boss, s_boss))
+                report(added.booth_id == booth and added.part_no > 0, "voter added by hand in a real part",
+                       f"{ms:.0f} ms")
+        finally:
+            trans.rollback()
 
     after = owner_counts(tenant)
     changed = {t: (before[t], after[t]) for t in LEFTOVER_TABLES if before[t] != after[t]}
