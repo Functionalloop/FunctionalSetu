@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 54 / 112 done (48%)** `██████████░░░░░░░░░░`
+**Overall: 55 / 112 done (49%)** `██████████░░░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -13,7 +13,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Demo | 0 / 2 | `░░░░░░░░░░` |
 | Step 7 – Field screens | 13 / 13 | `██████████` |
 | Step 8 – Polling day | 3 / 3 | `██████████` |
-| Step 9 – Admin | 2 / 8 | `██░░░░░░░░` |
+| Step 9 – Admin | 3 / 8 | `████░░░░░░` |
 | Step 10 – Matching Engine (roll update) and data quality | 0 / 6 | `░░░░░░░░░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
@@ -93,11 +93,11 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **8.2** Screens: Polling day, Mark voted · due 28 Nov · done 2026-11-14 · `7f934ac`
 - [x] **8.3** Screen: Mark many voted · due 28 Nov · done 2026-11-14 · `040fe91`
 
-## Step 9 – Admin · 14–16 Nov · branch `step9-admin` — 2/8
+## Step 9 – Admin · 14–16 Nov · branch `step9-admin` — 3/8
 
 - [x] **9.1** Users · due 14 Nov · done 2026-11-14 · `83840a2`
 - [x] **9.2** Assignments · due 14 Nov · done 2026-11-14 · `83840a2`
-- [ ] **9.3** Constituencies · due 15 Nov
+- [x] **9.3** Constituencies · due 15 Nov · done 2026-11-14 · `37a4f65`
 - [ ] **9.4** Settings and lists · due 15 Nov
 - [ ] **9.5** Team and logs · due 15 Nov
 - [ ] **9.6** Screens: Users & devices, Add user (also Add admin), Booths & karyakartas · due 16 Nov
