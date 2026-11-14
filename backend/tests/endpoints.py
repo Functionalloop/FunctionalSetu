@@ -187,6 +187,14 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("PATCH", "/masters/message-templates/{kind}", roles=ADMINS, body={"body_en": "Rule check"}),
     Endpoint("POST", "/files", roles=ADMINS, works=False),  # multipart upload: test_files.py
     Endpoint("GET", "/files/{file_id}", target="file", workspace_wide=True),
+    # team and logs (9.5); behaviour and the isolation of the logs: test_admin_logs.py
+    Endpoint("POST", "/announcements", roles=ADMINS,
+             body=lambda w: {"body": "Rule notice", "audience_geo_id": str(w.a.booths[0])}),
+    Endpoint("DELETE", "/announcements/{announcement_id}", roles=ADMINS, target="announcement"),
+    Endpoint("GET", "/problem-reports", roles=ADMINS, lists="problem_report"),
+    Endpoint("GET", "/audit-log", roles=ADMINS),
+    Endpoint("GET", "/reports/worker-activity", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
+    Endpoint("GET", "/worker-locations", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -194,12 +202,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
     # admin (9)
-    ("POST", "/announcements", ADMINS, "ready"),
-    ("DELETE", "/announcements/{announcement_id}", ADMINS, "ready"),
-    ("GET", "/problem-reports", ADMINS, "ready"),
-    ("GET", "/audit-log", ADMINS, "ready"),
-    ("GET", "/reports/worker-activity", ADMINS, "ready"),
-    ("GET", "/worker-locations", ADMINS, "ready"),
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
     ("POST", "/rolls/imports", SUPER, "ready"),
     ("GET", "/rolls/imports", ADMINS, "ready"),
@@ -232,9 +234,7 @@ ENDPOINTS: list[Endpoint] = [
 # Sample values for path parameters of stub routes (built routes use `target`).
 PATH_SAMPLES = {"row_id": "1", "field_key": "extra_check_1", "kind": "birthday"}
 # Required query parameters of stub routes, so a call is well-formed.
-QUERY_SAMPLES = {"/families": {"booth_id": str(uuid.UUID(int=1))},
-                 "/reports/worker-activity": {"date_from": "2026-11-01", "date_to": "2026-11-02"},
-                 "/worker-locations": {"date_from": "2026-11-01", "date_to": "2026-11-02"}}
+QUERY_SAMPLES = {"/families": {"booth_id": str(uuid.UUID(int=1))}}
 
 
 # --- kinds of records the checks create ---------------------------------------------
@@ -388,8 +388,19 @@ def _make_announcement(world, where: str) -> uuid.UUID:
 
 
 def _announcement_state(world, announcement_id: uuid.UUID):
-    return world.conn.execute("SELECT count(*) FROM app.announcement_reads WHERE announcement_id = %s",
-                              (announcement_id,)).fetchone()
+    return (world.conn.execute("SELECT count(*) FROM app.announcement_reads WHERE announcement_id = %s",
+                               (announcement_id,)).fetchone(),
+            world.conn.execute("SELECT deleted_at FROM app.announcements WHERE id = %s",
+                               (announcement_id,)).fetchone())
+
+
+def _make_problem_report(world, where: str) -> uuid.UUID:
+    """A report from a new surveyor of that place's constituency."""
+    uid = _make_user(world, where)
+    pid = uuid.uuid4()
+    world.conn.execute("INSERT INTO app.problem_reports (id, tenant_id, user_id, body) VALUES (%s, %s, %s, 'Rule')",
+                       (pid, world.place(where)[0], uid))
+    return pid
 
 
 def _booth(world, where: str) -> uuid.UUID:
@@ -460,6 +471,7 @@ KINDS: dict[str, Kind] = {
     "influencer_type": Kind(*_list_entry("influencer_types")),
     "color_tag": Kind(_make_color_tag, _color_tag_state),
     "file": Kind(_make_file),
+    "problem_report": Kind(_make_problem_report),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
     "voter_birthday": Kind(_make_voter_birthday),
     "announcement": Kind(_make_announcement, _announcement_state),
