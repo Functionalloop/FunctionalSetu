@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 69 / 112 done (62%)** `████████████░░░░░░░░`
+**Overall: 70 / 112 done (62%)** `████████████░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -15,7 +15,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 8 – Polling day | 3 / 3 | `██████████` |
 | Step 9 – Admin | 8 / 8 | `██████████` |
 | Step 10 – Matching Engine (roll update) and data quality | 6 / 6 | `██████████` |
-| Step 11 – Reports and exports | 3 / 4 | `████████░░` |
+| Step 11 – Reports and exports | 4 / 4 | `██████████` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 | Step 13 – Scanned roll PDFs (OCR) | 0 / 8 | `░░░░░░░░░░` |
 | Step 14 – Change requests of 12 Nov | 0 / 8 | `░░░░░░░░░░` |
@@ -113,12 +113,12 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **10.5** Data quality · due 22 Nov · done 2026-11-14 · `7c7db3b`
 - [x] **10.6** Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts · due 22 Nov, two sessions · done 2026-11-14 · `faf7a96`
 
-## Step 11 – Reports and exports · 27–30 Nov · branch `step11-reports` — 3/4
+## Step 11 – Reports and exports · 27–30 Nov · branch `step11-reports` — 4/4
 
 - [x] **11.1** Reports · due 27 Nov · done 2026-11-14 · `a5aa1db`
 - [x] **11.2** Exports · due 28 Nov · done 2026-11-14 · `cfe5d7b`
 - [x] **11.3** Screens: Reports & charts, Print or export a list · due 28 Nov · done 2026-11-14 · `60804ed`
-- [ ] **11.4** Working APK · due 30 Nov
+- [x] **11.4** Working APK · due 30 Nov · done 2026-11-14 · `f0bdb26`
 
 ## Step 12 – Hardening and handover · 1–15 Dec · branch `step12-delivery` — 0/10
 
