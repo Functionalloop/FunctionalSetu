@@ -8,8 +8,9 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import (admin, app_version, auth, birthdays, devices, families, field, geo, health, me, misc,
-                      new_voters, part_notes, reports, rolls, slips, sync, turnout, visits, voters)
+from .routers import (admin_logs, app_version, auth, birthdays, constituencies, devices, families, field, files, geo,
+                      health, masters, me, misc, new_voters, part_notes, reports, rolls, settings, slips, sync,
+                      turnout, users, visits, voters)
 from .stubs import NOT_BUILT
 
 API_PREFIX = "/api/v1"
@@ -38,11 +39,17 @@ each refresh returns a new refresh token and the old one stops working.
 | 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |
 | 403 | `device_blocked` | phone blocked: wipe local data |
 | 403 | `password_change_required` | call `/auth/change-password` first |
-| 403 | `forbidden_role` | role too low |
+| 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |
+| 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |
 | 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |
 | 422 | `validation_error` (with `details`), `weak_password` | |
 | 409 | `version_conflict` (with `current` = the server copy) | stale `version` |
 | 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |
+| 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |
+| 409 | `user_limit` | users: the workspace has its limit of active users (200) |
+| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |
+| 409 | `name_taken` | lists: another entry has this Marathi name |
+| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
@@ -86,8 +93,14 @@ def create_app() -> FastAPI:
     app.include_router(misc.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(part_notes.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(turnout.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(users.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(constituencies.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(settings.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(masters.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(files.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(admin_logs.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
-    for planned in (field, admin, rolls, reports):
+    for planned in (field, rolls, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 

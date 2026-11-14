@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -54,6 +55,8 @@ os.environ.setdefault("JWT_SECRET", "test-only-secret-" + "x" * 32)
 os.environ["LOGIN_MAX_FAILURES"] = "5"
 os.environ["LOGIN_LOCK_MINUTES"] = "15"
 os.environ["CORS_ORIGINS"] = ""
+# Uploaded files go to a throwaway folder, never the laptop's jansetu-private/files.
+os.environ["FILES_DIR"] = tempfile.mkdtemp(prefix="jansetu-test-files-")
 
 from fastapi.testclient import TestClient  # noqa: E402
 

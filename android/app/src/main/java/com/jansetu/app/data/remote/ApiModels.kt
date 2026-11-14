@@ -165,6 +165,8 @@ data class NamedListEntry(
     val id: String,
     @SerialName("name_mr") val nameMr: String,
     @SerialName("name_en") val nameEn: String? = null,
+    // Kept so an admin's edit (9.7: the server replaces the whole entry) does not clear it.
+    @SerialName("name_hi") val nameHi: String? = null,
     @SerialName("sort_order") val sortOrder: Int = 0,
     @SerialName("is_active") val isActive: Boolean = true,
 )
@@ -176,6 +178,7 @@ data class ColorTagDto(
     val hex: String,
     @SerialName("label_mr") val labelMr: String,
     @SerialName("label_en") val labelEn: String,
+    @SerialName("label_hi") val labelHi: String? = null,
     @SerialName("is_default") val isDefault: Boolean = false,
     @SerialName("sort_order") val sortOrder: Int = 0,
     @SerialName("is_active") val isActive: Boolean = true,
@@ -186,6 +189,7 @@ data class CustomFieldLabelDto(
     @SerialName("field_key") val fieldKey: String,
     @SerialName("label_mr") val labelMr: String? = null,
     @SerialName("label_en") val labelEn: String? = null,
+    @SerialName("label_hi") val labelHi: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = false,
 )
 
@@ -450,3 +454,184 @@ data class ConflictPage(
 
 /** keep: "kept_client" (the phone's value is written) or "kept_server". */
 @Serializable data class ConflictResolution(val keep: String)
+
+// --- Users & devices, Booths & karyakartas (9.6) ---
+
+/** A user as an admin sees it (GET /users, /users/{id}). */
+@Serializable
+data class AdminUser(
+    val id: String,
+    val username: String,
+    @SerialName("full_name_en") val fullNameEn: String,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    val role: String,
+    val mobile: String? = null,
+    @SerialName("local_body_id") val localBodyId: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("must_change_password") val mustChangePassword: Boolean = false,
+    @SerialName("last_login_at") val lastLoginAt: String? = null,
+    @SerialName("locked_until") val lockedUntil: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("device_count") val deviceCount: Int = 0,
+    @SerialName("pending_device") val pendingDevice: Boolean = false,
+    /** Assigned wards and booths (server 9.6); an older server leaves it out. */
+    @SerialName("area_ids") val areaIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class UserPage(val items: List<AdminUser>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class NewUser(
+    val username: String,
+    @SerialName("full_name_en") val fullNameEn: String,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    val mobile: String? = null,
+    val role: String,
+    @SerialName("local_body_id") val localBodyId: String? = null,
+)
+
+/** Shown once: after create and after reset password. */
+@Serializable
+data class TemporaryPassword(val user: AdminUser, @SerialName("temporary_password") val temporaryPassword: String)
+
+@Serializable data class AssignmentsIn(@SerialName("area_ids") val areaIds: List<String>)
+
+@Serializable
+data class AssignedArea(
+    val id: String,
+    @SerialName("parent_id") val parentId: String? = null,
+    val level: String,
+    val code: String,
+    val number: Int? = null,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+)
+
+@Serializable data class AssignmentsOut(val areas: List<AssignedArea>)
+
+// --- Constituencies, Election & candidate, Lists & labels (9.7) ---
+
+@Serializable
+data class Constituency(
+    val id: String,
+    val code: String,
+    val number: Int? = null,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("ac_no") val acNo: Int? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("voter_count") val voterCount: Int = 0,
+    @SerialName("user_count") val userCount: Int = 0,
+)
+
+@Serializable
+data class ConstituencyIn(
+    val code: String,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("ac_no") val acNo: Int? = null,
+)
+
+/** Caste, profession or influencer type to add or save (PATCH replaces the whole entry). */
+@Serializable
+data class NamedEntryIn(
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("name_hi") val nameHi: String? = null,
+    @SerialName("sort_order") val sortOrder: Int = 0,
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class ColorTagIn(
+    val code: String,
+    val hex: String,
+    @SerialName("label_mr") val labelMr: String,
+    @SerialName("label_en") val labelEn: String,
+    @SerialName("label_hi") val labelHi: String? = null,
+    @SerialName("is_default") val isDefault: Boolean = false,
+    @SerialName("sort_order") val sortOrder: Int = 0,
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class CustomFieldLabelIn(
+    @SerialName("label_mr") val labelMr: String? = null,
+    @SerialName("label_en") val labelEn: String? = null,
+    @SerialName("label_hi") val labelHi: String? = null,
+    @SerialName("is_enabled") val isEnabled: Boolean,
+)
+
+@Serializable
+data class MessageTemplateDto(
+    val kind: String,
+    @SerialName("body_mr") val bodyMr: String? = null,
+    @SerialName("body_en") val bodyEn: String? = null,
+    @SerialName("body_hi") val bodyHi: String? = null,
+)
+
+@Serializable
+data class MessageTemplateIn(
+    @SerialName("body_mr") val bodyMr: String? = null,
+    @SerialName("body_en") val bodyEn: String? = null,
+    @SerialName("body_hi") val bodyHi: String? = null,
+)
+
+// --- Activity log, Worker activity, Worker locations (9.8) ---
+
+@Serializable
+data class AuditEntry(
+    val id: Long,
+    @SerialName("occurred_at") val occurredAt: String,
+    val actor: UserSummary? = null,
+    @SerialName("device_id") val deviceId: String? = null,
+    val action: String,
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String? = null,
+    @SerialName("old_values") val oldValues: JsonObject? = null,
+    @SerialName("new_values") val newValues: JsonObject? = null,
+)
+
+@Serializable
+data class AuditPage(val items: List<AuditEntry>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class WorkerDay(
+    val user: UserSummary,
+    val day: String,
+    val surveys: Int = 0,
+    val visits: Int = 0,
+    @SerialName("mobiles_collected") val mobilesCollected: Int = 0,
+    @SerialName("new_voters") val newVoters: Int = 0,
+    @SerialName("voted_marks") val votedMarks: Int = 0,
+)
+
+@Serializable
+data class WorkerActivity(
+    @SerialName("date_from") val dateFrom: String,
+    @SerialName("date_to") val dateTo: String,
+    val rows: List<WorkerDay> = emptyList(),
+)
+
+@Serializable
+data class WorkerLocation(
+    val user: UserSummary,
+    val kind: String,
+    @SerialName("voter_id") val voterId: String? = null,
+    val lat: Double,
+    val lng: Double,
+    @SerialName("accuracy_m") val accuracyM: Double? = null,
+    val at: String,
+)
+
+@Serializable
+data class WorkerLocationPage(val items: List<WorkerLocation>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class StoredFile(
+    val id: String,
+    val kind: String,
+    @SerialName("mime_type") val mimeType: String,
+    @SerialName("size_bytes") val sizeBytes: Long,
+)

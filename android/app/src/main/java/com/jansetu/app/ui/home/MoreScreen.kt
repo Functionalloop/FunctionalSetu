@@ -34,6 +34,13 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.HowToVote
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,13 +101,29 @@ fun MoreScreen(
             HorizontalDivider()
         }
         if (session.user.role in PHONE_ADMIN_ROLES) {
+            // 9.6: Phones became a tab of Users & devices.
             ListItem(
-                headlineContent = { Text("Phones") },
-                supportingContent = { Text("Approve waiting phones, block a lost one (needs internet)") },
+                headlineContent = { Text("Users & devices") },
+                supportingContent = { Text("Add users, reset passwords, approve or block phones (needs internet)") },
                 leadingContent = { Icon(Icons.Default.PhoneAndroid, null) },
                 modifier = Modifier.clickable(onClick = onPhones),
             )
             HorizontalDivider()
+            MoreItem("Booths & karyakartas", "Who works in which part and Village Panchayat (needs internet)",
+                Icons.Default.Groups) { onOpen("assign") }
+            // 9.7
+            MoreItem("Election & candidate", "Polling date and time, candidate, party, slip message (needs internet)",
+                Icons.Default.HowToVote) { onOpen("election") }
+            MoreItem("Lists & labels", "Castes, professions, influencer list, colour tags, messages (needs internet)",
+                Icons.AutoMirrored.Filled.List) { onOpen("lists") }
+            // 9.8
+            MoreItem("Activity log", "Who changed what and when (needs internet)", Icons.Default.History) { onOpen("activity") }
+            MoreItem("Worker activity", "Surveys, visits, mobiles and voted marks per worker per day (needs internet)",
+                Icons.Default.BarChart) { onOpen("workeractivity") }
+            MoreItem("Worker locations", "Where surveys and visits were saved (needs internet)", Icons.Default.Place) { onOpen("locations") }
+            if (session.user.role == "super_admin") {
+                MoreItem("Constituencies", "Up to 5 in the workspace; add an admin (needs internet)", Icons.Default.Map) { onOpen("constituencies") }
+            }
         }
         MoreItem("Announcements", "Notices from your admins (needs internet)", Icons.Default.Campaign) { onOpen("announcements") }
         MoreItem("Change password", "Needs internet", Icons.Default.Lock) { onOpen("password") }

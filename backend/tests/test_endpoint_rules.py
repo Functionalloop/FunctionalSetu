@@ -242,7 +242,7 @@ def test_other_workspace_is_404(world, ep):
     assert state(world, ep, tid) == before
 
 
-@pytest.mark.parametrize("ep, role", [p for p in role_params(lambda e: e.target, allowed=True)
+@pytest.mark.parametrize("ep, role", [p for p in role_params(lambda e: e.target and not e.workspace_wide, allowed=True)
                                       if p.values[1] != Role.super_admin])  # super admin: whole workspace
 def test_other_area_is_404(world, ep, role):
     tid = KINDS[ep.target].make(world, "other_area")

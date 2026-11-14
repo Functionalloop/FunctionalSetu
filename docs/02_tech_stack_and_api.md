@@ -173,7 +173,7 @@ The web portal uses most of these; the app's admin screens use the same ones.
 | `GET /devices` | Phones and their status. | Admin |
 | `POST /devices/{id}/approve`, `POST /devices/{id}/block` | Approve a new phone, or block and wipe a lost one. | Admin |
 | `GET /settings/election`, `PUT /settings/election` | Election, candidate, symbol, polling date and time, slip text and feature switches. | Admin |
-| `GET /masters/{list}`, `POST /masters/{list}`, `PATCH /masters/{list}/{id}` | Lists and labels: `castes`, `professions`, `color-tags`, `custom-fields`, `message-templates`. | Admin |
+| `GET /masters/{list}`, `POST /masters/{list}`, `PATCH /masters/{list}/{id}` | Lists and labels: `castes`, `professions`, `influencer-types` (added 14 Nov, 9.4), `color-tags`, `custom-fields`, `message-templates`. | Admin |
 | `POST /files` | Upload candidate photo, symbol or slip header. | Admin |
 | `POST /announcements`, `DELETE /announcements/{id}` | Send or remove an announcement. | Admin |
 | `GET /problem-reports` | Problems reported by users. | Admin |

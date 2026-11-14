@@ -14,8 +14,9 @@ import argparse
 import sys
 import time
 import uuid
-from datetime import date
 from collections.abc import Callable
+from datetime import date, timedelta
+from datetime import time as clock
 from pathlib import Path
 
 from sqlalchemy import Connection, text
@@ -29,7 +30,13 @@ from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
+from app.routers.admin_logs import audit_log, worker_activity, worker_locations  # noqa: E402
 from app.routers.birthdays import birthdays  # noqa: E402
+from app.routers.constituencies import list_constituencies  # noqa: E402
+from app.routers.masters import list_influencer_types  # noqa: E402
+from app.routers.settings import get_election_settings, set_election_settings  # noqa: E402
+from app.routers.users import create_user, get_user, list_users, set_assignments, update_user  # noqa: E402
+from app.schemas_admin import Assignments, ElectionSettingsIn, UserIn, UserPatch  # noqa: E402
 from app.routers.families import booth_families, get_voter_family, write_new_family, write_voter_family  # noqa: E402
 from app.routers.geo import get_geo_tree  # noqa: E402
 from app.routers.misc import list_announcements, mark_read, report_problem  # noqa: E402
@@ -51,7 +58,7 @@ from create_super_admin import connect_owner  # noqa: E402
 SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
-                   "sync_mutations",
+                   "sync_mutations", "user_area_assignments",
                    "sync_conflicts",
                    "devices", "users", "audit_log")
 failures: list[str] = []
@@ -428,6 +435,70 @@ def main() -> None:
                    and new <= marks.keys() and sum(marks[v] for v in new) == len(new) - 1,
                    "whole part marked by serials, one undone, repeat marks nothing; summary and pull agree",
                    f"{in_part} voters {ms:.0f} ms, summary of {len(summary.booths)} parts {ms_sum:.0f} ms")
+
+            # Step 9 (admin). Users (9.1): the admin's list = the constituency's users
+            listed, cursor, pages = set(), None, 0
+            _, ms = timed(lambda: list_users(conn, admin, None, None, None, 200, None))
+            while True:
+                page = list_users(conn, admin, None, None, None, 200, cursor)
+                listed |= {u.id for u in page.items}
+                pages, cursor = pages + 1, page.next_cursor
+                if not cursor:
+                    break
+            direct = conn.execute(text("SELECT count(*) FROM app.users WHERE deleted_at IS NULL AND local_body_id = :lb"),
+                                  {"lb": admin.local_body_id}).scalar()
+            report(len(listed) == direct, "admin's user list = the constituency's users", f"{len(listed)} users, {ms:.0f} ms")
+
+            # 9.1 + 9.2: a new surveyor given two parts downloads exactly their voters; switched off = logged out
+            made = create_user(UserIn(username="check.worker", full_name_en="Check Worker", role=Role.surveyor), conn, admin)
+            parts = list(conn.execute(text("SELECT id FROM app.geo_units WHERE level = 'booth' AND is_active AND path <@ "
+                                           "(SELECT path FROM app.geo_units WHERE id = :lb) ORDER BY path LIMIT 2"),
+                                      {"lb": admin.local_body_id}).scalars())
+            set_assignments(made.user.id, Assignments(area_ids=parts), conn, admin)
+            worker = principal(conn, tenant, "check.worker")
+            expect = conn.execute(text("""
+                SELECT count(*) FROM app.voters v WHERE v.deleted_at IS NULL AND EXISTS (
+                  SELECT 1 FROM app.geo_units g WHERE g.id = ANY(:p) AND v.geo_path <@ g.path)"""), {"p": parts}).scalar()
+            _, nv, _, pages, _, _, _ = full_pull(conn, load_scope(conn, worker))
+            shown = get_user(made.user.id, conn, admin)
+            report(len(nv) == expect > 0 and sorted(shown.area_ids) == sorted(parts) and made.user.must_change_password,
+                   "new surveyor given 2 parts downloads exactly their voters", f"{len(nv)} voters, {pages} pages")
+            off = update_user(made.user.id, UserPatch(is_active=False), conn, admin)
+            report(not off.is_active, "user switched off")
+
+            # 9.3: constituency voter counts add up to the roll (read as a super admin would)
+            boss = Principal(admin.user_id, tenant, uuid.uuid4(), None, Role.super_admin, admin.username, None, False,
+                             "approved")
+            cons, ms = timed(lambda: list_constituencies(conn, boss))
+            report(sum(c.voter_count for c in cons) == total, "constituency voter counts add up to the roll",
+                   f"{len(cons)} constituencies, {ms:.0f} ms")
+
+            # 9.4: polling time saved, every other setting kept, and it reaches the surveyor's delta pull
+            w_set = current_watermark(conn)
+            cur = get_election_settings(conn, admin)
+            keep = {k: v for k, v in cur.model_dump().items() if k in ElectionSettingsIn.model_fields}
+            saved = set_election_settings(ElectionSettingsIn(**{**keep, "polling_start_time": clock(7),
+                                                                 "polling_end_time": clock(18)}), conn, admin)
+            times = ("polling_start_time", "polling_end_time", "updated_at")
+            same = {k: v for k, v in saved.model_dump().items() if k not in times} == \
+                   {k: v for k, v in cur.model_dump().items() if k not in times}
+            pulled = pull_page(conn, s_srv, w_set, None, 1000).settings
+            moved = sorted(k for k, v in saved.model_dump().items() if k not in times and cur.model_dump().get(k) != v)
+            report(same and pulled is not None and pulled.polling_end_time == clock(18),
+                   "polling time saved, other settings kept, in the surveyor's delta pull",
+                   f"changed besides the times: {moved or 'none'}; in pull: {pulled is not None}")
+            active_types = [e for e in list_influencer_types(conn, admin) if e.is_active]
+            report(len(active_types) == 11, "influencer list has the client's 11", f"{len(active_types)} active")
+
+            # 9.5: logs over the real data, timed
+            log, ms = timed(lambda: audit_log(conn, admin, limit=50))
+            report(len(log.items) > 0 and all("password_hash" not in (e.new_values or {}) for e in log.items),
+                   "activity log page 1, no password hashes", f"{len(log.items)} rows, {ms:.0f} ms")
+            today = date.today()
+            act, ms = timed(lambda: worker_activity(conn, admin, today - timedelta(days=91), today))
+            report(ms < SLOW_PAGE_MS, "worker activity over 92 days", f"{len(act.rows)} worker-days, {ms:.0f} ms")
+            loc, ms = timed(lambda: worker_locations(conn, admin, today - timedelta(days=91), today, limit=50))
+            report(ms < SLOW_PAGE_MS, "worker locations over 92 days", f"{len(loc.items)} on page 1, {ms:.0f} ms")
         finally:
             trans.rollback()
 

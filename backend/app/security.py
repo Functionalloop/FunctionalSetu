@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import string
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -40,6 +41,18 @@ def needs_rehash(password_hash: str) -> bool:
         return _hasher.check_needs_rehash(password_hash)
     except InvalidHashError:
         return False
+
+
+# No 0/O, 1/l/I: the password is read out or typed from paper. Same rule as scripts/create_super_admin.py.
+_TEMP_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "0O1lI")
+
+
+def temporary_password(length: int = 12) -> str:
+    """A one-time password for a new or reset user; they must change it at the next login."""
+    while True:
+        pw = "".join(secrets.choice(_TEMP_ALPHABET) for _ in range(length))
+        if any(c.isdigit() for c in pw) and any(c.islower() for c in pw) and any(c.isupper() for c in pw):
+            return pw
 
 
 # --- access tokens -------------------------------------------------------------

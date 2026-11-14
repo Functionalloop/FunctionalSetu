@@ -66,6 +66,9 @@ services:
       # Connections: API_WORKERS x DB_POOL_SIZE x 2 (overflow) must stay well under 100.
       WEB_CONCURRENCY: ${API_WORKERS:-3}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
+      FILES_DIR: /srv/files
+    volumes:
+      - files:/srv/files                 # uploaded images (candidate photo, symbol, slip headers); 9.4
     depends_on:
       db:
         condition: service_healthy
@@ -116,5 +119,6 @@ services:
 
 volumes:
   pgdata:
+  files:          # not in backup.sh yet (plan 12.5)
   caddy_data:
   caddy_config:
