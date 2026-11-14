@@ -35,6 +35,9 @@ import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.jansetu.app.ui.admin.logs.ActivityLogScreen
+import com.jansetu.app.ui.admin.logs.WorkerActivityScreen
+import com.jansetu.app.ui.admin.logs.WorkerLocationsScreen
 import com.jansetu.app.ui.admin.settings.ConstituenciesScreen
 import com.jansetu.app.ui.admin.settings.ElectionScreen
 import com.jansetu.app.ui.admin.settings.ListsScreen
@@ -175,6 +178,10 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
             // Admin (9.7)
             composable("election") { ElectionScreen(onBack = { nav.popBackStack() }) }
             composable("lists") { ListsScreen(onBack = { nav.popBackStack() }) }
+            // Admin (9.8)
+            composable("activity") { ActivityLogScreen(onBack = { nav.popBackStack() }) }
+            composable("workeractivity") { WorkerActivityScreen(onBack = { nav.popBackStack() }) }
+            composable("locations") { WorkerLocationsScreen(onBack = { nav.popBackStack() }) }
             composable("constituencies") {
                 ConstituenciesScreen(onBack = { nav.popBackStack() }, onAddAdmin = { nav.navigate("adduser") })
             }

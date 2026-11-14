@@ -77,6 +77,31 @@ interface JansetuApi {
     @PATCH("masters/message-templates/{kind}")
     suspend fun saveMessageTemplate(@Path("kind") kind: String, @Body body: MessageTemplateIn): MessageTemplateDto
 
+    // Activity log, Worker activity, Worker locations (9.8): admin and super admin; dates are Indian dates
+    @GET("audit-log")
+    suspend fun auditLog(
+        @Query("entity_type") entityType: String? = null,
+        @Query("actor_user_id") actorUserId: String? = null,
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): AuditPage
+    @GET("reports/worker-activity")
+    suspend fun workerActivity(
+        @Query("date_from") dateFrom: String,
+        @Query("date_to") dateTo: String,
+        @Query("user_id") userId: String? = null,
+    ): WorkerActivity
+    @GET("worker-locations")
+    suspend fun workerLocations(
+        @Query("date_from") dateFrom: String,
+        @Query("date_to") dateTo: String,
+        @Query("user_id") userId: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): WorkerLocationPage
+
     @GET("sync/pull")
     suspend fun pull(
         @Query("since") since: String? = null,

@@ -35,7 +35,10 @@ import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Lock
@@ -113,6 +116,11 @@ fun MoreScreen(
                 Icons.Default.HowToVote) { onOpen("election") }
             MoreItem("Lists & labels", "Castes, professions, influencer list, colour tags, messages (needs internet)",
                 Icons.AutoMirrored.Filled.List) { onOpen("lists") }
+            // 9.8
+            MoreItem("Activity log", "Who changed what and when (needs internet)", Icons.Default.History) { onOpen("activity") }
+            MoreItem("Worker activity", "Surveys, visits, mobiles and voted marks per worker per day (needs internet)",
+                Icons.Default.BarChart) { onOpen("workeractivity") }
+            MoreItem("Worker locations", "Where surveys and visits were saved (needs internet)", Icons.Default.Place) { onOpen("locations") }
             if (session.user.role == "super_admin") {
                 MoreItem("Constituencies", "Up to 5 in the workspace; add an admin (needs internet)", Icons.Default.Map) { onOpen("constituencies") }
             }

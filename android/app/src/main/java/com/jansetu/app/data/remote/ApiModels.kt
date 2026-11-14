@@ -578,6 +578,56 @@ data class MessageTemplateIn(
     @SerialName("body_hi") val bodyHi: String? = null,
 )
 
+// --- Activity log, Worker activity, Worker locations (9.8) ---
+
+@Serializable
+data class AuditEntry(
+    val id: Long,
+    @SerialName("occurred_at") val occurredAt: String,
+    val actor: UserSummary? = null,
+    @SerialName("device_id") val deviceId: String? = null,
+    val action: String,
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String? = null,
+    @SerialName("old_values") val oldValues: JsonObject? = null,
+    @SerialName("new_values") val newValues: JsonObject? = null,
+)
+
+@Serializable
+data class AuditPage(val items: List<AuditEntry>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class WorkerDay(
+    val user: UserSummary,
+    val day: String,
+    val surveys: Int = 0,
+    val visits: Int = 0,
+    @SerialName("mobiles_collected") val mobilesCollected: Int = 0,
+    @SerialName("new_voters") val newVoters: Int = 0,
+    @SerialName("voted_marks") val votedMarks: Int = 0,
+)
+
+@Serializable
+data class WorkerActivity(
+    @SerialName("date_from") val dateFrom: String,
+    @SerialName("date_to") val dateTo: String,
+    val rows: List<WorkerDay> = emptyList(),
+)
+
+@Serializable
+data class WorkerLocation(
+    val user: UserSummary,
+    val kind: String,
+    @SerialName("voter_id") val voterId: String? = null,
+    val lat: Double,
+    val lng: Double,
+    @SerialName("accuracy_m") val accuracyM: Double? = null,
+    val at: String,
+)
+
+@Serializable
+data class WorkerLocationPage(val items: List<WorkerLocation>, @SerialName("next_cursor") val nextCursor: String? = null)
+
 @Serializable
 data class StoredFile(
     val id: String,
