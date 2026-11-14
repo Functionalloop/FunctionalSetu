@@ -18,6 +18,7 @@ Row fields:
   wipe_on_block a blocked phone gets 200 with wipe=true instead of 403 device_blocked (sync pull)
   query        query parameters sent with every call (required ones, e.g. date_from)
   item_id      the key of a list item that holds the record's id (default "id")
+  workspace_wide the target belongs to the whole workspace, not an area (lists, files): no other-area check
   stub         contract only (4.10): an allowed role reaches it and gets 501 not_implemented (or 422 when
                the row has no sample body). Building it: drop `stub`, add `target` / `lists` and its own tests.
 """
@@ -54,6 +55,7 @@ class Endpoint:
     stub: bool = False
     query: dict[str, Any] = field(default_factory=dict)
     item_id: str = "id"
+    workspace_wide: bool = False
 
     @property
     def label(self) -> str:
@@ -64,6 +66,19 @@ def _part_note_body(world) -> dict[str, Any]:
     """A save on top of the current version of workspace A's booth 1 note (each role saves in turn)."""
     row = world.conn.execute("SELECT version FROM app.part_notes WHERE booth_id = %s", (world.a.booths[0],)).fetchone()
     return {"note": "Rule check", "version": row[0] if row else 0}
+
+
+def _unique(prefix: str) -> str:
+    return f"{prefix}{uuid.uuid4().hex[:10]}"
+
+
+def _letters() -> str:
+    """A colour tag code: lowercase letters only."""
+    return "".join(chr(97 + int(c, 16)) for c in uuid.uuid4().hex[:12])
+
+
+def _color_tag_body() -> dict[str, Any]:
+    return {"code": _letters(), "hex": "#123456", "label_mr": "Rule", "label_en": "Rule"}
 
 
 def _new_voter_body(world) -> dict[str, Any]:
@@ -154,6 +169,24 @@ ENDPOINTS: list[Endpoint] = [
              body=lambda w: {"code": f"r{uuid.uuid4().hex[:8]}", "name_mr": "Rule"}),
     Endpoint("PATCH", "/constituencies/{constituency_id}", roles=SUPER, target="constituency",
              body={"name_en": "Rule renamed"}),
+    # election settings, lists, files (9.4); behaviour: test_settings.py, test_masters.py, test_files.py
+    Endpoint("GET", "/settings/election", roles=ADMINS),
+    Endpoint("PUT", "/settings/election", roles=ADMINS, body={"election_name_en": "Rule check"}),
+    *[e for path, kind in (("castes", "caste"), ("professions", "profession"), ("influencer-types", "influencer_type"))
+      for e in (Endpoint("GET", f"/masters/{path}", roles=ADMINS),
+                Endpoint("POST", f"/masters/{path}", roles=ADMINS, body=lambda w: {"name_mr": _unique("Rule ")}),
+                Endpoint("PATCH", f"/masters/{path}/{{entry_id}}", roles=ADMINS, target=kind, workspace_wide=True,
+                         body=lambda w: {"name_mr": _unique("Renamed ")}))],
+    Endpoint("GET", "/masters/color-tags", roles=ADMINS),
+    Endpoint("POST", "/masters/color-tags", roles=ADMINS, body=lambda w: _color_tag_body()),
+    Endpoint("PATCH", "/masters/color-tags/{entry_id}", roles=ADMINS, target="color_tag", workspace_wide=True,
+             body=lambda w: _color_tag_body()),
+    Endpoint("GET", "/masters/custom-fields", roles=ADMINS),
+    Endpoint("PATCH", "/masters/custom-fields/{field_key}", roles=ADMINS, body={"is_enabled": False}),
+    Endpoint("GET", "/masters/message-templates", roles=ADMINS),
+    Endpoint("PATCH", "/masters/message-templates/{kind}", roles=ADMINS, body={"body_en": "Rule check"}),
+    Endpoint("POST", "/files", roles=ADMINS, works=False),  # multipart upload: test_files.py
+    Endpoint("GET", "/files/{file_id}", target="file", workspace_wide=True),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -161,16 +194,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
     # admin (9)
-    ("GET", "/settings/election", ADMINS, "ready"),
-    ("PUT", "/settings/election", ADMINS, "ready"),
-    *[(m, f"/masters/{lst}{suffix}", ADMINS, "ready") for lst in ("castes", "professions", "color-tags")
-      for m, suffix in (("GET", ""), ("POST", ""), ("PATCH", "/{entry_id}"))],
-    ("GET", "/masters/custom-fields", ADMINS, "ready"),
-    ("PATCH", "/masters/custom-fields/{field_key}", ADMINS, "ready"),
-    ("GET", "/masters/message-templates", ADMINS, "ready"),
-    ("PATCH", "/masters/message-templates/{kind}", ADMINS, "ready"),
-    ("POST", "/files", ADMINS, "ready"),
-    ("GET", "/files/{file_id}", ALL, "ready"),
     ("POST", "/announcements", ADMINS, "ready"),
     ("DELETE", "/announcements/{announcement_id}", ADMINS, "ready"),
     ("GET", "/problem-reports", ADMINS, "ready"),
@@ -373,6 +396,49 @@ def _booth(world, where: str) -> uuid.UUID:
     return world.place(where)[3]
 
 
+def _list_entry(table: str):
+    """Kind maker for a workspace list (castes, ...): a new entry in that place's workspace."""
+    def make(world, where: str) -> uuid.UUID:
+        eid = uuid.uuid4()
+        world.conn.execute(f"INSERT INTO app.{table} (id, tenant_id, name_mr) VALUES (%s, %s, %s)",
+                           (eid, world.place(where)[0], _unique("Rule ")))
+        return eid
+
+    def state(world, eid: uuid.UUID):
+        return world.conn.execute(f"SELECT name_mr, updated_at FROM app.{table} WHERE id = %s", (eid,)).fetchone()
+    return make, state
+
+
+def _make_color_tag(world, where: str) -> uuid.UUID:
+    tid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.color_tags (id, tenant_id, code, hex, label_mr, label_en)
+                          VALUES (%s, %s, %s, '#654321', 'Rule', 'Rule')""", (tid, world.place(where)[0], _letters()))
+    return tid
+
+
+def _color_tag_state(world, tid: uuid.UUID):
+    return world.conn.execute("SELECT code, hex, updated_at FROM app.color_tags WHERE id = %s", (tid,)).fetchone()
+
+
+PNG_1PX = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+                        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082")
+
+
+def _make_file(world, where: str) -> uuid.UUID:
+    """A candidate photo of that place's workspace, row and bytes."""
+    from app.config import get_settings
+    tenant = world.place(where)[0]
+    fid = uuid.uuid4()
+    world.conn.execute(
+        """INSERT INTO app.files (id, tenant_id, kind, storage_path, mime_type, size_bytes, sha256)
+           VALUES (%s, %s, 'candidate_photo', %s, 'image/png', %s, %s)""",
+        (fid, tenant, f"{tenant}/{fid}", len(PNG_1PX), "0" * 64))
+    path = get_settings().files_dir / str(tenant) / str(fid)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(PNG_1PX)
+    return fid
+
+
 def _constituency(world, where: str) -> uuid.UUID:
     return world.place(where)[1]
 
@@ -389,6 +455,11 @@ KINDS: dict[str, Kind] = {
     "family": Kind(_make_family, _family_state),
     "booth": Kind(_booth),
     "constituency": Kind(_constituency, _constituency_state),
+    "caste": Kind(*_list_entry("castes")),
+    "profession": Kind(*_list_entry("professions")),
+    "influencer_type": Kind(*_list_entry("influencer_types")),
+    "color_tag": Kind(_make_color_tag, _color_tag_state),
+    "file": Kind(_make_file),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
     "voter_birthday": Kind(_make_voter_birthday),
     "announcement": Kind(_make_announcement, _announcement_state),

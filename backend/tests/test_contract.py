@@ -12,10 +12,11 @@ DOC = Path(__file__).resolve().parents[2] / "docs" / "02_tech_stack_and_api.md"
 # In the API document but deliberately not built (docs/plan.md, "not in the SRS"): decided 11 Nov.
 NOT_IN_SCOPE = {("GET", "/saved-filters"), ("POST", "/saved-filters"), ("DELETE", "/saved-filters/{}")}
 # One document path served as one explicit route per list (each list has its own shape and key).
-EXPANDED = {"/masters/{}": ["/masters/castes", "/masters/professions", "/masters/color-tags",
-                            "/masters/custom-fields", "/masters/message-templates"],
-            "/masters/{}/{}": ["/masters/castes/{}", "/masters/professions/{}", "/masters/color-tags/{}",
-                               "/masters/custom-fields/{}", "/masters/message-templates/{}"]}
+EXPANDED = {"/masters/{}": ["/masters/castes", "/masters/professions", "/masters/influencer-types",
+                            "/masters/color-tags", "/masters/custom-fields", "/masters/message-templates"],
+            "/masters/{}/{}": ["/masters/castes/{}", "/masters/professions/{}", "/masters/influencer-types/{}",
+                               "/masters/color-tags/{}", "/masters/custom-fields/{}",
+                               "/masters/message-templates/{}"]}
 
 
 def norm(path: str) -> str:

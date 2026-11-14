@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # Comma-separated browser origins allowed to call the API (portal dev server).
     cors_origins: str = ""
 
+    # Uploaded images (candidate photo, symbol, slip headers): <files_dir>/<workspace id>/<file id>.
+    # Docker: the `files` volume at /srv/files. Laptop: a git-ignored folder.
+    files_dir: Path = ROOT / "jansetu-private" / "files"
+
     @property
     def database_url(self) -> URL:
         return URL.create(

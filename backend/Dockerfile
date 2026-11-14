@@ -24,7 +24,9 @@ RUN pip install -c backend/constraints.txt ./backend \
 COPY db db
 COPY scripts scripts
 
-RUN useradd --system --uid 10001 --no-create-home jansetu
+# /srv/files: uploaded images (9.4). A new named volume copies this owner, so the API can write there.
+RUN useradd --system --uid 10001 --no-create-home jansetu \
+ && mkdir -p /srv/files && chown jansetu /srv/files && chmod 700 /srv/files
 USER jansetu
 
 EXPOSE 8000
