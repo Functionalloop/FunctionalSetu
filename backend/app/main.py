@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import (admin, app_version, auth, birthdays, devices, families, field, geo, health, me, misc,
+from .routers import (admin, app_version, auth, birthdays, constituencies, devices, families, field, geo, health, me, misc,
                       new_voters, part_notes, reports, rolls, slips, sync, turnout, users, visits, voters)
 from .stubs import NOT_BUILT
 
@@ -46,6 +46,7 @@ each refresh returns a new refresh token and the old one stops working.
 | 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |
 | 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |
 | 409 | `user_limit` | users: the workspace has its limit of active users (200) |
+| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
 IDs are UUIDs; dates are ISO 8601 UTC.
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(part_notes.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(turnout.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(users.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(constituencies.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
     for planned in (field, admin, rolls, reports):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})

@@ -148,6 +148,12 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/users/{user_id}/assignments", roles=ADMINS, target="user"),
     Endpoint("PUT", "/users/{user_id}/assignments", roles=ADMINS, target="user",
              body=lambda w: {"area_ids": [str(w.a.booths[0])]}),
+    # constituencies (9.3), super admin only; behaviour (list, limit): test_constituencies.py
+    Endpoint("GET", "/constituencies", roles=SUPER),
+    Endpoint("POST", "/constituencies", roles=SUPER,
+             body=lambda w: {"code": f"r{uuid.uuid4().hex[:8]}", "name_mr": "Rule"}),
+    Endpoint("PATCH", "/constituencies/{constituency_id}", roles=SUPER, target="constituency",
+             body={"name_en": "Rule renamed"}),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -155,9 +161,6 @@ ENDPOINTS: list[Endpoint] = [
     ("GET", "/voters/{voter_id}/slip", ALL, "ready"),
     # More menu (7.9)
     # admin (9)
-    ("GET", "/constituencies", SUPER, "ready"),
-    ("POST", "/constituencies", SUPER, "ready"),
-    ("PATCH", "/constituencies/{constituency_id}", SUPER, "ready"),
     ("GET", "/settings/election", ADMINS, "ready"),
     ("PUT", "/settings/election", ADMINS, "ready"),
     *[(m, f"/masters/{lst}{suffix}", ADMINS, "ready") for lst in ("castes", "professions", "color-tags")
@@ -370,12 +373,22 @@ def _booth(world, where: str) -> uuid.UUID:
     return world.place(where)[3]
 
 
+def _constituency(world, where: str) -> uuid.UUID:
+    return world.place(where)[1]
+
+
+def _constituency_state(world, lb: uuid.UUID):
+    return world.conn.execute("SELECT name_en, is_active, updated_at FROM app.geo_units WHERE id = %s",
+                              (lb,)).fetchone()
+
+
 KINDS: dict[str, Kind] = {
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
     "user": Kind(_make_user, _user_state),
     "family": Kind(_make_family, _family_state),
     "booth": Kind(_booth),
+    "constituency": Kind(_constituency, _constituency_state),
     "new_voter": Kind(_make_new_voter, _new_voter_state),
     "voter_birthday": Kind(_make_voter_birthday),
     "announcement": Kind(_make_announcement, _announcement_state),

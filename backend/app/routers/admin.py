@@ -15,36 +15,16 @@ from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 
 from ..deps import Db, ReadyUser
 from ..schemas import ColorTag, CustomFieldLabel, NamedListEntry
-from ..schemas_admin import (AnnouncementIn, AuditPage, ColorTagIn, Constituency, ConstituencyIn,
-                             ConstituencyPatch, CustomFieldKey, CustomFieldLabelIn, ElectionSettings,
+from ..schemas_admin import (AnnouncementIn, AuditPage, ColorTagIn, CustomFieldKey, CustomFieldLabelIn, ElectionSettings,
                              ElectionSettingsIn, FileKind, MessageTemplate, MessageTemplateIn, NamedEntryIn,
                              ProblemReportPage, StoredFile, TemplateKind, WorkerActivity, WorkerLocationPage)
 from ..schemas_field import Announcement
-from ..stubs import Admin, Cursor, Limit, SuperAdmin, not_built
+from ..stubs import Admin, Cursor, Limit, not_built
 
 router = APIRouter(tags=["admin"])
 
 
-# Users (9.1) and assignments (9.2) are in users.py.
-# --- constituencies (9.3) -------------------------------------------------------------------
-@router.get("/constituencies", response_model=list[Constituency], summary="Constituencies in the workspace. Super admin.")
-def list_constituencies(conn: Db, user: SuperAdmin) -> list[Constituency]:
-    not_built("9.3")
-
-
-@router.post("/constituencies", response_model=Constituency, status_code=status.HTTP_201_CREATED,
-             summary="Add a constituency (limit 5 per workspace). Super admin.")
-def create_constituency(body: ConstituencyIn, conn: Db, user: SuperAdmin) -> Constituency:
-    not_built("9.3")
-
-
-@router.patch("/constituencies/{constituency_id}", response_model=Constituency,
-              summary="Rename or switch off a constituency. Super admin.")
-def update_constituency(constituency_id: uuid.UUID, body: ConstituencyPatch, conn: Db,
-                        user: SuperAdmin) -> Constituency:
-    not_built("9.3")
-
-
+# Users (9.1) and assignments (9.2) are in users.py, constituencies (9.3) in constituencies.py.
 # --- election settings (9.4) ---------------------------------------------------------------
 @router.get("/settings/election", response_model=ElectionSettings,
             summary="Election, candidate, slip text and feature switches (candidate shown even in code of conduct). Admin.")
