@@ -1,4 +1,4 @@
-# Exact versions the tests passed with (pip freeze of the repo .venv, 13 Nov 2026).
+# Exact versions the tests passed with (pip freeze of the repo .venv, 13 Nov 2026; fpdf2 & co. 14 Nov).
 # The Docker image installs with: pip install -c constraints.txt ./backend
 # Linux-only extras of uvicorn[standard] (uvloop) are not listed and float.
 # Refresh after changing dependencies: python -m pip freeze --exclude-editable
@@ -12,6 +12,8 @@ cffi==2.1.1
 click==8.5.1
 et_xmlfile==2.0.0
 fastapi==0.162.4
+fonttools==4.68.0
+fpdf2==2.9.0
 h11==0.16.0
 httpcore==1.0.9
 httptools==0.9.0
@@ -20,6 +22,7 @@ idna==3.20
 openpyxl==3.1.5
 opentelemetry-api==1.45.2
 packaging==26.3
+pillow==13.0.0
 psycopg==3.3.8
 psycopg-binary==3.3.8
 pycparser==3.12
@@ -35,6 +38,7 @@ starlette==1.10.0
 typing-inspection==0.4.5
 typing_extensions==4.16.0
 tzdata==2026.6
+uharfbuzz==0.57.0
 uvicorn==0.54.0
 watchfiles==1.3.0
 websockets==17.4

@@ -1,4 +1,4 @@
-"""Reports (plan 11.1) and exports (11.2). Supervisor and above, for their own area.
+"""Reports (plan 11.1). Supervisor and above, for their own area. Exports (11.2): routers/exports.py.
 
 Reports count the voters of the caller's area (app/scope.py). `ward_id` narrows it to that area and
 everything below it (a booth id works too); demographics also takes `booth_id`. Outside the area: 404.
@@ -24,14 +24,14 @@ import uuid
 from collections import Counter, defaultdict
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter
 from sqlalchemy import Connection, text
 
 from ..deps import Db
-from ..schemas_roll import (AgeBand, AreaCount, ColorTagCount, ColorTagReport, Demographics, Export, ExportIn,
-                            SurveyProgress, TurnoutHour, TurnoutReport)
+from ..schemas_roll import (AgeBand, AreaCount, ColorTagCount, ColorTagReport, Demographics, SurveyProgress,
+                            TurnoutHour, TurnoutReport)
 from ..scope import Scope, UserScope, require_area
-from ..stubs import NOT_BUILT, Supervisor, not_built
+from ..stubs import Supervisor
 
 router = APIRouter(tags=["reports"])
 
@@ -85,6 +85,11 @@ def _areas(conn: Connection, scope: Scope, paths: list[str]) -> list[Any]:
     for w in wards:
         out += [w, *under.pop(w["id"], [])]
     return out + [b for b in booths if b["parent_id"] in under]   # booths whose ward is not in the area
+
+
+def areas_in(conn: Connection, scope: Scope, ward_id: uuid.UUID | None) -> list[Any]:
+    """The rows of `by_area` (id, parent_id, level, name), in the same order; for exports (11.2)."""
+    return _areas(conn, scope, _paths(conn, scope, ward_id))
 
 
 def _per_area(counts: dict[Key, int]) -> Counter[uuid.UUID]:
@@ -200,25 +205,3 @@ def turnout_report(conn: Db, user: Supervisor, scope: UserScope, ward_id: uuid.U
     t, d = sum(total.values()), sum(done.values())
     return TurnoutReport(total=t, voted=d, percent=percent(d, t),
                          by_area=_area_counts(_areas(conn, scope, paths), total, done), by_hour=by_hour)
-
-
-# --- exports (11.2) ----------------------------------------------------------------------------------
-@router.post("/exports", response_model=Export, status_code=status.HTTP_202_ACCEPTED, responses=NOT_BUILT,
-             summary="Start a PDF or Excel export of a list (filters and columns); poll it. Supervisor.")
-def start_export(body: ExportIn, conn: Db, user: Supervisor) -> Export:
-    not_built("11.2")
-
-
-@router.get("/exports/{export_id}", response_model=Export, responses=NOT_BUILT, summary="An export's status. Supervisor.")
-def get_export(export_id: uuid.UUID, conn: Db, user: Supervisor) -> Export:
-    not_built("11.2")
-
-
-@router.get("/exports/{export_id}/download", response_class=Response,
-            responses={**NOT_BUILT,
-                       200: {"content": {"application/pdf": {}, "application/vnd.openxmlformats-officedocument."
-                                                                 "spreadsheetml.sheet": {}},
-                             "description": "The finished file"}},
-            summary="Download a finished export. Supervisor.")
-def download_export(export_id: uuid.UUID, conn: Db, user: Supervisor) -> Response:
-    not_built("11.2")
