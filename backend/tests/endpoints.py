@@ -201,6 +201,11 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/rolls/imports", roles=ADMINS, lists="roll_import"),
     Endpoint("GET", "/rolls/imports/{import_id}", roles=ADMINS, target="roll_import"),
     Endpoint("GET", "/rolls/imports/{import_id}/rows", roles=ADMINS, target="roll_import"),
+    # review and apply (10.3); behaviour: test_roll_apply.py. The rule import has no rows: resolve is 404.
+    Endpoint("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", roles=SUPER, target="roll_import",
+             body={"accept": False}, works=False),
+    Endpoint("POST", "/rolls/imports/{import_id}/apply", roles=SUPER, target="roll_import"),
+    Endpoint("POST", "/rolls/imports/{import_id}/discard", roles=SUPER, target="roll_import"),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -209,9 +214,6 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    ("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", SUPER, "ready"),
-    ("POST", "/rolls/imports/{import_id}/apply", SUPER, "ready"),
-    ("POST", "/rolls/imports/{import_id}/discard", SUPER, "ready"),
     ("POST", "/voters", SUPER, "ready"),
     ("PATCH", "/voters/{voter_id}/roll", SUPER, "ready"),
     ("POST", "/voters/{voter_id}/remove", SUPER, "ready"),
@@ -470,8 +472,13 @@ def _make_roll_import(world, where: str) -> uuid.UUID:
     return rid
 
 
+def _roll_import_state(world, rid: uuid.UUID):
+    return world.conn.execute("SELECT status, applied_at, updated_at FROM app.roll_versions WHERE id = %s",
+                              (rid,)).fetchone()
+
+
 KINDS: dict[str, Kind] = {
-    "roll_import": Kind(_make_roll_import),
+    "roll_import": Kind(_make_roll_import, _roll_import_state),
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
     "user": Kind(_make_user, _user_state),

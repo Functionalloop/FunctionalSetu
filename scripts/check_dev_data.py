@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.config import get_settings  # noqa: E402
 from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
-from app import roll_match  # noqa: E402
+from app import roll_apply, roll_match  # noqa: E402
 from app import worker as jobs  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
@@ -558,6 +558,28 @@ def main() -> None:
                 report(counts["rows"] == len(body) and counts["absent_from_current_roll"] == 0
                        and counts["new"] == 0 and counts["matched"] >= 0.99 * on_record and ms < 60_000,
                        "the roll on record matches itself", f"{len(parts)} files; {shown}; {ms / 1000:.1f} s")
+
+                # 10.3: review the rest as a person would (skip unreadable rows, repeated entries are the same
+                # voter), then apply: the same roll changes nobody, so no history lines either
+                conn.execute(text("""UPDATE app.roll_import_rows
+                                        SET review_status = CASE WHEN match_status IS NULL THEN 'rejected'
+                                                                 ELSE 'accepted' END::app.review_status
+                                      WHERE roll_version_id = :rv AND review_status = 'pending'"""), {"rv": rv})
+                conn.execute(text("UPDATE app.roll_versions SET status = 'review' WHERE id = :rv"), {"rv": rv})
+                audit_before = conn.execute(text("SELECT count(*) FROM app.audit_log")).scalar_one()
+                applied, ms = timed(lambda: roll_apply.apply_import(conn, admin, roll_apply.lock_import(conn, rv)))
+                new_audit = conn.execute(text("SELECT count(*) FROM app.audit_log")).scalar_one() - audit_before
+                report(applied["unchanged"] >= 0.99 * on_record and applied["added"] == 0
+                       and applied["marked_absent"] == 0 and ms < 60_000,
+                       "applying the same roll changes (almost) nobody",
+                       f"{', '.join(f'{k} {v}' for k, v in applied.items())}; {new_audit} audit rows; "
+                       f"{ms / 1000:.1f} s")
+                changed = conn.execute(text("""
+                    SELECT c, count(*) FROM app.audit_log a, jsonb_object_keys(a.new_values) c
+                     WHERE a.id > (SELECT max(id) FROM app.audit_log) - :n AND a.entity_type = 'voters'
+                     GROUP BY c ORDER BY 2 DESC"""), {"n": new_audit}).all()
+                if changed:
+                    print("        voter columns changed (counts): " + ", ".join(f"{c} {n}" for c, n in changed))
             finally:
                 trans.rollback()
 

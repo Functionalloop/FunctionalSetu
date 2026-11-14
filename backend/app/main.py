@@ -50,6 +50,9 @@ each refresh returns a new refresh token and the old one stops working.
 | 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |
 | 409 | `name_taken` | lists: another entry has this Marathi name |
 | 409 | `import_in_progress` | roll import: this constituency has an import not yet applied or discarded |
+| 409 | `import_closed`, `review_not_finished` | roll import: not in review (resolve, apply) or already applied (discard) / rows still wait for review (`error.pending`) |
+| 409 | `voter_taken` | roll import: another row already has this voter (`error.row_no`) |
+| 409 | `epic_in_use`, `serial_in_use` | roll apply: another voter has the EPIC / keeps the part and serial of these rows (`error.row_nos`) |
 | 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG; roll import: over 20 MB / not CSV or .xlsx |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 

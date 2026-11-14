@@ -20,6 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, UploadFile, status
 from sqlalchemy import Connection, text
 
+from .. import roll_apply
 from ..deps import Db
 from ..errors import ApiError
 from ..paging import decode_cursor, encode_cursor, invalid_cursor
@@ -41,11 +42,12 @@ router = APIRouter(tags=["roll and data quality"])
 # --- roll import (10.2, 10.3) ----------------------------------------------------------------
 COUNT_KEYS = ("matched", "uncertain", "possible_duplicate", "absent_from_current_roll", "new", "unreadable",
               "rows", "to_review", "reviewed")
+APPLIED_KEYS = ("updated", "unchanged", "added", "marked_absent", "deleted_in_roll", "skipped")
 OPEN_STATUSES = ("uploaded", "parsing", "review")
 
 _IMPORT_SELECT = """
     SELECT rv.id, rv.local_body_id, rv.list_type::text AS list_type, rv.title, rv.published_on,
-           rv.status::text AS status, rv.applied_at, rv.created_at,
+           rv.status::text AS status, rv.applied_at, rv.created_at, rv.stats,
            u.id AS u_id, u.username, u.full_name_en, u.full_name_mr, u.role::text AS u_role,
            j.status::text AS job_status, j.error AS job_error
       FROM app.roll_versions rv
@@ -63,11 +65,14 @@ def _counts(conn: Connection, ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str,
         return out
     rows = conn.execute(text("""
         SELECT roll_version_id AS id, coalesce(match_status::text, 'unreadable') AS st,
-               review_status = 'pending' AS pending, reviewed_by IS NOT NULL AS by_person, count(*) AS n
+               review_status::text AS review, reviewed_by IS NOT NULL AS by_person, count(*) AS n
           FROM app.roll_import_rows WHERE roll_version_id = ANY(:ids)
          GROUP BY 1, 2, 3, 4"""), {"ids": ids}).mappings().all()
     for r in rows:
         c = out[r["id"]]
+        r = {**r, "pending": r["review"] == "pending"}
+        if r["st"] == "absent_from_current_roll" and r["review"] == "rejected":
+            continue   # a voter a reviewed row now holds: not absent any more
         c[r["st"]] += r["n"]
         if r["st"] != "absent_from_current_roll":
             c["rows"] += r["n"]
@@ -82,6 +87,8 @@ def _to_import(r, counts: dict[str, int]) -> RollImport:
         st = "parsing"
     by = (UserSummary(id=r["u_id"], username=r["username"], full_name_en=r["full_name_en"],
                       full_name_mr=r["full_name_mr"], role=r["u_role"]) if r["u_id"] else None)
+    if st == "applied":   # what apply did (10.3)
+        counts = {**counts, **{k: int(r["stats"].get(k, 0)) for k in APPLIED_KEYS}}
     return RollImport(id=r["id"], local_body_id=r["local_body_id"], list_type=r["list_type"], title=r["title"],
                       published_on=r["published_on"], status=st, counts=counts,
                       error=r["job_error"] if r["status"] == "failed" else None, imported_by=by,
@@ -184,33 +191,45 @@ def roll_import_rows(import_id: uuid.UUID, conn: Db, user: Admin, scope: UserSco
             raise invalid_cursor()
         where.append("r.row_no > :after")
         params["after"] = after
-    rows = conn.execute(text(f"""
-        SELECT r.id, r.row_no, r.part_no, r.serial_no, r.epic_no, r.first_name_en, r.last_name_en, r.first_name_mr,
-               r.last_name_mr, r.gender::text AS gender, r.age, r.house_no, r.match_status::text AS match_status,
-               r.matched_voter_id, r.similarity::float AS similarity, r.match_notes,
-               r.review_status::text AS review_status
-          FROM app.roll_import_rows r
-         WHERE {' AND '.join(where)}
-         ORDER BY r.row_no LIMIT :n"""), {**params, "n": limit + 1}).mappings().all()
+    rows = conn.execute(text(f"""{_ROW_SELECT} WHERE {' AND '.join(where)}
+                                 ORDER BY r.row_no LIMIT :n"""), {**params, "n": limit + 1}).mappings().all()
     items = [RollImportRow(**r) for r in rows[:limit]]
     return RollImportRowPage(items=items, next_cursor=encode_cursor([items[-1].row_no]) if len(rows) > limit else None)
 
 
+_ROW_SELECT = """
+    SELECT r.id, r.row_no, r.part_no, r.serial_no, r.epic_no, r.first_name_en, r.last_name_en, r.first_name_mr,
+           r.last_name_mr, r.gender::text AS gender, r.age, r.house_no, r.match_status::text AS match_status,
+           r.matched_voter_id, r.similarity::float AS similarity, r.match_notes,
+           r.review_status::text AS review_status
+      FROM app.roll_import_rows r
+"""
+
+
 @router.post("/rolls/imports/{import_id}/rows/{row_id}/resolve", response_model=RollImportRow,
-             responses=NOT_BUILT, summary="Accept or reject one uncertain match. Super admin.")
-def resolve_roll_row(import_id: uuid.UUID, row_id: int, body: RowResolution, conn: Db, user: SuperAdmin) -> RollImportRow:
-    not_built("10.3")
+             summary="Accept or reject one uncertain match, or give a row its voter. Super admin.")
+def resolve_roll_row(import_id: uuid.UUID, row_id: int, body: RowResolution, conn: Db, user: SuperAdmin,
+                     scope: UserScope) -> RollImportRow:
+    get_import(conn, scope, import_id)
+    rv = roll_apply.lock_import(conn, import_id)
+    roll_apply.resolve_row(conn, user, rv, row_id, body.accept, body.voter_id)
+    return RollImportRow(**conn.execute(text(f"{_ROW_SELECT} WHERE r.id = :id"), {"id": row_id}).mappings().one())
 
 
-@router.post("/rolls/imports/{import_id}/apply", response_model=RollImport, responses=NOT_BUILT,
+@router.post("/rolls/imports/{import_id}/apply", response_model=RollImport,
              summary="Apply the reviewed roll. Surveys stay linked; missing voters become 'not in current roll'. Super admin.")
-def apply_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin) -> RollImport:
-    not_built("10.3")
+def apply_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin, scope: UserScope) -> RollImport:
+    get_import(conn, scope, import_id)
+    roll_apply.apply_import(conn, user, roll_apply.lock_import(conn, import_id))
+    return get_import(conn, scope, import_id)
 
 
-@router.post("/rolls/imports/{import_id}/discard", response_model=RollImport, responses=NOT_BUILT, summary="Throw an import away. Super admin.")
-def discard_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin) -> RollImport:
-    not_built("10.3")
+@router.post("/rolls/imports/{import_id}/discard", response_model=RollImport,
+             summary="Throw an import away (not an applied one). Super admin.")
+def discard_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin, scope: UserScope) -> RollImport:
+    get_import(conn, scope, import_id)
+    roll_apply.discard_import(conn, roll_apply.lock_import(conn, import_id))
+    return get_import(conn, scope, import_id)
 
 
 # --- one-voter corrections (10.4) --------------------------------------------------------------

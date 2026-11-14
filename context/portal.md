@@ -64,6 +64,7 @@ npm run check        # types, lint, tests, build, types current, no outside addr
 - Kutumb view = `GET /booths/{id}/families` (`GET /families` is the walk list). No head.
 - Roll writes are super admin only; an admin reads imports and roll edits, so hide the buttons.
 - Roll import (10.2): POST answers 202 at once; poll `GET /rolls/imports/{id}` until `status` leaves `uploaded` / `parsing` (`review` or `failed`; `error` holds a plain message for the user). One open import per constituency: 409 `import_in_progress`. `counts` keys: matched, uncertain, possible_duplicate, absent_from_current_roll, new, unreadable, rows, to_review, reviewed. Rows with `match_status` null are unreadable (`match_notes` "unreadable: <reason>").
+- Review and apply (10.3): resolve returns the changed row; after any resolve, reload the counts and the absent rows (they follow the matches). An unreadable row is cleared with reject (= skip). "Pick a voter" sends `accept: true` + `voter_id`. Apply is disabled while `counts.to_review` > 0 (409 `review_not_finished`); it takes a few seconds on a full roll, so show a spinner. Apply's 409 `epic_in_use` / `serial_in_use` list `error.row_nos` to show the user. After apply, `counts` has the `applied` keys (updated, unchanged, added, marked_absent, deleted_in_roll, skipped).
 - Show the `ward` level as "Village Panchayat"; no spelling fixes page, no bulk message.
 - `/masters/{list}` is served as one route per list (`/masters/castes`, `/masters/color-tags`, `/masters/custom-fields/{field_key}`, ...).
 

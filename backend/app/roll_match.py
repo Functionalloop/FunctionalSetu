@@ -39,6 +39,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from functools import lru_cache
 from typing import Any
 
 from sqlalchemy import Connection, text
@@ -136,6 +137,11 @@ def _key(header: str) -> str:
 
 def map_columns(header: list[str]) -> dict[str, int]:
     """Our field -> column index. JobFailed naming the missing fields."""
+    return _map_columns(tuple(header))
+
+
+@lru_cache(maxsize=64)   # apply reads every stored row again, all with one header
+def _map_columns(header: tuple[str, ...]) -> dict[str, int]:
     index = {_key(h): i for i, h in reversed(list(enumerate(header)))}
     cols = {f: index[a] for f, names in ALIASES.items() for a in reversed(names) if a in index}
     missing = [f for f in ("part_no", "serial_no", "gender") if f not in cols]
@@ -159,10 +165,13 @@ class Row:
     middle: str | None = None
     last: str | None = None
     relative_name: str | None = None
+    relation_type: str | None = None
     gender: str | None = None
     age: int | None = None
     house_no: str | None = None
+    section_name: str | None = None
     is_deleted: bool = False
+    is_supplement: bool = False
     is_repeated: bool = False
     # the match
     status: str | None = None
@@ -218,7 +227,10 @@ def parse_row(row_no: int, header: list[str], values: list[str], cols: dict[str,
     r.age = age if age is not None and 18 <= age <= 125 else None
     r.house_no = _clean(get.get("house_no"))
     r.relative_name = _clean(get.get("relative_name"))
+    r.relation_type = RELATION.get((get.get("relation_type") or "").strip().lower())
+    r.section_name = _clean(get.get("section_name"))
     r.is_deleted = (get.get("is_deleted") or "").strip().lower() in YES
+    r.is_supplement = (get.get("is_supplement_addition") or "").strip().lower() in YES
     if r.part_no is None or r.part_no <= 0:
         r.error = "no_part_no"
     elif r.serial_no is None or r.serial_no <= 0:
@@ -228,6 +240,12 @@ def parse_row(row_no: int, header: list[str], values: list[str], cols: dict[str,
     elif not (r.first or r.last):
         r.error = "no_name"
     return r
+
+
+def row_from_raw(row_no: int, raw: dict[str, str]) -> Row:
+    """A stored row (roll_import_rows.raw) read again, for apply (10.3)."""
+    header = list(raw)
+    return parse_row(row_no, header, [raw[h] for h in header], map_columns(header))
 
 
 def parse_rows(header: list[str], table: list[list[str]]) -> list[Row]:
@@ -404,16 +422,25 @@ def load_voters(conn: Connection, local_body_id: uuid.UUID) -> list[Voter]:
                   age=r["age"], house_no=r["house_no"], roll_status=r["roll_status"]) for r in rows]
 
 
-_INSERT = text("""
+# One statement per 5,000 rows, a column array each (COPY is refused on a table with row-level security,
+# and one INSERT per row took most of the job's time on the real roll).
+_COLUMNS = {  # param -> SQL array type
+    "row_no": "int[]", "raw": "jsonb[]", "part_no": "int[]", "serial_no": "int[]", "epic_no": "text[]",
+    "first": "text[]", "middle": "text[]", "last": "text[]", "gender": "text[]", "age": "int[]",
+    "house_no": "text[]", "deletion_reason": "text[]", "is_repeated": "boolean[]", "status": "text[]",
+    "voter_id": "uuid[]", "similarity": "numeric[]", "notes": "text[]", "review": "text[]"}
+_INSERT = text(f"""
     INSERT INTO app.roll_import_rows
         (tenant_id, roll_version_id, row_no, raw, part_no, serial_no, epic_no, first_name_en, middle_name_en,
          last_name_en, gender, age, house_no, deletion_reason, is_repeated, match_status, matched_voter_id,
          similarity, match_notes, review_status)
-    VALUES (app.current_tenant_id(), :rv, :row_no, CAST(:raw AS jsonb), :part_no, :serial_no, :epic_no, :first,
-            :middle, :last, CAST(:gender AS app.gender), :age, :house_no, :deletion_reason, :is_repeated,
-            CAST(:status AS app.match_status), :voter_id, :similarity, :notes,
-            CAST(:review AS app.review_status))
+    SELECT app.current_tenant_id(), :rv, row_no, raw, part_no, serial_no, epic_no, first, middle, last,
+           CAST(gender AS app.gender), age, house_no, deletion_reason, is_repeated,
+           CAST(status AS app.match_status), voter_id, similarity, notes, CAST(review AS app.review_status)
+      FROM unnest({', '.join(f'CAST(:{c} AS {t})' for c, t in _COLUMNS.items())})
+           AS r({', '.join(_COLUMNS)})
 """)
+CHUNK = 5000
 
 
 def import_rows(conn: Connection, roll_version_id: uuid.UUID, local_body_id: uuid.UUID, list_type: str,
@@ -449,8 +476,9 @@ def import_rows(conn: Connection, roll_version_id: uuid.UUID, local_body_id: uui
             "gender": v.gender, "age": v.age, "house_no": v.house_no, "deletion_reason": None,
             "is_repeated": False, "status": "absent_from_current_roll", "voter_id": v.id, "similarity": None,
             "notes": "not in this file", "review": "accepted"})
-    if params:
-        conn.execute(_INSERT, params)
+    for start in range(0, len(params), CHUNK):
+        chunk = params[start:start + CHUNK]
+        conn.execute(_INSERT, {"rv": roll_version_id, **{c: [p[c] for p in chunk] for c in _COLUMNS}})
 
     counts = {k: 0 for k in ("matched", "uncertain", "possible_duplicate", "new", "unreadable")}
     for r in rows:
