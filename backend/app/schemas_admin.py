@@ -211,6 +211,7 @@ class FileKind(StrEnum):
     whatsapp_slip = "whatsapp_slip"
     roll_import = "roll_import"
     mobile_import = "mobile_import"
+    export = "export"            # 11.2: made by the worker, downloaded through GET /exports/{id}/download
     other = "other"
 
 

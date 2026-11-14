@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection, text
 
 from ..deps import SURVEY_ROLES, Db, Principal, ReadyUser, require_roles
@@ -50,6 +51,71 @@ def _like(token: str) -> str:
     return f"%{esc}%"
 
 
+class VoterFilter(BaseModel):
+    """The filters of GET /voters (also an export's `filter`, 11.2). Unknown keys are refused."""
+    model_config = ConfigDict(extra="forbid")
+
+    q: str | None = Field(None, max_length=100)
+    ward_id: uuid.UUID | None = None
+    booth_id: uuid.UUID | None = None
+    age_min: int | None = Field(None, ge=0, le=150)
+    age_max: int | None = Field(None, ge=0, le=150)
+    gender: Gender | None = None
+    color_tag_id: uuid.UUID | None = None
+    survey_status: SurveyStatus | None = None
+    caste_id: uuid.UUID | None = None
+    profession_id: uuid.UUID | None = None
+    has_mobile: bool | None = None
+    influencer: bool | None = None
+    influencer_type_id: uuid.UUID | None = None
+
+
+def voter_where(conn: Connection, scope: Scope, f: VoterFilter, removed: bool = False) -> tuple[list[str], dict]:
+    """WHERE conditions (over `app.voters v LEFT JOIN app.voter_surveys s`) and parameters for the filter,
+    inside the user's area. An area outside it: 404; more than MAX_TOKENS words: 422."""
+    cond, params = scope.filter("v.geo_path")
+    where = ["v.deleted_at IS NOT NULL" if removed else "v.deleted_at IS NULL", cond]
+
+    for name, area in (("ward_id", f.ward_id), ("booth_id", f.booth_id)):
+        if area is not None:
+            require_area(conn, scope, area)  # 404 outside the user's area
+            where.append(f"v.{name} = :{name}")
+            params[name] = area
+
+    tokens = (f.q or "").lower().split()
+    if len(tokens) > MAX_TOKENS:
+        raise ApiError(422, "validation_error", f"q: use at most {MAX_TOKENS} words.")
+    for i, tok in enumerate(tokens):
+        parts = [f"v.search_text LIKE :q{i}"]
+        params[f"q{i}"] = _like(tok)
+        if tok.isascii() and tok.isdigit():
+            if len(tok) <= 9:
+                parts.append(f"v.serial_no = :qn{i}")
+                params[f"qn{i}"] = int(tok)
+            if len(tok) >= MOBILE_MIN_DIGITS:
+                parts.append(f"s.mobile_1 LIKE :q{i} OR s.mobile_2 LIKE :q{i}")
+        where.append("(" + " OR ".join(parts) + ")")
+
+    simple = {"age_min": "v.age >= :age_min", "age_max": "v.age <= :age_max",
+              "gender": "v.gender = CAST(:gender AS app.gender)",
+              "color_tag_id": "s.color_tag_id = :color_tag_id", "caste_id": "s.caste_id = :caste_id",
+              "profession_id": "s.profession_id = :profession_id",
+              "influencer_type_id": "s.influencer_type_id = :influencer_type_id"}
+    for key, sql in simple.items():
+        value = getattr(f, key)
+        if value is not None:
+            where.append(sql)
+            params[key] = value.value if isinstance(value, Gender) else value
+
+    if f.survey_status is not None:
+        where.append(("" if f.survey_status == SurveyStatus.surveyed else "NOT ") + "coalesce(s.is_surveyed, false)")
+    if f.has_mobile is not None:
+        where.append("s.mobile_1 IS " + ("NOT NULL" if f.has_mobile else "NULL"))
+    if f.influencer is not None:
+        where.append(("" if f.influencer else "NOT ") + "coalesce(s.is_influencer, false)")
+    return where, params
+
+
 @router.get("", response_model=VoterPage,
             summary="Search and filter voters in the user's area, in roll order. All roles.")
 def list_voters(
@@ -76,46 +142,11 @@ def list_voters(
 ) -> VoterPage:
     if removed and not user.at_least(Role.admin):
         raise ApiError(403, "forbidden_role", "Only an admin can list removed voters.")
-    cond, params = scope.filter("v.geo_path")
-    where = ["v.deleted_at IS NOT NULL" if removed else "v.deleted_at IS NULL", cond]
-
-    for name, area in (("ward_id", ward_id), ("booth_id", booth_id)):
-        if area is not None:
-            require_area(conn, scope, area)  # 404 outside the user's area
-            where.append(f"v.{name} = :{name}")
-            params[name] = area
-
-    tokens = (q or "").lower().split()
-    if len(tokens) > MAX_TOKENS:
-        raise ApiError(422, "validation_error", f"q: use at most {MAX_TOKENS} words.")
-    for i, tok in enumerate(tokens):
-        parts = [f"v.search_text LIKE :q{i}"]
-        params[f"q{i}"] = _like(tok)
-        if tok.isascii() and tok.isdigit():
-            if len(tok) <= 9:
-                parts.append(f"v.serial_no = :qn{i}")
-                params[f"qn{i}"] = int(tok)
-            if len(tok) >= MOBILE_MIN_DIGITS:
-                parts.append(f"s.mobile_1 LIKE :q{i} OR s.mobile_2 LIKE :q{i}")
-        where.append("(" + " OR ".join(parts) + ")")
-
-    simple = {"age_min": ("v.age >= :age_min", age_min), "age_max": ("v.age <= :age_max", age_max),
-              "gender": ("v.gender = CAST(:gender AS app.gender)", gender),
-              "color_tag_id": ("s.color_tag_id = :color_tag_id", color_tag_id),
-              "caste_id": ("s.caste_id = :caste_id", caste_id),
-              "profession_id": ("s.profession_id = :profession_id", profession_id),
-              "influencer_type_id": ("s.influencer_type_id = :influencer_type_id", influencer_type_id)}
-    for key, (sql, value) in simple.items():
-        if value is not None:
-            where.append(sql)
-            params[key] = value.value if isinstance(value, Gender) else value
-
-    if survey_status is not None:
-        where.append(("" if survey_status == SurveyStatus.surveyed else "NOT ") + "coalesce(s.is_surveyed, false)")
-    if has_mobile is not None:
-        where.append("s.mobile_1 IS " + ("NOT NULL" if has_mobile else "NULL"))
-    if influencer is not None:
-        where.append(("" if influencer else "NOT ") + "coalesce(s.is_influencer, false)")
+    f = VoterFilter(q=q, ward_id=ward_id, booth_id=booth_id, age_min=age_min, age_max=age_max, gender=gender,
+                    color_tag_id=color_tag_id, survey_status=survey_status, caste_id=caste_id,
+                    profession_id=profession_id, has_mobile=has_mobile, influencer=influencer,
+                    influencer_type_id=influencer_type_id)
+    where, params = voter_where(conn, scope, f, removed=removed)
 
     if cursor:
         params.update(_decode_cursor(cursor))

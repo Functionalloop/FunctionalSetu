@@ -226,6 +226,16 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/mobile-imports/{import_id}", roles=ADMINS, target="mobile_import"),
     Endpoint("POST", "/mobile-imports/{import_id}/rows/{row_id}/resolve", roles=ADMINS, target="mobile_import",
              body={"voter_id": None}, works=False),  # row ids are the sheet's own: own tests
+    # reports (11.1); behaviour and the counts' isolation: test_reports.py
+    Endpoint("GET", "/reports/survey-progress", roles=SUPERVISORS, area_params=("ward_id",)),
+    Endpoint("GET", "/reports/colour-tags", roles=SUPERVISORS, area_params=("ward_id",)),
+    Endpoint("GET", "/reports/demographics", roles=SUPERVISORS, area_params=("ward_id", "booth_id")),
+    Endpoint("GET", "/reports/turnout", roles=SUPERVISORS, area_params=("ward_id",)),
+    # exports (11.2); behaviour, area filters and the files: test_exports.py. The target is a finished
+    # export by that place's supervisor (seen by them, their constituency's admin and a super admin).
+    Endpoint("POST", "/exports", roles=SUPERVISORS, body={"kind": "voter_list", "format": "xlsx"}),
+    Endpoint("GET", "/exports/{export_id}", roles=SUPERVISORS, target="export"),
+    Endpoint("GET", "/exports/{export_id}/download", roles=SUPERVISORS, target="export"),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -234,14 +244,6 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    # reports and exports (11)
-    ("GET", "/reports/survey-progress", SUPERVISORS, "ready"),
-    ("GET", "/reports/colour-tags", SUPERVISORS, "ready"),
-    ("GET", "/reports/demographics", SUPERVISORS, "ready"),
-    ("GET", "/reports/turnout", SUPERVISORS, "ready"),
-    ("POST", "/exports", SUPERVISORS, "ready"),
-    ("GET", "/exports/{export_id}", SUPERVISORS, "ready"),
-    ("GET", "/exports/{export_id}/download", SUPERVISORS, "ready"),
 ]]
 
 # Sample values for path parameters of stub routes (built routes use `target`).
@@ -522,7 +524,37 @@ def _mobile_import_state(world, bid: uuid.UUID):
                                   WHERE b.id = %s GROUP BY b.review_count""", (bid,)).fetchone()
 
 
+def _make_export(world, where: str) -> uuid.UUID:
+    """A finished Excel export (a few bytes on disk) by the supervisor of that place: sup1 of workspace A
+    or B, or a new supervisor of the second constituency."""
+    from app.config import get_settings
+    tenant, lb, _, _ = world.place(where)
+    if where == "other_area":
+        uid = uuid.uuid4()
+        world.conn.execute("""INSERT INTO app.users (id, tenant_id, username, full_name_en, role, local_body_id,
+                                                     password_hash)
+                              VALUES (%s, %s, %s, 'Rule Sup', 'supervisor', %s, 'x')""",
+                           (uid, tenant, f"e{uid.hex[:12]}", lb))
+    else:
+        uid = (world.a if where == "own" else world.b).users["sup1"]
+    fid, eid = uuid.uuid4(), uuid.uuid4()
+    data = b"PK rule export"
+    world.conn.execute("""INSERT INTO app.files (id, tenant_id, kind, storage_path, original_name, mime_type,
+                                                 size_bytes, sha256, created_by)
+                          VALUES (%s, %s, 'export', %s, 'rule.xlsx', %s, %s, %s, %s)""",
+                       (fid, tenant, f"{tenant}/{fid}", "application/vnd.openxmlformats-officedocument."
+                        "spreadsheetml.sheet", len(data), "0" * 64, uid))
+    path = get_settings().files_dir / str(tenant) / str(fid)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    world.conn.execute("""INSERT INTO app.exports (id, tenant_id, kind, format, status, file_id, row_count, created_by,
+                                                   finished_at)
+                          VALUES (%s, %s, 'voter_list', 'xlsx', 'done', %s, 0, %s, now())""", (eid, tenant, fid, uid))
+    return eid
+
+
 KINDS: dict[str, Kind] = {
+    "export": Kind(_make_export),
     "duplicate_pair": Kind(_make_duplicate_pair, _duplicate_pair_state),
     "mobile_import": Kind(_make_mobile_import, _mobile_import_state),
     "roll_import": Kind(_make_roll_import, _roll_import_state),

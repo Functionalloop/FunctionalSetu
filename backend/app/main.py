@@ -8,8 +8,8 @@ from fastapi.routing import APIRoute
 
 from . import __version__, errors
 from .config import get_settings
-from .routers import (admin_logs, app_version, auth, birthdays, constituencies, data_quality, devices, families,
-                      field, files, geo,
+from .routers import (admin_logs, app_version, auth, birthdays, constituencies, data_quality, devices, exports,
+                      families, field, files, geo,
                       health, masters, me, misc, new_voters, part_notes, reports, roll_edits, rolls, settings, slips,
                       sync, turnout, users, visits, voters)
 from .stubs import NOT_BUILT
@@ -56,6 +56,7 @@ each refresh returns a new refresh token and the old one stops working.
 | 409 | `voter_taken` | roll import: another row already has this voter (`error.row_no`) |
 | 409 | `epic_in_use`, `serial_in_use` | roll apply: another voter has the EPIC / keeps the part and serial of these rows (`error.row_nos`); one-voter add, correct, restore: a live voter has them (`error.voter_id`) |
 | 409 | `row_resolved` | mobile number sheet: the row is already matched or skipped |
+| 409 | `export_not_ready` | export download: the file is not made yet (`status` queued / running) or the export failed |
 | 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG; roll import and mobile sheets: over 20 MB / not CSV or .xlsx |
 | 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |
 
@@ -110,8 +111,10 @@ def create_app() -> FastAPI:
     app.include_router(rolls.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(roll_edits.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     app.include_router(data_quality.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(reports.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
+    app.include_router(exports.router, prefix=API_PREFIX, responses=errors.ERROR_RESPONSES)
     # contract only until built (4.10): they answer 501 not_implemented
-    for planned in (field, reports):
+    for planned in (field,):
         app.include_router(planned.router, prefix=API_PREFIX, responses={**errors.ERROR_RESPONSES, **NOT_BUILT})
     return app
 

@@ -19,6 +19,8 @@ dependencies = [
     "python-dotenv>=1.0",        # scripts/ and db/seed/ read deploy/.env with it
     "python-multipart>=0.0.9",   # file uploads (roll files, mobile sheets, photos)
     "openpyxl>=3.1",             # Excel roll files (10.2) and exports (11.2)
+    "fpdf2>=2.8",                # PDF exports (11.2)
+    "uharfbuzz>=0.40",           # fpdf2 text shaping: Marathi / Hindi letters joined correctly in PDFs
 ]
 
 [project.optional-dependencies]
@@ -29,6 +31,9 @@ dev = [
 
 [tool.setuptools]
 packages = ["app", "app.routers"]
+
+[tool.setuptools.package-data]
+app = ["fonts/*.ttf", "fonts/OFL.txt"]   # PDF exports (11.2), Noto fonts under the SIL Open Font Licence
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

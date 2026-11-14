@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only the slip images in the app's cache are shared (FileProvider, 7.7). -->
+<!-- Only the slip images (FileProvider, 7.7) and the last export file (11.3) in the app's cache are shared. -->
 <paths>
     <cache-path name="slips" path="slips/" />
+    <cache-path name="exports" path="exports/" />
 </paths>

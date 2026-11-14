@@ -4,3 +4,5 @@
 *.sql       text eol=lf
 Dockerfile  text eol=lf
 Caddyfile   text eol=lf
+# Fonts for PDF exports (11.2): never converted
+*.ttf       binary

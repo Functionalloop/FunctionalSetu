@@ -23,7 +23,7 @@ How one job runs:
     (e.g. the roll import's status) in the same transaction as the job's `failed`.
 
 Handlers are registered by their modules, imported in `load_handlers`: roll import
-(10.2, app/roll_match.py); later mobile numbers (10.5) and exports (11.2).
+(10.2, app/roll_match.py), mobile numbers (10.5, app/mobile_match.py), exports (11.2, app/export_jobs.py).
 """
 
 from __future__ import annotations
@@ -199,7 +199,7 @@ def run_forever(stop: threading.Event, handlers: Mapping[str, Handler] | None = 
 
 def load_handlers() -> None:
     """Import the modules that register handlers (they import this module, so not at the top)."""
-    from . import mobile_match, roll_match  # noqa: F401  roll_import (10.2), mobile_import (10.5)
+    from . import export_jobs, mobile_match, roll_match  # noqa: F401  roll_import (10.2), mobile_import (10.5), export (11.2)
 
 
 def main(argv: list[str] | None = None) -> int:
