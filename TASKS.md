@@ -3,7 +3,7 @@
 Generated from `docs/plan.md` by `scripts/tasks.py`. Full task text, files and tests are in the plan.
 Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python scripts/tasks.py sync`).
 
-**Overall: 64 / 112 done (57%)** `███████████░░░░░░░░░`
+**Overall: 65 / 112 done (58%)** `████████████░░░░░░░░`
 
 | Section | Done | Progress |
 |---|---|---|
@@ -14,7 +14,7 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 | Step 7 – Field screens | 13 / 13 | `██████████` |
 | Step 8 – Polling day | 3 / 3 | `██████████` |
 | Step 9 – Admin | 8 / 8 | `██████████` |
-| Step 10 – Matching Engine (roll update) and data quality | 4 / 6 | `███████░░░` |
+| Step 10 – Matching Engine (roll update) and data quality | 5 / 6 | `████████░░` |
 | Step 11 – Reports and exports | 0 / 4 | `░░░░░░░░░░` |
 | Step 12 – Hardening and handover | 0 / 10 | `░░░░░░░░░░` |
 | Step 13 – Scanned roll PDFs (OCR) | 0 / 8 | `░░░░░░░░░░` |
@@ -104,13 +104,13 @@ Tick with `python scripts/tasks.py done 4.1` (or tick a box here and run `python
 - [x] **9.7** Screens: Constituencies, Election & candidate (with polling time), Lists & labels (with the influencer list) · due 16 Nov · done 2026-11-14 · `24a993d`
 - [x] **9.8** Screens: Activity log, Worker activity, Worker locations · due 16 Nov · done 2026-11-14 · `a28ccb6`
 
-## Step 10 – Matching Engine (roll update) and data quality · 20–22 Nov · branch `step10-roll` — 4/6
+## Step 10 – Matching Engine (roll update) and data quality · 20–22 Nov · branch `step10-roll` — 5/6
 
 - [x] **10.1** Worker · due 20 Nov · done 2026-11-14 · `d626860`
 - [x] **10.2** Roll upload and matching · due 20–21 Nov, two sessions · done 2026-11-14 · `df6fe45`
 - [x] **10.3** Review and apply · due 21 Nov · done 2026-11-14 · `f9687b7`
 - [x] **10.4** One-voter corrections · due 21 Nov · done 2026-11-14 · `a996f99`
-- [ ] **10.5** Data quality · due 22 Nov
+- [x] **10.5** Data quality · due 22 Nov · done 2026-11-14 · `7c7db3b`
 - [ ] **10.6** Screens: Data quality, Repeated voters, Matching Engine, Correct roll record, Mobile numbers & contacts · due 22 Nov, two sessions
 
 ## Step 11 – Reports and exports · 27–30 Nov · branch `step11-reports` — 0/4
