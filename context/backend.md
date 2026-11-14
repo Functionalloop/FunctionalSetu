@@ -29,6 +29,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/roll_match.py` | Matching Engine: read a roll file, match it, the `roll_import` job (10.2); see below |
 | `app/roll_apply.py` | Matching Engine: resolve one row, apply, discard (10.3); see below |
 | `app/routers/roll_edits.py` | One-voter corrections: add, correct, remove, restore, roll edits (10.4); see below |
+| `app/routers/data_quality.py`, `app/duplicates.py`, `app/mobile_match.py` | Data quality, duplicate pairs, mobile number sheets (10.5); see below |
 | `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `slips.py`, `birthdays.py`, `misc.py`, `part_notes.py`, `turnout.py`, `sync.py`, `app_version.py`; stubs in `field.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
@@ -121,6 +122,8 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /rolls/imports/{id}/rows` | admins. `?match_status=`, `?pending_only=` (review status pending), by `row_no`, cursor `[row_no]`. Absent voters are rows after the file's rows (`raw` = `{}`, values copied from the voter) |
 | `POST /rolls/imports/{id}/rows/{row_id}/resolve`, `POST .../apply`, `POST .../discard` | 10.3, super admin (admin 403), `app/roll_apply.py`; import locked `FOR UPDATE`. Resolve returns the row, apply / discard the import. Not in review: 409 `import_closed` (discard again = no-op; discard after apply = 409). Rules below |
 | `POST /voters`, `PATCH /voters/{id}/roll`, `POST /voters/{id}/remove`, `.../restore`, `GET /voters/{id}/roll-edits` | 10.4, `routers/roll_edits.py`: writes super admin (admin 403), roll edits admins (removed voters included). Rules below |
+| `GET /data-quality/summary`, `GET /data-quality/duplicates`, `POST .../duplicates/{id}/resolve` | 10.5, supervisor and above, area scope (`ward_id` 404 outside). Rules below |
+| `POST /mobile-imports`, `GET /mobile-imports/{id}`, `POST .../rows/{row_id}/resolve` | 10.5, admins; job `mobile_import`. Rules below |
 | `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
@@ -147,7 +150,7 @@ python -m app.worker --once   # run what is ready now, then stop (laptop)
 ```
 
 - Queue: `enqueue(conn, kind, ref_id, payload)` in the request's transaction (workspace and user from the context); answer the client at once, the client polls the job's own row. Table `app.jobs` (migration 005).
-- Built kinds: `roll_import` (10.2, `app/roll_match.py`).
+- Built kinds: `roll_import` (10.2, `app/roll_match.py`), `mobile_import` (10.5, `app/mobile_match.py`).
 - Handlers: `register(kind, run, on_fail)`. `run(conn, job)` gets a transaction with the job's workspace **and user** set (RLS, audit actor = whoever queued it). `on_fail(conn, job, message)` marks the job's own row failed (e.g. roll import status). Kinds to come: `roll_import` (10.2), `mobile_import` (10.5), `export` (11.2). The worker module must import the handler modules before `main()` runs; a worker claims only kinds it has handlers for.
 - One job: claim (`app.claim_job`, `SKIP LOCKED`, own transaction, status `running` + `claim_token` + lease `WORKER_LEASE_SECONDS` 300) → run transaction locks the job row while `claim_token` still matches (so no one else can take it however long it runs), handler, `done`. Died worker: lock gone, lease runs out, taken again.
 - Errors: the handler's writes roll back. `JobFailed("plain message")` = failed at once (bad file); other exceptions = queued again after 30 s / 120 s, failed after `MAX_ATTEMPTS` (3); a job claimed a 4th time (its worker died every time) is failed without running. `error` holds at most 500 characters: keep voter data out of `JobFailed` messages.
@@ -184,6 +187,22 @@ Module docstring has the full rules. In short:
 - Clashes with a live voter: EPIC anywhere in the workspace, (booth, serial) among active voters: 409 `epic_in_use` / `serial_in_use` with `error.voter_id` (add, correct, restore).
 - Helpers in `routers/voters.py`: `voter_in_scope(..., include_removed=)`, `voter_detail(conn, scope, id, include_removed=)` (`VoterDetail.deleted_at` added 14 Nov). `GET /voters?removed=true` lists removed voters (admins; others 403) so the portal can restore one.
 - Phones: see `context/sync.md` (a restored voter's survey, members and marks come again).
+
+## Data quality (`routers/data_quality.py`, `duplicates.py`, 10.5)
+
+- **Pairs** (`find_pairs(conn, lb, voter_id=None)`): live voters of one constituency with the same name (English, else Marathi), relative's name and gender, ages within 2 (or one unknown). Source `roll_flag` when either is `is_repeated_in_roll`, else `fuzzy_match`. Stored once (`ON CONFLICT DO NOTHING`), never deleted, so a decision stays. Found at the end of roll apply (`applied.new_pairs`), after a hand add / correction (that voter), and by `scripts/find_duplicates.py` (once for data on record; run on the server after deploying 10.5). Real roll: 24 pairs, 0.4 s.
+- **Summary**: live voters in the area (+ `ward_id`): no mobile (no survey counts), no dob, repeated in roll, shifted (`has_new_address` or the voter's latest visit `shifted`, one `DISTINCT ON` scan of visits), doubtful dead (`dead_marked`, not confirmed; nothing sets `dead_marked` yet), possible duplicates = unchecked pairs with both voters live and in the area. Real roll 60 ms.
+- **List**: pairs with both voters in the area; `unchecked_only` (default) also needs both live; `?source=` (added 14 Nov); oldest first, cursor `[created_at, id]`; voters as `SyncVoter` (with `deleted_at`).
+- **Resolve**: same person / different people by anyone who sees the pair (again = change of mind). `keep_voter_id` hides the other voter (`roll_edits.hide_voter`, reason duplicate, reference "duplicate pair <id>"): super admin only (403 for others; client 12 Nov: only a super admin removes), must be one of the two (422), only with same_person (422).
+
+## Mobile number sheets (`mobile_match.py`, 10.5)
+
+- Upload: admins, CSV / .xlsx ≤ 20 MB (`roll_match.read_table`), `feature_mobile_import` off = 403 `feature_off`. Batch + file (kind `mobile_import`) + job; payload `local_body_id` = the uploader's constituency (null = super admin = whole workspace). A sheet is seen by the uploader's team (`u.local_body_id`; super admin all): an admin does not see a super admin's sheet.
+- Columns (`ALIASES`): mobile (needed), name or EPIC (needed), part, house, address. Mobile: digits, +91 / 0 dropped, `^[6-9]\d{9}$` else row `skipped`.
+- Match: EPIC; else voters sharing the sheet name's words (both first name and surname when given), same part if given, similarity ≥ 0.5 = candidates (5, best first); exactly one ≥ 0.8 (house number breaks a tie) = sure. Sure + a free slot (mobile_1, then mobile_2) or the number already there = `matched`; both slots taken = `needs_review` with that voter.
+- Numbers are written in two statements (insert / guarded update on the loaded values); a survey changed meanwhile goes through `store_mobile` one by one. Survey version rises, audit actor = uploader, phones pull it; a phone with an unsent survey edit then gets a version conflict (normal 7.10 flow). 2,000 real names ~4 s.
+- Resolve (needs_review / not_found only, else 409 `row_resolved`): `voter_id` (in the caller's area, 404) stores the number, replacing mobile_2 when both are taken; null = skipped. Counts recounted.
+- `GET /mobile-imports/{id}` returns the first 500 rows, to review first. `GET /mobile-imports` (added 14 Nov, known addition in `test_contract.py`) lists the team's sheets newest first without rows, cursor `[created_at, id]`.
 
 ## Tests
 

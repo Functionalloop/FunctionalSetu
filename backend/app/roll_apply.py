@@ -39,6 +39,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from .deps import Principal
+from .duplicates import find_pairs
 from .errors import ApiError
 from .roll_match import Row, row_from_raw, similarity
 
@@ -353,7 +354,8 @@ def apply_import(conn: Connection, user: Principal, rv: dict[str, Any]) -> dict[
 
     applied = {"updated": len(planned), "unchanged": unchanged, "added": len(added), "marked_absent": len(absent),
                "deleted_in_roll": sum(1 for _, _, new in planned if new["roll_status"] == "deleted_in_roll"),
-               "skipped": skipped}
+               "skipped": skipped,
+               "new_pairs": find_pairs(conn, rv["local_body_id"])}   # possible duplicates (10.5)
     conn.execute(text("""UPDATE app.roll_versions
                             SET status = 'applied', applied_by = :by, applied_at = now(),
                                 stats = stats || CAST(:applied AS jsonb)

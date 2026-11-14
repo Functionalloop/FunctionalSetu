@@ -11,6 +11,8 @@ owner's row counts before and after must match. Exit code 1 if anything fails.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import sys
 import time
 import uuid
@@ -47,6 +49,9 @@ from app.routers.part_notes import write_part_note  # noqa: E402
 from app.routers.slips import write_slip_event  # noqa: E402
 from app.routers.turnout import turnout_summary, undo_mark, write_marks  # noqa: E402
 from app.routers.visits import write_visit  # noqa: E402
+from app import mobile_match  # noqa: E402
+from app.duplicates import find_pairs  # noqa: E402
+from app.routers.data_quality import data_quality_summary, duplicate_pairs  # noqa: E402
 from app.routers.roll_edits import add_voter, correct_voter, remove_voter, restore_voter, voter_roll_edits  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, read_survey, save_survey, voter_detail  # noqa: E402
 from app.schemas_roll import RemoveRestore, RollPatch, VoterAdd  # noqa: E402
@@ -64,6 +69,7 @@ LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "vis
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations", "user_area_assignments",
                    "sync_conflicts", "jobs", "roll_versions", "roll_import_rows", "files", "voter_roll_edits",
+                   "voter_duplicate_pairs", "mobile_import_batches", "mobile_import_rows",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -642,6 +648,51 @@ def main() -> None:
                                                     conn, boss, s_boss))
                 report(added.booth_id == booth and added.part_no > 0, "voter added by hand in a real part",
                        f"{ms:.0f} ms")
+        finally:
+            trans.rollback()
+
+    # 10.5: pairs found on the real roll, data quality counts, a mobile sheet made from real names with
+    # fake numbers. Rolled back; counts and timings only.
+    print("Data quality (rolled back)")
+    with get_engine().connect() as conn:
+        trans = conn.begin()
+        try:
+            set_context(conn, tenant, admin.user_id)
+            n, ms = timed(lambda: find_pairs(conn, admin.local_body_id))
+            again = find_pairs(conn, admin.local_body_id)
+            report(again == 0, "possible duplicates found once", f"{n} new pairs, {ms:.0f} ms; again: {again}")
+
+            for name, p, s in (("admin", admin, s_admin), ("supervisor", supervisor, s_sup)):
+                cond, params = s.filter("v.geo_path")
+                live = conn.execute(text(f"SELECT count(*) FROM app.voters v WHERE v.deleted_at IS NULL AND {cond}"),
+                                    params).scalar()
+                dq, ms = timed(lambda: data_quality_summary(conn, p, s))
+                page, ms2 = timed(lambda: duplicate_pairs(conn, p, s, limit=50))
+                report(dq.voters == live and ms < SLOW_PAGE_MS, f"data quality summary ({name})",
+                       f"{dq.voters} voters, {dq.no_mobile} without mobile, {dq.possible_duplicates} pairs, "
+                       f"{dq.repeated_in_roll} repeated; {ms:.0f} ms; pairs page {len(page.items)} in {ms2:.0f} ms")
+
+            # a sheet of 400 real voters by name (half also by EPIC), 50 unknown names, 10 bad numbers
+            sample = conn.execute(text("""
+                SELECT epic_no, coalesce(first_name_en, '') || ' ' || coalesce(last_name_en, '') AS name
+                  FROM app.voters WHERE local_body_id = :lb AND deleted_at IS NULL AND first_name_en IS NOT NULL
+                 ORDER BY md5(id::text) LIMIT 400"""), {"lb": admin.local_body_id}).all()
+            buf = io.StringIO()
+            out = csv.writer(buf)
+            out.writerow(["name", "mobile", "epic"])
+            out.writerows([nm, 9000000000 + i, epic if i % 2 and epic else ""] for i, (epic, nm) in enumerate(sample))
+            out.writerows([f"Zzqx Wyvut{i}", 9100000000 + i, ""] for i in range(50))
+            out.writerows(["Bad Number", i, ""] for i in range(10))
+            bid = conn.execute(text("""INSERT INTO app.mobile_import_batches (tenant_id, source, created_by)
+                                       VALUES (:t, 'phone_contacts', :u) RETURNING id"""),
+                               {"t": tenant, "u": admin.user_id}).scalar_one()
+            _, ms = timed(lambda: mobile_match.import_sheet(conn, bid, admin.user_id, admin.local_body_id,
+                                                            buf.getvalue().encode()))
+            got = dict(conn.execute(text("""SELECT status::text, count(*) FROM app.mobile_import_rows
+                                             WHERE batch_id = :b GROUP BY 1"""), {"b": bid}).all())
+            report(got.get("matched", 0) >= 200 and got.get("skipped") == 10 and ms < 60_000,
+                   "mobile sheet of real names matched", f"{', '.join(f'{k} {v}' for k, v in sorted(got.items()))}; "
+                                                         f"{ms / 1000:.1f} s")
         finally:
             trans.rollback()
 

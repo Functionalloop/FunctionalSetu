@@ -53,5 +53,7 @@ def test_api_has_nothing_outside_the_document_except_known_additions():
     documented = doc_endpoints() | {(m, o) for (m, p) in doc_endpoints() for o in EXPANDED.get(p, [])}
     extra = {e for e in api_endpoints() - documented}
     # added on purpose: health check, admin view of phones, plan gap-table proposals (GET /files/{id},
-    # mobile row review), masters edited by key
-    assert extra == {("GET", "/files/{}"), ("POST", "/mobile-imports/{}/rows/{}/resolve")}, extra
+    # mobile row review), masters edited by key; the list of mobile sheets (10.5: the Mobile numbers screen
+    # of the app flow lists them)
+    assert extra == {("GET", "/files/{}"), ("POST", "/mobile-imports/{}/rows/{}/resolve"),
+                     ("GET", "/mobile-imports")}, extra

@@ -98,6 +98,7 @@ backend/              FastAPI app (app/, tests/), pyproject.toml
 scripts/              migrate.py, import_roll_parts.py, create_super_admin.py, create_demo_users.py, approve_phone.py, export_openapi.py, tasks.py,
                       backup.sh, restore.sh (+ sql/ helpers), publish_apk.py,
                       check_dev_data.py (end-of-step check on the real roll), fallback.ps1 (laptop fallback, 6.6),
+                      find_duplicates.py (10.5, once per deploy for pairs already on record),
                       import_legacy.py (not run; import_roll_parts.py uses its helpers)
 deploy/               docker-compose.dev.yml (dev DB), docker-compose.yml + Caddyfile (production), .env.example,
                       README.md (server setup and commands), server_setup.sh, make_env.sh

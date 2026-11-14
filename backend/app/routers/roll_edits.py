@@ -29,6 +29,7 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from ..deps import Db, Principal
+from ..duplicates import find_pairs
 from ..errors import ApiError
 from ..paging import decode_cursor, encode_cursor, invalid_cursor
 from ..schemas import UserSummary, VoterDetail
@@ -135,6 +136,7 @@ def add_voter(body: VoterAdd, conn: Db, user: SuperAdmin, scope: UserScope) -> V
                           VALUES (:id, app.current_tenant_id(), {', '.join(_param(c) for c in cols)})"""),
                  {**values, "id": vid})
     _record(conn, user, vid, "add", body.reason.value, body.reference, None, values)
+    find_pairs(conn, values["local_body_id"], vid)
     return voter_detail(conn, scope, vid)
 
 
@@ -166,18 +168,26 @@ def correct_voter(voter_id: uuid.UUID, body: RollPatch, conn: Db, user: SuperAdm
                  {**sets, "id": voter_id})
     _record(conn, user, voter_id, "correct", body.reason.value, body.reference,
             {k: old[k] for k in keys}, {k: new[k] for k in keys})
+    lb = conn.execute(text("SELECT local_body_id FROM app.voters WHERE id = :id"), {"id": voter_id}).scalar_one()
+    find_pairs(conn, lb, voter_id)
     return voter_detail(conn, scope, voter_id)
+
+
+def hide_voter(conn: Connection, user: Principal, voter_id: uuid.UUID, reason: str, reference: str | None) -> bool:
+    """Remove (hide) a voter the caller may change; False if it was hidden already. Also used by the
+    duplicate pair decision (10.5)."""
+    at = conn.execute(text("""UPDATE app.voters SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL
+                              RETURNING deleted_at"""), {"id": voter_id}).scalar()
+    if at is not None:
+        _record(conn, user, voter_id, "remove", reason, reference, {"deleted_at": None}, {"deleted_at": at.isoformat()})
+    return at is not None
 
 
 @router.post("/voters/{voter_id}/remove", response_model=VoterDetail,
              summary="Hide one voter (survey work is kept), with reason. Super admin.")
 def remove_voter(voter_id: uuid.UUID, body: RemoveRestore, conn: Db, user: SuperAdmin, scope: UserScope) -> VoterDetail:
     voter_in_scope(conn, scope, voter_id, include_removed=True)
-    at = conn.execute(text("""UPDATE app.voters SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL
-                              RETURNING deleted_at"""), {"id": voter_id}).scalar()
-    if at is not None:
-        _record(conn, user, voter_id, "remove", body.reason.value, body.reference,
-                {"deleted_at": None}, {"deleted_at": at.isoformat()})
+    hide_voter(conn, user, voter_id, body.reason.value, body.reference)
     return voter_detail(conn, scope, voter_id, include_removed=True)
 
 

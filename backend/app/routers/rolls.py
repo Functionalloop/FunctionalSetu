@@ -1,13 +1,12 @@
-"""Roll update and data quality (plan step 10): roll import and review, one-voter corrections,
-data quality, duplicates, mobile number sheets. (Spelling fixes were removed by the client, 12 Nov.)
+"""Matching Engine (plan 10.2, 10.3): roll import, review, apply, discard. (Spelling fixes were removed
+by the client, 12 Nov.)
 
 Official roll data is changed by the super admin only (client, 12 Nov): an admin can read
-imports and roll edits but every write answers 403.
+imports but every write answers 403.
 
 Roll import (10.2): upload -> app.files + roll_versions (uploaded) + a "roll_import" job; the worker
 reads and matches the file (app/roll_match.py) and leaves the import in "review". An import is seen
 through its constituency: a super admin sees every one, an admin only their own (else 404).
-Routes still marked NOT_BUILT answer 501 until their task is built (app/stubs.py).
 """
 
 from __future__ import annotations
@@ -27,11 +26,10 @@ from ..paging import decode_cursor, encode_cursor, invalid_cursor
 from ..roll_match import CSV_MIME, KIND as ROLL_JOB, MAX_BYTES, XLSX_MIME, sniff
 from ..schemas import ListType, UserSummary
 from ..schemas_admin import FileKind
-from ..schemas_roll import (DataQualitySummary, DuplicatePair, DuplicatePairPage, MatchStatus, MobileImport,
-                            MobileRowResolution, PairResolution, RollImport, RollImportPage, RollImportRow,
-                            RollImportRowPage, RowResolution)
+from ..schemas_roll import (MatchStatus, RollImport, RollImportPage, RollImportRow, RollImportRowPage,
+                            RowResolution)
 from ..scope import Scope, UserScope, require_area
-from ..stubs import NOT_BUILT, Admin, Cursor, Limit, SuperAdmin, Supervisor, not_built
+from ..stubs import Admin, Cursor, Limit, SuperAdmin
 from ..worker import enqueue
 from .files import store_file
 
@@ -231,44 +229,4 @@ def discard_roll_import(import_id: uuid.UUID, conn: Db, user: SuperAdmin, scope:
     return get_import(conn, scope, import_id)
 
 
-# One-voter corrections (10.4) are in routers/roll_edits.py.
-
-
-# --- data quality (10.5) ------------------------------------------------------------------------
-@router.get("/data-quality/summary", response_model=DataQualitySummary, responses=NOT_BUILT,
-            summary="Counts: no mobile, no date of birth, duplicates, repeated, shifted, doubtful dead. Supervisor.")
-def data_quality_summary(conn: Db, user: Supervisor, ward_id: uuid.UUID | None = None) -> DataQualitySummary:
-    not_built("10.5")
-
-
-@router.get("/data-quality/duplicates", response_model=DuplicatePairPage, responses=NOT_BUILT,
-            summary="Possible duplicate and repeated pairs in the user's area. Supervisor.")
-def duplicate_pairs(conn: Db, user: Supervisor, unchecked_only: bool = True, limit: Limit = 50,
-                    cursor: Cursor = None) -> DuplicatePairPage:
-    not_built("10.5")
-
-
-@router.post("/data-quality/duplicates/{pair_id}/resolve", response_model=DuplicatePair, responses=NOT_BUILT,
-             summary="Same person (hide one) or different people. Supervisor.")
-def resolve_duplicate(pair_id: uuid.UUID, body: PairResolution, conn: Db, user: Supervisor) -> DuplicatePair:
-    not_built("10.5")
-
-
-# --- mobile number sheets (10.5) ---------------------------------------------------------------
-@router.post("/mobile-imports", response_model=MobileImport, responses=NOT_BUILT, status_code=status.HTTP_202_ACCEPTED,
-             summary="Upload a sheet of names and mobiles (CSV or Excel); matching runs as a job. Admin.")
-def start_mobile_import(conn: Db, user: Admin, file: Annotated[UploadFile, File()]) -> MobileImport:
-    not_built("10.5")
-
-
-@router.get("/mobile-imports/{import_id}", response_model=MobileImport, responses=NOT_BUILT,
-            summary="A sheet's progress, counts and rows to review. Admin.")
-def get_mobile_import(import_id: uuid.UUID, conn: Db, user: Admin) -> MobileImport:
-    not_built("10.5")
-
-
-@router.post("/mobile-imports/{import_id}/rows/{row_id}/resolve", response_model=MobileImport, responses=NOT_BUILT,
-             summary="Give a row under review its voter, or skip it. Admin. (Plan gap table proposal.)")
-def resolve_mobile_row(import_id: uuid.UUID, row_id: int, body: MobileRowResolution, conn: Db,
-                       user: Admin) -> MobileImport:
-    not_built("10.5")
+# One-voter corrections (10.4): routers/roll_edits.py. Data quality and mobile sheets (10.5): routers/data_quality.py.

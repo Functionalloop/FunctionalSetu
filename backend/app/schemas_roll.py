@@ -225,6 +225,10 @@ class MobileImport(BaseModel):
     rows: list[MobileImportRow] = Field(description="Rows that need review first, then the rest (first 500)")
 
 
+class MobileImportPage(Page):
+    items: list[MobileImport] = Field(description="Sheets without their rows (rows = [])")
+
+
 class MobileRowResolution(BaseModel):
     voter_id: uuid.UUID | None = Field(description="The voter this mobile belongs to; null = skip the row")
 

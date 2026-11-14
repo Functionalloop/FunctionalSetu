@@ -199,7 +199,7 @@ def run_forever(stop: threading.Event, handlers: Mapping[str, Handler] | None = 
 
 def load_handlers() -> None:
     """Import the modules that register handlers (they import this module, so not at the top)."""
-    from . import roll_match  # noqa: F401  roll_import (10.2)
+    from . import mobile_match, roll_match  # noqa: F401  roll_import (10.2), mobile_import (10.5)
 
 
 def main(argv: list[str] | None = None) -> int:
