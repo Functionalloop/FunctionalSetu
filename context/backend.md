@@ -149,10 +149,12 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 ```
 python -m app.worker          # from backend/; Docker: service `worker`
 python -m app.worker --once   # run what is ready now, then stop (laptop)
+python -m app.worker --kinds  # print the kinds it runs (export, mobile_import, roll_import)
 ```
 
 - Queue: `enqueue(conn, kind, ref_id, payload)` in the request's transaction (workspace and user from the context); answer the client at once, the client polls the job's own row. Table `app.jobs` (migration 005).
 - Built kinds: `roll_import` (10.2, `app/roll_match.py`), `mobile_import` (10.5, `app/mobile_match.py`).
+- Pitfall (14 Nov): `python -m app.worker` loads `worker.py` as `__main__`, a second copy of the module, while the job modules register in `app.worker`. The `__main__` block therefore calls `app.worker.main`; `main` refuses to start with no handlers. Before this fix the server's worker started with "kinds: none yet" and would have run nothing. Test: `test_python_dash_m_app_worker_has_every_handler`.
 - Handlers: `register(kind, run, on_fail)`. `run(conn, job)` gets a transaction with the job's workspace **and user** set (RLS, audit actor = whoever queued it). `on_fail(conn, job, message)` marks the job's own row failed (e.g. roll import status). All three kinds are built: `roll_import` (10.2), `mobile_import` (10.5), `export` (11.2). The worker module must import the handler modules before `main()` runs; a worker claims only kinds it has handlers for.
 - One job: claim (`app.claim_job`, `SKIP LOCKED`, own transaction, status `running` + `claim_token` + lease `WORKER_LEASE_SECONDS` 300) → run transaction locks the job row while `claim_token` still matches (so no one else can take it however long it runs), handler, `done`. Died worker: lock gone, lease runs out, taken again.
 - Errors: the handler's writes roll back. `JobFailed("plain message")` = failed at once (bad file); other exceptions = queued again after 30 s / 120 s, failed after `MAX_ATTEMPTS` (3); a job claimed a 4th time (its worker died every time) is failed without running. `error` holds at most 500 characters: keep voter data out of `JobFailed` messages.
