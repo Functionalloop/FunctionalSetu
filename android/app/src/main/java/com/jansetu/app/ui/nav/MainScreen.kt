@@ -35,6 +35,9 @@ import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.data.sync.SyncKeys
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.jansetu.app.ui.admin.settings.ConstituenciesScreen
+import com.jansetu.app.ui.admin.settings.ElectionScreen
+import com.jansetu.app.ui.admin.settings.ListsScreen
 import com.jansetu.app.ui.admin.users.AddUserScreen
 import com.jansetu.app.ui.admin.users.AssignScreen
 import com.jansetu.app.ui.admin.users.UserDetailScreen
@@ -169,6 +172,12 @@ fun MainScreen(session: Session, vm: MainViewModel = hiltViewModel()) {
                 UserDetailScreen(session, onBack = { nav.popBackStack() })
             }
             composable("assign") { AssignScreen(onBack = { nav.popBackStack() }) }
+            // Admin (9.7)
+            composable("election") { ElectionScreen(onBack = { nav.popBackStack() }) }
+            composable("lists") { ListsScreen(onBack = { nav.popBackStack() }) }
+            composable("constituencies") {
+                ConstituenciesScreen(onBack = { nav.popBackStack() }, onAddAdmin = { nav.navigate("adduser") })
+            }
             composable("voter/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 VoterScreen(session, onBack = { nav.popBackStack() }, onOpen = nav::openVoter,
                     onSlip = { nav.navigate("slip/$it") }, onShare = { nav.navigate(shareRoute(it)) })

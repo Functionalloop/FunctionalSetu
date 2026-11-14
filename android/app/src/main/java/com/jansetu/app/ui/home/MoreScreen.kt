@@ -34,7 +34,10 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.HowToVote
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -105,6 +108,14 @@ fun MoreScreen(
             HorizontalDivider()
             MoreItem("Booths & karyakartas", "Who works in which part and Village Panchayat (needs internet)",
                 Icons.Default.Groups) { onOpen("assign") }
+            // 9.7
+            MoreItem("Election & candidate", "Polling date and time, candidate, party, slip message (needs internet)",
+                Icons.Default.HowToVote) { onOpen("election") }
+            MoreItem("Lists & labels", "Castes, professions, influencer list, colour tags, messages (needs internet)",
+                Icons.AutoMirrored.Filled.List) { onOpen("lists") }
+            if (session.user.role == "super_admin") {
+                MoreItem("Constituencies", "Up to 5 in the workspace; add an admin (needs internet)", Icons.Default.Map) { onOpen("constituencies") }
+            }
         }
         MoreItem("Announcements", "Notices from your admins (needs internet)", Icons.Default.Campaign) { onOpen("announcements") }
         MoreItem("Change password", "Needs internet", Icons.Default.Lock) { onOpen("password") }

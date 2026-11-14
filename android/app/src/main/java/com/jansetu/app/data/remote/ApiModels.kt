@@ -165,6 +165,8 @@ data class NamedListEntry(
     val id: String,
     @SerialName("name_mr") val nameMr: String,
     @SerialName("name_en") val nameEn: String? = null,
+    // Kept so an admin's edit (9.7: the server replaces the whole entry) does not clear it.
+    @SerialName("name_hi") val nameHi: String? = null,
     @SerialName("sort_order") val sortOrder: Int = 0,
     @SerialName("is_active") val isActive: Boolean = true,
 )
@@ -176,6 +178,7 @@ data class ColorTagDto(
     val hex: String,
     @SerialName("label_mr") val labelMr: String,
     @SerialName("label_en") val labelEn: String,
+    @SerialName("label_hi") val labelHi: String? = null,
     @SerialName("is_default") val isDefault: Boolean = false,
     @SerialName("sort_order") val sortOrder: Int = 0,
     @SerialName("is_active") val isActive: Boolean = true,
@@ -186,6 +189,7 @@ data class CustomFieldLabelDto(
     @SerialName("field_key") val fieldKey: String,
     @SerialName("label_mr") val labelMr: String? = null,
     @SerialName("label_en") val labelEn: String? = null,
+    @SerialName("label_hi") val labelHi: String? = null,
     @SerialName("is_enabled") val isEnabled: Boolean = false,
 )
 
@@ -505,3 +509,79 @@ data class AssignedArea(
 )
 
 @Serializable data class AssignmentsOut(val areas: List<AssignedArea>)
+
+// --- Constituencies, Election & candidate, Lists & labels (9.7) ---
+
+@Serializable
+data class Constituency(
+    val id: String,
+    val code: String,
+    val number: Int? = null,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("ac_no") val acNo: Int? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("voter_count") val voterCount: Int = 0,
+    @SerialName("user_count") val userCount: Int = 0,
+)
+
+@Serializable
+data class ConstituencyIn(
+    val code: String,
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("ac_no") val acNo: Int? = null,
+)
+
+/** Caste, profession or influencer type to add or save (PATCH replaces the whole entry). */
+@Serializable
+data class NamedEntryIn(
+    @SerialName("name_mr") val nameMr: String,
+    @SerialName("name_en") val nameEn: String? = null,
+    @SerialName("name_hi") val nameHi: String? = null,
+    @SerialName("sort_order") val sortOrder: Int = 0,
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class ColorTagIn(
+    val code: String,
+    val hex: String,
+    @SerialName("label_mr") val labelMr: String,
+    @SerialName("label_en") val labelEn: String,
+    @SerialName("label_hi") val labelHi: String? = null,
+    @SerialName("is_default") val isDefault: Boolean = false,
+    @SerialName("sort_order") val sortOrder: Int = 0,
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class CustomFieldLabelIn(
+    @SerialName("label_mr") val labelMr: String? = null,
+    @SerialName("label_en") val labelEn: String? = null,
+    @SerialName("label_hi") val labelHi: String? = null,
+    @SerialName("is_enabled") val isEnabled: Boolean,
+)
+
+@Serializable
+data class MessageTemplateDto(
+    val kind: String,
+    @SerialName("body_mr") val bodyMr: String? = null,
+    @SerialName("body_en") val bodyEn: String? = null,
+    @SerialName("body_hi") val bodyHi: String? = null,
+)
+
+@Serializable
+data class MessageTemplateIn(
+    @SerialName("body_mr") val bodyMr: String? = null,
+    @SerialName("body_en") val bodyEn: String? = null,
+    @SerialName("body_hi") val bodyHi: String? = null,
+)
+
+@Serializable
+data class StoredFile(
+    val id: String,
+    val kind: String,
+    @SerialName("mime_type") val mimeType: String,
+    @SerialName("size_bytes") val sizeBytes: Long,
+)
