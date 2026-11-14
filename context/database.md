@@ -1,6 +1,6 @@
 # Database
 
-Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`) `003_kutumb_members.sql` (7.1, 13 Nov) and `004_client_changes_final.sql` (7.13, 13 Nov). Next: `005_change_requests.sql` (Step 14). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
+Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plus `002_client_changes.sql` (12 Nov: every schema change for the client's list; do not add another `002`) `003_kutumb_members.sql` (7.1, 13 Nov) `004_client_changes_final.sql` (7.13, 13 Nov) and `005_worker_jobs.sql` (10.1, 14 Nov: job queue). Step 14's changes go into `006_change_requests.sql` (was 005 until 14 Nov; 10.1 needed a migration first). Treat them as the data model. Do not edit an applied migration; add `002_...sql`. Its comments that mention Django, Celery or Nginx are out of date.
 
 ## Roles
 
@@ -8,7 +8,7 @@ Schema: `db/migrations/001_jansetu_schema.sql` (PostgreSQL 16, schema `app`) plu
 |---|---|---|
 | `postgres` (superuser) | `scripts/migrate.py` only (creates roles, extensions) | n/a |
 | `jansetu_owner` | imports, seed, `create_super_admin.py`, test setup | `BYPASSRLS` |
-| `jansetu_app` | the API and the future worker | applies |
+| `jansetu_app` | the API and the worker | applies |
 
 The API must never connect as owner or superuser. Passwords come from `deploy/.env` (`JANSETU_OWNER_PASSWORD`, `JANSETU_APP_PASSWORD`); `migrate.py` sets them after migrating.
 
@@ -17,6 +17,7 @@ The API must never connect as owner or superuser. Passwords come from `deploy/.e
 - Every tenant table has `tenant_id` and `FORCE ROW LEVEL SECURITY`.
 - Each request runs `SELECT app.set_context(tenant, user, device)` first. Values are transaction-local. With no context every tenant table reads as empty (fails closed).
 - Login runs with no tenant and finds the user through the `SECURITY DEFINER` function `app.login_lookup(tenant_code, username)`.
+- The worker finds jobs across workspaces only through the `SECURITY DEFINER` function `app.claim_job(kinds, lease_seconds)` (005); everything else it does runs with the job's context like a request.
 - Other helpers: `app.sync_watermark()` (xid8), `app.seed_tenant_defaults(tenant)` (colour tags, templates), `app.skip_audit` (bulk imports).
 - Triggers stamp `sync_xid`, bump `version` (`voter_surveys`, `new_voters`) and write `audit_log`. Never write these by hand. `audit_log` is immutable.
 - Limits enforced by trigger: 200 users per workspace; user scope check (`users_check_scope`).
@@ -28,7 +29,7 @@ Geography: `geo_units` (levels local_body > ward > booth, `path` set by trigger)
 Roll: `voters`, `roll_versions`, `roll_part_versions`, `roll_import_rows`, `voter_roll_edits`, `voter_duplicate_pairs`, `voter_name_corrections`.
 Campaign: `voter_surveys`, `families`, `family_members` (003), `visits`, `voter_turnout`, `slip_events`, `new_voters`.
 Masters/settings: `castes`, `professions`, `color_tags`, `custom_field_labels`, `ui_labels`, `ui_label_overrides`, `tenant_settings`, `message_templates`, `saved_filters`, `files`, `terms_versions`, `app_releases`.
-Sync: `sync_mutations`, `sync_conflicts`. Admin: `announcements`, `announcement_reads`, `problem_reports`, `mobile_import_batches`, `mobile_import_rows`, `exports`, `daily_booth_stats`, `audit_log`.
+Sync: `sync_mutations`, `sync_conflicts`. Admin: `announcements`, `announcement_reads`, `problem_reports`, `mobile_import_batches`, `mobile_import_rows`, `exports`, `daily_booth_stats`, `audit_log`. Worker: `jobs` (005).
 
 ## Scripts (run from the repo root, settings from `deploy/.env`)
 
@@ -55,6 +56,7 @@ python scripts/check_dev_data.py                          # end-of-step check on
 - Visits (7.3, no migration): `visits.id` = the phone's id = `client_mutation_id`. `voter_surveys.last_visit_outcome / last_visit_at / last_visited_by` are never written (survey version); the last visit per house is read from `visits` (`visits_house_idx`).
 - 004 (13 Nov): `positions` and `voter_surveys.position_id` dropped; `voter_surveys.is_important` kept, unused (comment on the column). `app.seed_client_lists` now gives the client's 11 influencer types (`ON CONFLICT (tenant_id, name_mr) DO UPDATE`, so re-running it is safe); the 002 placeholders are deleted, or switched off where a survey uses one ("Social worker" became "Social Worker"). Dev DB `naik` after 004: 11 active, 1 inactive (a rehearsal survey uses it).
 - 003 (13 Nov): `family_members` (PK `voter_id` = one Kutumb at most; `family_id` NULL = taken out, the row stays so a delta pull sees it; touch, audit, RLS). `voter_surveys.family_id` and `families.head_voter_id` stay in the schema **unused**: membership in `voter_surveys` would raise the survey version (false 409s) and create survey rows.
+- 005 (14 Nov, 10.1): `app.jobs` (kind, `ref_id` = the row it works on, payload, status `job_status`, attempts, `run_after`, `claim_token`, `locked_until` lease, error). RLS like every tenant table; no `sync_xid` / audit triggers (bookkeeping, never pulled). The app role may select / insert / update it (no delete: rows stay). Partial index on unfinished jobs. Applied to the dev database 14 Nov.
 - Not imported (decided): the old VoterappDB data. `scripts/import_legacy.py` is not run; `import_roll_parts.py` reuses its helpers.
 - Import leaves: no Marathi names, no `voter_surveys` rows (first survey save creates it), no `families`.
 - Re-running an import skips voters already present (EPIC, or booth + serial).

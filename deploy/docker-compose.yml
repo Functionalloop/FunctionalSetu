@@ -8,7 +8,7 @@
 # The dev database (docker-compose.dev.yml, project jansetu-dev) is separate:
 # different project name, different volume, so both can run on the laptop.
 # APK files: deploy/apk/ (git-ignored *.apk), served at /download/ (6.3).
-# Not here yet: worker (no backend/app/worker.py yet), portal (15.7).
+# Not here yet: portal (15.7).
 name: jansetu
 
 x-logging: &logging
@@ -74,6 +74,33 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    logging: *logging
+
+  # Background jobs (10.1): roll imports, mobile number sheets, exports. Same image as the
+  # api, same app role (RLS applies); takes queued app.jobs rows with FOR UPDATE SKIP LOCKED.
+  # Settings needs JWT_SECRET to load, although the worker signs nothing.
+  worker:
+    image: jansetu-api:latest
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-jansetu}
+      JANSETU_APP_PASSWORD: ${JANSETU_APP_PASSWORD:?set JANSETU_APP_PASSWORD in deploy/.env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in deploy/.env}
+      DB_POOL_SIZE: "2"
+      FILES_DIR: /srv/files
+    volumes:
+      - files:/srv/files                 # reads uploaded roll / mobile sheets, writes exports
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started     # the api service builds the shared image
+    healthcheck:
+      disable: true                      # the image's check calls the api port
+    stop_grace_period: 2m                # a job that has started is finished first
     logging: *logging
 
   caddy:

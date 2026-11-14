@@ -25,6 +25,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/errors.py` | `ApiError(status, code, message)`; one JSON shape for all errors; `ERROR_RESPONSES` for OpenAPI |
 | `app/security.py` | Argon2id hashing, JWT access token (15 min), refresh token helpers |
 | `app/schemas.py` | All Pydantic request/response models, `Role` enum |
+| `app/worker.py` | background worker (10.1); see "Worker" below |
 | `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `slips.py`, `birthdays.py`, `misc.py`, `part_notes.py`, `turnout.py`, `sync.py`, `app_version.py`; stubs in `field.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
@@ -130,6 +131,20 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 
 **Building a stub:** replace `not_built(...)` with the code; remove `responses=NOT_BUILT` / move the router out of the `planned` loop in `main.py` when all its routes are built; in `tests/endpoints.py` drop `stub` and add `target` / `lists` (and a `Kind` if new); write its own test file; export OpenAPI. `test_stub_flags_match_the_api` fails if the row and the route disagree.
 
+## Worker (`app/worker.py`, 10.1)
+
+```
+python -m app.worker          # from backend/; Docker: service `worker`
+python -m app.worker --once   # run what is ready now, then stop (laptop)
+```
+
+- Queue: `enqueue(conn, kind, ref_id, payload)` in the request's transaction (workspace and user from the context); answer the client at once, the client polls the job's own row. Table `app.jobs` (migration 005).
+- Handlers: `register(kind, run, on_fail)`. `run(conn, job)` gets a transaction with the job's workspace **and user** set (RLS, audit actor = whoever queued it). `on_fail(conn, job, message)` marks the job's own row failed (e.g. roll import status). Kinds to come: `roll_import` (10.2), `mobile_import` (10.5), `export` (11.2). The worker module must import the handler modules before `main()` runs; a worker claims only kinds it has handlers for.
+- One job: claim (`app.claim_job`, `SKIP LOCKED`, own transaction, status `running` + `claim_token` + lease `WORKER_LEASE_SECONDS` 300) → run transaction locks the job row while `claim_token` still matches (so no one else can take it however long it runs), handler, `done`. Died worker: lock gone, lease runs out, taken again.
+- Errors: the handler's writes roll back. `JobFailed("plain message")` = failed at once (bad file); other exceptions = queued again after 30 s / 120 s, failed after `MAX_ATTEMPTS` (3); a job claimed a 4th time (its worker died every time) is failed without running. `error` holds at most 500 characters: keep voter data out of `JobFailed` messages.
+- Empty queue: looks again every `WORKER_POLL_SECONDS` (2). SIGTERM finishes the running job, then stops.
+- Tests (`tests/test_worker.py`): each test uses its own kind, so jobs other tests leave queued are never taken.
+
 ## Tests
 
 - `conftest.py` drops and rebuilds its test database each run and applies migrations via `scripts/migrate.py`. **Each runner its own database:** `TEST_RUNNER=claude pytest` uses `jansetu_test_claude` (Antigravity: `TEST_RUNNER=antigravity`). Two runs on one database wipe each other. Only `jansetu_test` / `jansetu_test_<name>` is accepted.
@@ -142,6 +157,7 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 - Pitfall: this FastAPI version does not flatten included routers into `app.routes`; list routes from `app.openapi()["paths"]`.
 - Each endpoint's own test file covers its behaviour (409, paging, search, ...), not the generic rules.
 - Test voters are inserted by the owner without `app.skip_audit`, so their history starts with a `roll_edit` entry.
+- Do not run `check_dev_data.py`, `migrate.py` or other dev-database work while pytest runs: the sync watermark comes from the transaction numbers of the whole PostgreSQL server, so an open transaction in the dev database holds it back and the delta-pull tests get old rows again (7 failures in `test_sync_pull.py`, 14 Nov).
 - Times in tests: the database clock is UTC; a "past" phone time must be before today UTC (a later one becomes now).
 
 ## Pitfalls

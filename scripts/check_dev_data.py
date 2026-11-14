@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.config import get_settings  # noqa: E402
 from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
+from app import worker as jobs  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
 from app.errors import ApiError  # noqa: E402
@@ -59,7 +60,7 @@ SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations", "user_area_assignments",
-                   "sync_conflicts",
+                   "sync_conflicts", "jobs",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -501,6 +502,32 @@ def main() -> None:
             report(ms < SLOW_PAGE_MS, "worker locations over 92 days", f"{len(loc.items)} on page 1, {ms:.0f} ms")
         finally:
             trans.rollback()
+
+    # 10.1: the worker takes a job queued in this workspace and runs it there (RLS on).
+    # The job writes nothing; its row is committed by the worker, so the owner deletes it.
+    print("Worker")
+    kind = f"check_{uuid.uuid4().hex[:8]}"
+    with transaction(tenant) as conn:
+        job_admin = principal(conn, tenant, "demo.admin")
+    with transaction(tenant, job_admin.user_id) as conn:
+        job_id = jobs.enqueue(conn, kind)
+    seen: dict[str, int] = {}
+
+    def count_voters(conn: Connection, job: jobs.Job) -> None:
+        seen["voters"] = conn.execute(text("SELECT count(*) FROM app.voters WHERE deleted_at IS NULL")).scalar_one()
+        raise jobs.JobFailed("check only")   # nothing to keep
+
+    try:
+        ran, ms = timed(lambda: jobs.run_one({kind: jobs.Handler(count_voters)}))
+        with connect_owner() as c:
+            status = c.execute("SELECT status::text FROM app.jobs WHERE id = %s", (job_id,)).fetchone()[0]
+        report(ran and seen.get("voters") == total and status == "failed",
+               "worker claims a queued job and runs it in its workspace",
+               f"saw {seen.get('voters')} of {total} voters, job {status}, {ms:.0f} ms")
+    finally:
+        with connect_owner() as c:
+            c.execute("DELETE FROM app.jobs WHERE id = %s", (job_id,))
+            c.commit()
 
     after = owner_counts(tenant)
     changed = {t: (before[t], after[t]) for t in LEFTOVER_TABLES if before[t] != after[t]}
