@@ -47,6 +47,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.jansetu.app.data.SessionRepository
 import com.jansetu.app.data.local.LocalDb
 import com.jansetu.app.ui.admin.PHONE_ADMIN_ROLES
+import com.jansetu.app.ui.quality.QUALITY_ROLES
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.ContactPhone
+import androidx.compose.material.icons.filled.FactCheck
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -100,6 +104,14 @@ fun MoreScreen(
             )
             HorizontalDivider()
         }
+        if (session.user.role in QUALITY_ROLES) { // 10.6
+            MoreItem("Data quality", "Missing numbers, possible duplicates, repeated voters (needs internet)",
+                Icons.Default.FactCheck) { onOpen("quality") }
+        }
+        if (session.user.role in PHONE_ADMIN_ROLES) {
+            MoreItem("Mobile numbers & contacts", "Import a sheet of numbers and check the matches (needs internet)",
+                Icons.Default.ContactPhone) { onOpen("mobiles") }
+        }
         if (session.user.role in PHONE_ADMIN_ROLES) {
             // 9.6: Phones became a tab of Users & devices.
             ListItem(
@@ -121,6 +133,11 @@ fun MoreScreen(
             MoreItem("Worker activity", "Surveys, visits, mobiles and voted marks per worker per day (needs internet)",
                 Icons.Default.BarChart) { onOpen("workeractivity") }
             MoreItem("Worker locations", "Where surveys and visits were saved (needs internet)", Icons.Default.Place) { onOpen("locations") }
+            // 10.6: its own item; a super admin uploads, decides and applies, an admin reads
+            MoreItem("Matching Engine",
+                if (session.user.role == "super_admin") "Compare a new official roll with the current one (needs internet)"
+                else "Roll comparisons, read only (needs internet)",
+                Icons.AutoMirrored.Filled.CompareArrows) { onOpen("matching") }
             if (session.user.role == "super_admin") {
                 MoreItem("Constituencies", "Up to 5 in the workspace; add an admin (needs internet)", Icons.Default.Map) { onOpen("constituencies") }
             }

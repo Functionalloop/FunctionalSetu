@@ -102,6 +102,62 @@ interface JansetuApi {
         @Query("limit") limit: Int? = null,
     ): WorkerLocationPage
 
+    // Data quality (10.5): supervisor and above, the caller's area
+    @GET("data-quality/summary") suspend fun dataQuality(@Query("ward_id") wardId: String? = null): DataQualitySummary
+    @GET("data-quality/duplicates")
+    suspend fun duplicates(
+        @Query("unchecked_only") uncheckedOnly: Boolean,
+        @Query("source") source: String? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): DuplicatePairPage
+    @POST("data-quality/duplicates/{id}/resolve")
+    suspend fun resolvePair(@Path("id") id: String, @Body body: PairResolution): DuplicatePair
+
+    // Mobile number sheets (10.5): admin and super admin
+    @GET("mobile-imports")
+    suspend fun mobileImports(@Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): MobileImportPage
+    @Multipart @POST("mobile-imports") suspend fun startMobileImport(@Part file: MultipartBody.Part): MobileImport
+    @GET("mobile-imports/{id}") suspend fun mobileImport(@Path("id") id: String): MobileImport
+    /** body = {"voter_id": "<id>" or null}; null skips the row (the key must be sent). */
+    @POST("mobile-imports/{id}/rows/{row}/resolve")
+    suspend fun resolveMobileRow(@Path("id") id: String, @Path("row") rowId: Long, @Body body: JsonObject): MobileImport
+
+    // Matching Engine (10.2, 10.3): admin reads; upload, review, apply and discard are super admin only
+    @GET("rolls/imports")
+    suspend fun rollImports(@Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): RollImportPage
+    @Multipart @POST("rolls/imports")
+    suspend fun startRollImport(
+        @Part file: MultipartBody.Part,
+        @Part("local_body_id") localBodyId: RequestBody,
+        @Part("list_type") listType: RequestBody,
+        @Part("title") title: RequestBody,
+        @Part("published_on") publishedOn: RequestBody?, // null part = left out
+    ): RollImport
+    @GET("rolls/imports/{id}") suspend fun rollImport(@Path("id") id: String): RollImport
+    @GET("rolls/imports/{id}/rows")
+    suspend fun rollImportRows(
+        @Path("id") id: String,
+        @Query("pending_only") pendingOnly: Boolean? = null,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): RollImportRowPage
+    @POST("rolls/imports/{id}/rows/{row}/resolve")
+    suspend fun resolveRollRow(@Path("id") id: String, @Path("row") rowId: Long, @Body body: RowResolution): RollImportRow
+    @POST("rolls/imports/{id}/apply") suspend fun applyRollImport(@Path("id") id: String): RollImport
+    @POST("rolls/imports/{id}/discard") suspend fun discardRollImport(@Path("id") id: String): RollImport
+
+    // Correct roll record (10.4): super admin; removed voters are listed for admins
+    @PATCH("voters/{id}/roll") suspend fun correctVoter(@Path("id") id: String, @Body body: RollPatch): RollVoter
+    @POST("voters/{id}/remove") suspend fun removeVoter(@Path("id") id: String, @Body body: RemoveRestore): RollVoter
+    @POST("voters/{id}/restore") suspend fun restoreVoter(@Path("id") id: String, @Body body: RemoveRestore): RollVoter
+    @GET("voters")
+    suspend fun removedVoters(
+        @Query("removed") removed: Boolean = true,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): VoterListPage
+
     @GET("sync/pull")
     suspend fun pull(
         @Query("since") since: String? = null,

@@ -635,3 +635,136 @@ data class StoredFile(
     @SerialName("mime_type") val mimeType: String,
     @SerialName("size_bytes") val sizeBytes: Long,
 )
+
+// --- Data quality, mobile number sheets, Matching Engine, roll corrections (10.6; API of 10.2-10.5) ---
+
+@Serializable
+data class DataQualitySummary(
+    val voters: Int = 0,
+    @SerialName("no_mobile") val noMobile: Int = 0,
+    @SerialName("no_dob") val noDob: Int = 0,
+    @SerialName("possible_duplicates") val possibleDuplicates: Int = 0,
+    @SerialName("repeated_in_roll") val repeatedInRoll: Int = 0,
+    val shifted: Int = 0,
+    @SerialName("doubtful_dead") val doubtfulDead: Int = 0,
+)
+
+@Serializable
+data class DuplicatePair(
+    val id: String,
+    @SerialName("voter_a") val voterA: SyncVoter,
+    @SerialName("voter_b") val voterB: SyncVoter,
+    val source: String,
+    val similarity: Double? = null,
+    val status: String,
+)
+
+@Serializable
+data class DuplicatePairPage(val items: List<DuplicatePair>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+/** keep_voter_id (super admin only) hides the other voter; left out (null) it only records the decision. */
+@Serializable
+data class PairResolution(
+    @SerialName("same_person") val samePerson: Boolean,
+    @SerialName("keep_voter_id") val keepVoterId: String? = null,
+)
+
+@Serializable
+data class MobileImportRow(
+    val id: Long,
+    @SerialName("row_no") val rowNo: Int,
+    val name: String? = null,
+    val mobile: String,
+    @SerialName("address_text") val addressText: String? = null,
+    val status: String,
+    @SerialName("matched_voter_id") val matchedVoterId: String? = null,
+    @SerialName("candidate_voter_ids") val candidateVoterIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class MobileImport(
+    val id: String,
+    val status: String,
+    @SerialName("matched_count") val matchedCount: Int = 0,
+    @SerialName("review_count") val reviewCount: Int = 0,
+    @SerialName("not_found_count") val notFoundCount: Int = 0,
+    val error: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("finished_at") val finishedAt: String? = null,
+    val rows: List<MobileImportRow> = emptyList(),
+)
+
+@Serializable
+data class MobileImportPage(val items: List<MobileImport>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class RollImport(
+    val id: String,
+    @SerialName("local_body_id") val localBodyId: String,
+    @SerialName("list_type") val listType: String,
+    val title: String,
+    @SerialName("published_on") val publishedOn: String? = null,
+    val status: String,
+    val counts: Map<String, Int> = emptyMap(),
+    val error: String? = null,
+    @SerialName("imported_by") val importedBy: UserSummary? = null,
+    @SerialName("applied_at") val appliedAt: String? = null,
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+data class RollImportPage(val items: List<RollImport>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class RollImportRow(
+    val id: Long,
+    @SerialName("row_no") val rowNo: Int,
+    @SerialName("part_no") val partNo: Int? = null,
+    @SerialName("serial_no") val serialNo: Int? = null,
+    @SerialName("epic_no") val epicNo: String? = null,
+    @SerialName("first_name_en") val firstNameEn: String? = null,
+    @SerialName("last_name_en") val lastNameEn: String? = null,
+    @SerialName("first_name_mr") val firstNameMr: String? = null,
+    @SerialName("last_name_mr") val lastNameMr: String? = null,
+    val gender: String? = null,
+    val age: Int? = null,
+    @SerialName("house_no") val houseNo: String? = null,
+    @SerialName("match_status") val matchStatus: String? = null,
+    @SerialName("matched_voter_id") val matchedVoterId: String? = null,
+    val similarity: Double? = null,
+    @SerialName("match_notes") val matchNotes: String? = null,
+    @SerialName("review_status") val reviewStatus: String,
+)
+
+@Serializable
+data class RollImportRowPage(val items: List<RollImportRow>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+@Serializable
+data class RowResolution(val accept: Boolean, @SerialName("voter_id") val voterId: String? = null)
+
+/** PATCH /voters/{id}/roll: only the changed keys in `fields` (a JSON null clears one). */
+@Serializable
+data class RollPatch(val fields: JsonObject, val reason: String, val reference: String? = null)
+
+@Serializable
+data class RemoveRestore(val reason: String, val reference: String? = null)
+
+/** The parts of VoterDetail the correction screens read back. */
+@Serializable
+data class RollVoter(val id: String, @SerialName("deleted_at") val deletedAt: String? = null)
+
+@Serializable
+data class VoterListItem(
+    val id: String,
+    @SerialName("part_no") val partNo: Int,
+    @SerialName("serial_no") val serialNo: Int,
+    @SerialName("epic_no") val epicNo: String? = null,
+    @SerialName("full_name_en") val fullNameEn: String? = null,
+    @SerialName("full_name_mr") val fullNameMr: String? = null,
+    val gender: String,
+    val age: Int? = null,
+    @SerialName("house_no") val houseNo: String? = null,
+)
+
+@Serializable
+data class VoterListPage(val items: List<VoterListItem>, @SerialName("next_cursor") val nextCursor: String? = null)
