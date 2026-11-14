@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.config import get_settings  # noqa: E402
 from app.conflicts import list_conflicts, resolve_conflict  # noqa: E402
+from app import roll_match  # noqa: E402
 from app import worker as jobs  # noqa: E402
 from app.db import get_engine, set_context, transaction  # noqa: E402
 from app.deps import Principal  # noqa: E402
@@ -60,7 +61,7 @@ SLOW_PAGE_MS = 1000
 LEFTOVER_TABLES = ("voters", "voter_surveys", "families", "family_members", "visits", "new_voters", "slip_events",
                    "announcements", "announcement_reads", "problem_reports", "part_notes", "voter_turnout",
                    "sync_mutations", "user_area_assignments",
-                   "sync_conflicts", "jobs",
+                   "sync_conflicts", "jobs", "roll_versions", "roll_import_rows", "files",
                    "devices", "users", "audit_log")
 failures: list[str] = []
 
@@ -528,6 +529,37 @@ def main() -> None:
         with connect_owner() as c:
             c.execute("DELETE FROM app.jobs WHERE id = %s", (job_id,))
             c.commit()
+
+    # 10.2: the real roll part files read and matched again as a "new roll" (rolled back). The same
+    # roll must match itself: counts and time only.
+    print("Matching Engine (rolled back)")
+    parts = sorted((ROOT / "jansetu-private").glob("S05A02P*.csv"))
+    if not parts:
+        print("  SKIP  no roll part files in jansetu-private/")
+    else:
+        header, body = None, []
+        for p in parts:
+            lines = p.read_text(encoding="utf-8-sig").splitlines()
+            header = header or lines[0]
+            body += lines[1:]
+        data = "\n".join([header, *body]).encode("utf-8")
+        with get_engine().connect() as conn:
+            trans = conn.begin()
+            try:
+                set_context(conn, tenant, admin.user_id)
+                lb = admin.local_body_id
+                rv = conn.execute(text("""INSERT INTO app.roll_versions (tenant_id, local_body_id, list_type, title)
+                                          VALUES (:t, :lb, 'main', 'check') RETURNING id"""),
+                                  {"t": tenant, "lb": lb}).scalar_one()
+                counts, ms = timed(lambda: roll_match.import_rows(conn, rv, lb, "main", data))
+                on_record = conn.execute(text("""SELECT count(*) FROM app.voters WHERE local_body_id = :lb
+                                                  AND deleted_at IS NULL"""), {"lb": lb}).scalar_one()
+                shown = ", ".join(f"{k} {v}" for k, v in counts.items())
+                report(counts["rows"] == len(body) and counts["absent_from_current_roll"] == 0
+                       and counts["new"] == 0 and counts["matched"] >= 0.99 * on_record and ms < 60_000,
+                       "the roll on record matches itself", f"{len(parts)} files; {shown}; {ms / 1000:.1f} s")
+            finally:
+                trans.rollback()
 
     after = owner_counts(tenant)
     changed = {t: (before[t], after[t]) for t in LEFTOVER_TABLES if before[t] != after[t]}

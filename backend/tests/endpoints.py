@@ -195,6 +195,12 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/audit-log", roles=ADMINS),
     Endpoint("GET", "/reports/worker-activity", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
     Endpoint("GET", "/worker-locations", roles=ADMINS, query={"date_from": "2026-11-01", "date_to": "2026-11-02"}),
+    # Matching Engine, roll import (10.2): writes super admin only, an admin reads own constituency;
+    # behaviour: test_roll_import.py
+    Endpoint("POST", "/rolls/imports", roles=SUPER, works=False),  # multipart upload
+    Endpoint("GET", "/rolls/imports", roles=ADMINS, lists="roll_import"),
+    Endpoint("GET", "/rolls/imports/{import_id}", roles=ADMINS, target="roll_import"),
+    Endpoint("GET", "/rolls/imports/{import_id}/rows", roles=ADMINS, target="roll_import"),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -203,10 +209,6 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    ("POST", "/rolls/imports", SUPER, "ready"),
-    ("GET", "/rolls/imports", ADMINS, "ready"),
-    ("GET", "/rolls/imports/{import_id}", ADMINS, "ready"),
-    ("GET", "/rolls/imports/{import_id}/rows", ADMINS, "ready"),
     ("POST", "/rolls/imports/{import_id}/rows/{row_id}/resolve", SUPER, "ready"),
     ("POST", "/rolls/imports/{import_id}/apply", SUPER, "ready"),
     ("POST", "/rolls/imports/{import_id}/discard", SUPER, "ready"),
@@ -459,7 +461,17 @@ def _constituency_state(world, lb: uuid.UUID):
                               (lb,)).fetchone()
 
 
+def _make_roll_import(world, where: str) -> uuid.UUID:
+    """A roll import of that place's constituency, waiting in review (no rows)."""
+    tenant, lb, _, _ = world.place(where)
+    rid = uuid.uuid4()
+    world.conn.execute("""INSERT INTO app.roll_versions (id, tenant_id, local_body_id, list_type, title, status)
+                          VALUES (%s, %s, %s, 'main', 'Rule import', 'review')""", (rid, tenant, lb))
+    return rid
+
+
 KINDS: dict[str, Kind] = {
+    "roll_import": Kind(_make_roll_import),
     "voter": Kind(_make_voter, _voter_state),
     "device": Kind(_make_device, _device_state),
     "user": Kind(_make_user, _user_state),

@@ -26,6 +26,7 @@ python scripts/export_openapi.py             # after any API change; commit docs
 | `app/security.py` | Argon2id hashing, JWT access token (15 min), refresh token helpers |
 | `app/schemas.py` | All Pydantic request/response models, `Role` enum |
 | `app/worker.py` | background worker (10.1); see "Worker" below |
+| `app/roll_match.py` | Matching Engine: read a roll file, match it, the `roll_import` job (10.2); see below |
 | `app/routers/` | `auth.py`, `me.py`, `devices.py`, `health.py`, `geo.py`, `voters.py`, `families.py`, `visits.py`, `new_voters.py`, `slips.py`, `birthdays.py`, `misc.py`, `part_notes.py`, `turnout.py`, `sync.py`, `app_version.py`; stubs in `field.py`, ... |
 
 Operation ids are the function names (stable names for the portal's generated client). Add every router in `main.py` with `responses=errors.ERROR_RESPONSES`.
@@ -113,6 +114,9 @@ Table is in `app/main.py` (`DESCRIPTION`). Add new codes there. Shape: `{"error"
 | `GET /problem-reports` | 9.5. Reports by the caller's team (admin: users of own constituency; super admin: all), newest first, cursor `[created_at, id]`, `?status=`. No "mark done" route in the contract yet |
 | `GET /audit-log` | 9.5. Rows whose actor is in the caller's team (super admin: also rows with no actor, e.g. scripts). Filters `entity_type` (table name), `entity_id`, `actor_user_id` (outside team 404), `date_from` / `date_to` (Indian dates). Newest first by `id`, cursor `[id]`. `password_hash` is dropped from old / new values |
 | `GET /reports/worker-activity`, `GET /worker-locations` | 9.5. Indian days, at most 92 days (422), `user_id` outside the team 404. Activity: surveys = distinct voters whose survey the worker saved that day (from `audit_log`, as `voter_surveys` keeps only the last saver), mobiles = those saves with `mobile_1/2`, visits, new voters (`created_by`), standing voted marks (`marked_by`). Locations: survey saves with a location (from `audit_log` new values; a later save that moved only one of lat / lng is missed) and visits with lat / lng; newest first, cursor `[at, key]` (`s<audit id>` / `v<visit id>`, `COLLATE "C"`) |
+| `POST /rolls/imports` | Matching Engine (10.2), super admin, `routers/rolls.py`. Multipart `file` + `local_body_id` (an active constituency in scope: 404; a ward: 422) + `list_type` + `title` + `published_on`. CSV or .xlsx by the first bytes (PDF / old .xls / binary 422 `unsupported_file`), ≤ 20 MB (`file_too_large`). One open import (uploaded / parsing / review) per constituency, checked under an advisory lock: 409 `import_in_progress`. Stores the file (`files.store_file`, kind `roll_import`), a `roll_versions` row (`uploaded`) and a `roll_import` job; 202 |
+| `GET /rolls/imports`, `GET /rolls/imports/{id}` | admins. Seen through the constituency (`scope.filter("g.path")`): admin own, super admin all; else 404. Newest first, cursor `[created_at, id]`. `status` `parsing` = `uploaded` while its job runs; `error` = the job's error when `failed`. `counts` counted live from the rows (keys in `COUNT_KEYS`) |
+| `GET /rolls/imports/{id}/rows` | admins. `?match_status=`, `?pending_only=` (review status pending), by `row_no`, cursor `[row_no]`. Absent voters are rows after the file's rows (`raw` = `{}`, values copied from the voter) |
 | `PUT /voters/{id}/family` | `SURVEY_ROLES`. `family_id` (moves the voter out of any other Kutumb) or `leave_family: true` alone; unknown fields (`make_head`) 422 (`extra="forbid"`). Kutumb outside the area 404; in another booth than the voter 422. A repeat writes nothing (no audit row, same `sync_xid`) |
 
 Survey decisions (11 Nov): residence check (`has_new_address`, `new_address_mr/en`) and location are in the body, as the SRS says. `surveyed_at` = first save. Other `voter_surveys` columns (email, society, family, dead marks, karyakarta) are not in the body yet: not in the SRS survey, or later steps.
@@ -127,7 +131,7 @@ Kutumb Connect (7.1, 13 Nov): a Kutumb is seen through its booth (`families.boot
 
 `q` rules: up to 5 words, every word must match `voters.search_text` (names mr/en, EPIC, house; lowercase `LIKE`, wildcards escaped). An ASCII number also matches `serial_no` exactly, and `mobile_1/2` when 4+ digits. Real roll (11 Nov): paging all 31,871 voters at 200/page, slowest page 61 ms; searches 10–32 ms.
 
-**Contract stubs (4.10):** every other endpoint exists as a stub that checks login and role, then answers 501 `not_implemented` (`app/stubs.py`). Routers by plan step: `field.py` (7), `rolls.py` (10), `reports.py` (11); Step 9 is fully built (`admin.py` removed 14 Nov); conflicts in `sync.py` (7.10). Models: `schemas_field.py`, `schemas_admin.py`, `schemas_roll.py`. Every push type is built (8.1); a type the server does not know yet would be rejected `not_implemented` and not recorded, so a retry after the update applies it.
+**Contract stubs (4.10):** every other endpoint exists as a stub that checks login and role, then answers 501 `not_implemented` (`app/stubs.py`). Routers by plan step: `field.py` (7), `rolls.py` (10, partly built: it is included like a built router and each route not built yet carries `responses=NOT_BUILT` itself), `reports.py` (11); Step 9 is fully built (`admin.py` removed 14 Nov); conflicts in `sync.py` (7.10). Models: `schemas_field.py`, `schemas_admin.py`, `schemas_roll.py`. Every push type is built (8.1); a type the server does not know yet would be rejected `not_implemented` and not recorded, so a retry after the update applies it.
 
 **Building a stub:** replace `not_built(...)` with the code; remove `responses=NOT_BUILT` / move the router out of the `planned` loop in `main.py` when all its routes are built; in `tests/endpoints.py` drop `stub` and add `target` / `lists` (and a `Kind` if new); write its own test file; export OpenAPI. `test_stub_flags_match_the_api` fails if the row and the route disagree.
 
@@ -139,11 +143,21 @@ python -m app.worker --once   # run what is ready now, then stop (laptop)
 ```
 
 - Queue: `enqueue(conn, kind, ref_id, payload)` in the request's transaction (workspace and user from the context); answer the client at once, the client polls the job's own row. Table `app.jobs` (migration 005).
+- Built kinds: `roll_import` (10.2, `app/roll_match.py`).
 - Handlers: `register(kind, run, on_fail)`. `run(conn, job)` gets a transaction with the job's workspace **and user** set (RLS, audit actor = whoever queued it). `on_fail(conn, job, message)` marks the job's own row failed (e.g. roll import status). Kinds to come: `roll_import` (10.2), `mobile_import` (10.5), `export` (11.2). The worker module must import the handler modules before `main()` runs; a worker claims only kinds it has handlers for.
 - One job: claim (`app.claim_job`, `SKIP LOCKED`, own transaction, status `running` + `claim_token` + lease `WORKER_LEASE_SECONDS` 300) → run transaction locks the job row while `claim_token` still matches (so no one else can take it however long it runs), handler, `done`. Died worker: lock gone, lease runs out, taken again.
 - Errors: the handler's writes roll back. `JobFailed("plain message")` = failed at once (bad file); other exceptions = queued again after 30 s / 120 s, failed after `MAX_ATTEMPTS` (3); a job claimed a 4th time (its worker died every time) is failed without running. `error` holds at most 500 characters: keep voter data out of `JobFailed` messages.
 - Empty queue: looks again every `WORKER_POLL_SECONDS` (2). SIGTERM finishes the running job, then stops.
 - Tests (`tests/test_worker.py`): each test uses its own kind, so jobs other tests leave queued are never taken.
+
+## Matching Engine (`app/roll_match.py`, 10.2)
+
+- Job `roll_import` (`run_import`): reads the stored file, matches it, writes every row to `roll_import_rows` and sets the import to `review` with `stats`; `fail_import` sets `failed`. Nothing official changes before apply (10.3). An import no longer `uploaded` (discarded meanwhile) is left alone.
+- File: CSV (UTF-8 only; comma / semicolon / tab from the header line) or .xlsx (first sheet, `openpyxl`, imported in the worker only). Header names normalised (lowercase, `_`), aliases in `ALIASES`; the client's part-file format is the model. Needed: part_no, serial_no, gender, a name. Bad file = `JobFailed` with a plain message (missing columns named; never row values). At most 100,000 rows.
+- Row reasons (stay as rows, `match_status` NULL, pending): `no_part_no`, `bad_serial_no`, `bad_gender`, `no_name`, `same_part_and_serial_as_an_earlier_row`.
+- Rules (module docstring has the full list): EPIC equal + name similarity ≥ `NAME_SAME` 0.8 + same gender = matched (accepted); EPIC equal otherwise = uncertain; no EPIC match = best voter of the same part and gender with similarity ≥ `NAME_LIKE` 0.5 (relative's name counts a third; two different EPICs never pair), greedy best-first = uncertain; none = new (accepted); a second row for a taken voter = possible_duplicate (pending, or accepted when it is the deleted entry of a voter listed live elsewhere); active voters of the file's parts left over = absent (accepted; none for a supplementary list). `match_notes` names changed fields, never values.
+- Similarity = pg_trgm's, in Python (`trigrams`, `similarity`; a test compares it with the database). Everything in memory: real roll (51 part files, 32,598 rows) in 5.3 s on the laptop, matching itself 31,871 matched / 0 uncertain / 0 new / 0 absent; 688 unreadable = the broken part 4 copy; 39 possible duplicates = voters listed twice under one EPIC.
+- `rolls.py` imports `roll_match`, so the API process registers the handler too (harmless); the worker imports it in `load_handlers()`.
 
 ## Tests
 

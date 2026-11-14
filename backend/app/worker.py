@@ -22,8 +22,8 @@ How one job runs:
     fails it after MAX_ATTEMPTS tries. The handler's `on_fail` then marks its own row
     (e.g. the roll import's status) in the same transaction as the job's `failed`.
 
-Handlers are registered by the modules of the later tasks: roll import (10.2),
-mobile numbers (10.5), exports (11.2). With none registered the worker only waits.
+Handlers are registered by their modules, imported in `load_handlers`: roll import
+(10.2, app/roll_match.py); later mobile numbers (10.5) and exports (11.2).
 """
 
 from __future__ import annotations
@@ -197,7 +197,13 @@ def run_forever(stop: threading.Event, handlers: Mapping[str, Handler] | None = 
             stop.wait(poll)
 
 
+def load_handlers() -> None:
+    """Import the modules that register handlers (they import this module, so not at the top)."""
+    from . import roll_match  # noqa: F401  roll_import (10.2)
+
+
 def main(argv: list[str] | None = None) -> int:
+    load_handlers()
     parser = argparse.ArgumentParser(description="JANSETU background worker")
     parser.add_argument("--once", action="store_true", help="run the jobs that are ready now, then stop")
     args = parser.parse_args(argv)

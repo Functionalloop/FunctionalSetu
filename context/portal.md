@@ -63,6 +63,7 @@ npm run check        # types, lint, tests, build, types current, no outside addr
 - Do not offer inactive colour tags (the white tag is off).
 - Kutumb view = `GET /booths/{id}/families` (`GET /families` is the walk list). No head.
 - Roll writes are super admin only; an admin reads imports and roll edits, so hide the buttons.
+- Roll import (10.2): POST answers 202 at once; poll `GET /rolls/imports/{id}` until `status` leaves `uploaded` / `parsing` (`review` or `failed`; `error` holds a plain message for the user). One open import per constituency: 409 `import_in_progress`. `counts` keys: matched, uncertain, possible_duplicate, absent_from_current_roll, new, unreadable, rows, to_review, reviewed. Rows with `match_status` null are unreadable (`match_notes` "unreadable: <reason>").
 - Show the `ward` level as "Village Panchayat"; no spelling fixes page, no bulk message.
 - `/masters/{list}` is served as one route per list (`/masters/castes`, `/masters/color-tags`, `/masters/custom-fields/{field_key}`, ...).
 

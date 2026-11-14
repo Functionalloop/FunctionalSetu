@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "JANSETU API",
-    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |\n| 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |\n| 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |\n| 409 | `user_limit` | users: the workspace has its limit of active users (200) |\n| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |\n| 409 | `name_taken` | lists: another entry has this Marathi name |\n| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
+    "description": "\nJANSETU API for the Android app and the web portal.\n\n**Auth.** `POST /auth/login` returns an access token (15 min) and a refresh token.\nSend `Authorization: Bearer <access_token>`. On `401 token_expired` call `/auth/refresh`;\neach refresh returns a new refresh token and the old one stops working.\n\n**Errors.** Every error is `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`. Codes so far:\n\n| Status | Code | Meaning |\n|---|---|---|\n| 400 | `wrong_current_password` | change-password: current password wrong |\n| 400 | `invalid_cursor` | list cursor is damaged; start again without it |\n| 401 | `invalid_credentials` | wrong workspace code, user ID or password |\n| 401 | `not_authenticated`, `invalid_token` | no / bad access token |\n| 401 | `token_expired` | call `/auth/refresh` |\n| 401 | `invalid_refresh_token` | log in again |\n| 401 | `session_ended` | logged out or ended by a password change; log in again |\n| 403 | `account_locked` | too many wrong passwords; try later |\n| 403 | `account_disabled`, `workspace_suspended` | access switched off |\n| 403 | `device_required` | surveyors / booth agents must log in from the app; sync push needs a phone login |\n| 403 | `device_pending` | phone waits for admin approval; poll `/devices/me` |\n| 403 | `device_blocked` | phone blocked: wipe local data |\n| 403 | `password_change_required` | call `/auth/change-password` first |\n| 403 | `forbidden_role` | role too low (also: an admin changing an admin or super admin) |\n| 403 | `own_account` | users: your own role, switch-off or password reset (use change-password) |\n| 404 | `not_found`, `no_device` | also returned for records outside your workspace or area |\n| 422 | `validation_error` (with `details`), `weak_password` | |\n| 409 | `version_conflict` (with `current` = the server copy) | stale `version` |\n| 409 | `id_in_use` | a phone-made id is already used by a record you cannot see; make a new id |\n| 409 | `username_taken`, `mobile_taken` | users: another user already has this user ID / mobile |\n| 409 | `user_limit` | users: the workspace has its limit of active users (200) |\n| 409 | `code_taken`, `constituency_limit` | constituencies: code used / limit of 5 active reached; colour tags: code used |\n| 409 | `name_taken` | lists: another entry has this Marathi name |\n| 409 | `import_in_progress` | roll import: this constituency has an import not yet applied or discarded |\n| 422 | `file_too_large`, `unsupported_file` | files: over 5 MB / not a PNG or JPEG; roll import: over 20 MB / not CSV or .xlsx |\n| 501 | `not_implemented` | in the contract, not built yet (the shapes are final) |\n\nIDs are UUIDs; dates are ISO 8601 UTC.\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -8534,133 +8534,6 @@
         }
       }
     },
-    "/api/v1/voters/{voter_id}/slip": {
-      "get": {
-        "tags": [
-          "field work"
-        ],
-        "summary": "The voter slip drawn by the server (for the portal). All roles.",
-        "operationId": "voter_slip",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "voter_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Voter Id"
-            }
-          },
-          {
-            "name": "format",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^(png|pdf)$",
-              "default": "png",
-              "title": "Format"
-            }
-          },
-          {
-            "name": "lang",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^(mr|en)$",
-              "default": "mr",
-              "title": "Lang"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The slip as a PNG image or a PDF",
-            "content": {
-              "image/png": {},
-              "application/pdf": {}
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not logged in or token expired",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Version conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/rolls/imports": {
       "post": {
         "tags": [
@@ -8746,16 +8619,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -8879,16 +8742,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         }
       }
@@ -8980,16 +8833,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -9144,16 +8987,6 @@
           },
           "422": {
             "description": "Invalid input",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not built yet (code not_implemented); the shapes are final",
             "content": {
               "application/json": {
                 "schema": {
@@ -10637,6 +10470,133 @@
                   "$ref": "#/components/schemas/MobileImport"
                 }
               }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in or token expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not built yet (code not_implemented); the shapes are final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voters/{voter_id}/slip": {
+      "get": {
+        "tags": [
+          "field work"
+        ],
+        "summary": "The voter slip drawn by the server (for the portal). All roles.",
+        "operationId": "voter_slip",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "voter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Voter Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(png|pdf)$",
+              "default": "png",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(mr|en)$",
+              "default": "mr",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The slip as a PNG image or a PDF",
+            "content": {
+              "image/png": {},
+              "application/pdf": {}
             }
           },
           "400": {
