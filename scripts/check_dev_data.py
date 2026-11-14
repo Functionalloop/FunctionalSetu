@@ -52,6 +52,7 @@ from app.routers.visits import write_visit  # noqa: E402
 from app import mobile_match  # noqa: E402
 from app.duplicates import find_pairs  # noqa: E402
 from app.routers.data_quality import data_quality_summary, duplicate_pairs  # noqa: E402
+from app.routers.reports import colour_tags, demographics, survey_progress, turnout_report  # noqa: E402
 from app.routers.roll_edits import add_voter, correct_voter, remove_voter, restore_voter, voter_roll_edits  # noqa: E402
 from app.routers.voters import get_voter_history, list_voters, read_survey, save_survey, voter_detail  # noqa: E402
 from app.schemas_roll import RemoveRestore, RollPatch, VoterAdd  # noqa: E402
@@ -693,6 +694,37 @@ def main() -> None:
             report(got.get("matched", 0) >= 200 and got.get("skipped") == 10 and ms < 60_000,
                    "mobile sheet of real names matched", f"{', '.join(f'{k} {v}' for k, v in sorted(got.items()))}; "
                                                          f"{ms / 1000:.1f} s")
+        finally:
+            trans.rollback()
+
+    # 11.1: the four reports on the real roll equal direct counts; turnout agrees with the polling-day
+    # summary. Read only (rolled back anyway); counts and timings only.
+    print("Reports (read only)")
+    with get_engine().connect() as conn:
+        trans = conn.begin()
+        try:
+            set_context(conn, tenant, admin.user_id)
+            for name, p, s in (("admin", admin, s_admin), ("supervisor", supervisor, s_sup)):
+                cond, params = s.filter("v.geo_path")
+                live, surveyed, males, active = conn.execute(text(f"""
+                    SELECT count(*), count(*) FILTER (WHERE s.is_surveyed), count(*) FILTER (WHERE v.gender = 'M'),
+                           count(*) FILTER (WHERE v.roll_status = 'active')
+                      FROM app.voters v LEFT JOIN app.voter_surveys s ON s.voter_id = v.id
+                     WHERE v.deleted_at IS NULL AND {cond}"""), params).one()
+                sp, ms1 = timed(lambda: survey_progress(conn, p, s))
+                ct, ms2 = timed(lambda: colour_tags(conn, p, s))
+                dm, ms3 = timed(lambda: demographics(conn, p, s))
+                tr, ms4 = timed(lambda: turnout_report(conn, p, s))
+                ts = turnout_summary(conn, p, s, None, None)
+                booths = [a for a in sp.by_area if a.level == "booth"]
+                ok = (sp.total == ct.total == dm.total == live and sp.surveyed == surveyed and dm.male == males
+                      and sum(a.total for a in booths) == live and sum(c.count for c in ct.by_tag) == live
+                      and sum(b.male + b.female + b.other for b in dm.age_bands) == live
+                      and tr.total == ts.total == active and tr.voted == ts.voted
+                      and max(ms1, ms2, ms3, ms4) < SLOW_PAGE_MS)
+                report(ok, f"reports equal direct counts ({name})",
+                       f"{live} voters, {surveyed} surveyed, {len(sp.by_area)} areas; progress {ms1:.0f} ms, "
+                       f"colour tags {ms2:.0f} ms, demographics {ms3:.0f} ms, turnout {ms4:.0f} ms")
         finally:
             trans.rollback()
 

@@ -237,10 +237,11 @@ class MobileRowResolution(BaseModel):
 class AreaCount(BaseModel):
     area_id: uuid.UUID
     name: str
-    level: str
+    level: str = Field(description="ward (Village Panchayat) or booth (part)")
     total: int
-    done: int
+    done: int = Field(description="Surveyed (survey progress) or voted (turnout)")
     percent: float
+    parent_id: uuid.UUID | None = Field(default=None, description="The area above (a booth's ward); added 11.1")
 
 
 class SurveyProgress(BaseModel):

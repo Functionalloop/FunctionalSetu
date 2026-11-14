@@ -226,6 +226,11 @@ ENDPOINTS: list[Endpoint] = [
     Endpoint("GET", "/mobile-imports/{import_id}", roles=ADMINS, target="mobile_import"),
     Endpoint("POST", "/mobile-imports/{import_id}/rows/{row_id}/resolve", roles=ADMINS, target="mobile_import",
              body={"voter_id": None}, works=False),  # row ids are the sheet's own: own tests
+    # reports (11.1); behaviour and the counts' isolation: test_reports.py
+    Endpoint("GET", "/reports/survey-progress", roles=SUPERVISORS, area_params=("ward_id",)),
+    Endpoint("GET", "/reports/colour-tags", roles=SUPERVISORS, area_params=("ward_id",)),
+    Endpoint("GET", "/reports/demographics", roles=SUPERVISORS, area_params=("ward_id", "booth_id")),
+    Endpoint("GET", "/reports/turnout", roles=SUPERVISORS, area_params=("ward_id",)),
 ] + [Endpoint(m, p, roles=r, level=lv, stub=True) for m, p, r, lv in [
     # --- contract only (4.10); roles from the API document's "Who" column ---------------------------
     # field work (7)
@@ -234,11 +239,7 @@ ENDPOINTS: list[Endpoint] = [
     # More menu (7.9)
     # admin (9)
     # roll and data quality (10); roll writes: super admin only (client, 12 Nov)
-    # reports and exports (11)
-    ("GET", "/reports/survey-progress", SUPERVISORS, "ready"),
-    ("GET", "/reports/colour-tags", SUPERVISORS, "ready"),
-    ("GET", "/reports/demographics", SUPERVISORS, "ready"),
-    ("GET", "/reports/turnout", SUPERVISORS, "ready"),
+    # exports (11.2)
     ("POST", "/exports", SUPERVISORS, "ready"),
     ("GET", "/exports/{export_id}", SUPERVISORS, "ready"),
     ("GET", "/exports/{export_id}/download", SUPERVISORS, "ready"),
